@@ -7,3 +7,4 @@ dist/
 .pi/loop/
 .pi/sessions/
 .vitest-report.json
+.wrangler/
