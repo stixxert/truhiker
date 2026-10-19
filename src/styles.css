@@ -12,7 +12,7 @@
   --line-strong: #2c3d40;
   --text: #e7efef;
   --muted: #91a6a9;
-  --muted-dim: #6b7f82;
+  --muted-dim: #82999c;
   --accent: #3ad9c4;
   --accent-strong: #6ff0dd;
   --accent-dim: #1c8f81;
@@ -262,6 +262,11 @@ input {
 .topbar-more-label,
 .editor-more-toggle,
 .editor-more-label {
+  display: none;
+}
+
+.topbar-more-label.btn,
+.editor-more-label.btn {
   display: none;
 }
 
@@ -553,8 +558,10 @@ input {
   font-family: inherit;
 }
 
-.maplibregl-canvas:focus {
-  outline: none;
+.maplibregl-canvas:focus-visible {
+  /* Inset, so the map's own overflow cannot clip the ring. */
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
 }
 
 .maplibregl-ctrl-scale {
@@ -1823,6 +1830,7 @@ input {
 }
 
 .supply-chip {
+  min-height: 24px;
   padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid var(--line-strong);
@@ -2620,6 +2628,7 @@ input {
   }
 
   .topbar-more-toggle {
+    display: block;
     position: absolute;
     width: 1px;
     height: 1px;
@@ -2629,7 +2638,7 @@ input {
     clip-path: inset(50%);
   }
 
-  .topbar-more-label {
+  .topbar-more-label.btn {
     display: inline-flex;
     order: 2;
     width: 40px;
@@ -2898,6 +2907,7 @@ input {
   }
 
   .editor-more-toggle {
+    display: block;
     position: absolute;
     width: 1px;
     height: 1px;
@@ -2907,7 +2917,7 @@ input {
     clip-path: inset(50%);
   }
 
-  .editor-more-label {
+  .editor-more-label.btn {
     display: inline-flex;
     width: 40px;
     padding: 0;
@@ -3070,6 +3080,7 @@ input {
   }
 
   .supply-chip {
+  min-height: 24px;
     min-height: 40px;
     padding: 0 13px;
     font-size: 13px;
