@@ -198,6 +198,33 @@ describe('acceptance: resupply corridor', () => {
     expect(start.gapDanger).toBe(true);
     expect(start.warning).not.toBeNull();
     expect(start.warning).toContain('Start shop');
+
+    // D3, surfaced: in mail-drop mode a post point is a scheduled drop with a
+    // pickup window, and the plan says when to post it. It used to be computed
+    // and then dropped by the adapter, so the UI promised nothing.
+    const mailTrip = {
+      ...tripValue,
+      profile: { ...tripValue.profile, support: 'mail-drops' as const, startDate: '2026-06-01' },
+    };
+    const mailPlan = planResupplyForTrip(mailTrip, [
+      ...candidates,
+      candidate('post', 'Post i butikk Dombås', GAP_ROUTE, 50_000, { hoursRecorded: true }),
+    ]);
+    expect(mailPlan.mailDrops.length).toBeGreaterThan(0);
+    const drop = mailPlan.mailDrops[0]!;
+    expect(drop.name).toContain('Post i butikk');
+    expect(drop.windowDays).toBeGreaterThan(0);
+    expect(drop.shipBy ?? drop.arrival).toBeDefined();
+    const mailView = buildResupplyView(
+      readyState(mailTrip, [
+        ...candidates,
+        candidate('post', 'Post i butikk Dombås', GAP_ROUTE, 50_000, { hoursRecorded: true }),
+      ]),
+      no,
+    );
+    expect(
+      mailView.warnings.some((w) => w.severity === 'info' && w.text.includes('Innlevering')),
+    ).toBe(true);
     expect(start.warning).toContain(kg);
     expect(end.gapDanger).toBe(false);
     expect(end.warning).toBeNull();

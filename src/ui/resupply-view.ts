@@ -317,7 +317,21 @@ function buildReady(
       : null,
     rows,
     legs,
-    warnings,
+    warnings: [
+      ...warnings,
+      // D3: a scheduled drop must be visible, with its pickup window. These are
+      // informational, not warnings, so they read as a plan rather than a problem.
+      ...plan.mailDrops.map((drop) => ({
+        severity: 'info' as const,
+        text: i18n.t('supply.mailDrop', {
+          name: drop.name,
+          arrival: drop.arrival ?? '—',
+          shipBy: drop.shipBy ?? '—',
+          notBefore: drop.notBefore ?? '—',
+          window: String(drop.windowDays),
+        }),
+      })),
+    ],
     engineWarnings: plan.warnings,
     totalsLabel: i18n.t('supply.totals', {
       kg: i18n.format.number(plan.totalFoodKg, { maximumFractionDigits: 1 }),

@@ -78,6 +78,19 @@ export interface ResupplyLeg {
 }
 
 /** The worst continuous stretch between usable resupply points. */
+/** A parcel or poste-restante drop, with its pickup window (D3). */
+export interface MailDropView {
+  readonly pointId: string;
+  readonly name: string;
+  readonly kind: 'post' | 'parcel' | 'poste-restante';
+  readonly dayIndex: number;
+  readonly arrival?: string;
+  readonly shipBy?: string;
+  readonly notBefore?: string;
+  readonly windowDays: number;
+  readonly warnings: readonly string[];
+}
+
 export interface ResupplyGap {
   readonly distanceM: number;
   readonly days: number;
@@ -107,6 +120,8 @@ export interface ResupplyPlan {
   readonly hutsSellFood: boolean;
   /** The candidates that actually count, in route order. */
   readonly resupplyPoints: readonly ResupplyCandidate[];
+  /** Empty unless the trip's support model is `mail-drops`. */
+  readonly mailDrops: readonly MailDropView[];
   readonly gap: ResupplyGap | null;
 }
 
@@ -510,6 +525,17 @@ export function planResupplyForTrip(
     maxCarryDays,
     hutsSellFood,
     resupplyPoints: foodCandidates,
+    mailDrops: plan.mailDrops.map((drop) => ({
+      pointId: drop.pointId,
+      name: byId.get(drop.pointId)?.name ?? drop.pointId,
+      kind: drop.kind,
+      dayIndex: drop.dayIndex,
+      ...(drop.arrival !== undefined ? { arrival: drop.arrival } : {}),
+      ...(drop.shipBy !== undefined ? { shipBy: drop.shipBy } : {}),
+      ...(drop.notBefore !== undefined ? { notBefore: drop.notBefore } : {}),
+      windowDays: drop.windowDays,
+      warnings: drop.warnings.map(warningText),
+    })),
     gap,
   };
 }

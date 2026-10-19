@@ -413,6 +413,8 @@ export const no = {
   'supply.countMany': '{count} punkter langs ruten',
   'supply.fetched': 'hentet {time}',
   'supply.indexLine': 'OpenStreetMap-uttrekk {date} · {count} punkt · ODbL 1.0',
+  'supply.mailDrop':
+    'Innlevering til {name}: ankomst {arrival}, send mellom {notBefore} og {shipBy} (hentefrist {window} døgn).',
   'supply.worstGap': 'Lengste strekning uten forsyning: {distance} · {days}',
   'supply.hutsFailed':
     'Hytter kunne ikke hentes ({message}). Butikkene under er komplette, men hytter mangler i oversikten.',

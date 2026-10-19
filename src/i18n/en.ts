@@ -411,6 +411,8 @@ export const en: Record<MessageKey, string> = {
   'supply.countMany': '{count} points along the route',
   'supply.fetched': 'fetched {time}',
   'supply.indexLine': 'OpenStreetMap extract {date} · {count} points · ODbL 1.0',
+  'supply.mailDrop':
+    'Drop for {name}: arrives {arrival}, post between {notBefore} and {shipBy} (pickup window {window} days).',
   'supply.worstGap': 'Longest stretch without resupply: {distance} · {days}',
   'supply.hutsFailed':
     'Huts could not be fetched ({message}). The shops below are complete, but huts are missing from the list.',
