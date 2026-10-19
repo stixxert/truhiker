@@ -349,7 +349,7 @@ export const no = {
   'map.zoomIn': 'Zoom inn',
   'map.zoomOut': 'Zoom ut',
   'map.resetNorth': 'Rett kartet mot nord',
-  'about.shortDisclaimer': 'Planleggingsverktøy – verifiser på bakken',
+  'about.shortDisclaimer': 'Planleggingsverktøy',
 
   'units.metre': 'm',
   'units.metresAboveSea': 'moh',
@@ -360,9 +360,9 @@ export const no = {
   'units.grade': '{value} %',
 
   'about.title': 'Om data og bruk',
-  'about.disclaimerTitle': 'Planleggingsverktøy – ikke navigasjon',
+  'about.disclaimerTitle': 'Ikke et navigasjonsverktøy',
   'about.disclaimer':
-    'Dette er et planleggingsverktøy. Forholdene på bakken må alltid verifiseres: vær, snø, elvekryssinger og stengsler endrer seg. Appen er ikke et navigasjonshjelpemiddel, og tallene er estimater.',
+    'Tallene er estimater. Vær, snø, elvekryssinger og stengsler endrer seg, og må sjekkes før du går.',
   'about.dataTitle': 'Datakilder',
   'about.kartverket': 'Bakgrunnskart og høydedata: Kartverket (topo, DTM), CC BY 4.0.',
   'about.mapterhorn': '3D-terreng: Mapterhorn, avledet av Kartverkets høydedata.',

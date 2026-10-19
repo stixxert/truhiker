@@ -348,7 +348,7 @@ export const en: Record<MessageKey, string> = {
   'map.zoomIn': 'Zoom in',
   'map.zoomOut': 'Zoom out',
   'map.resetNorth': 'Reset the map to north',
-  'about.shortDisclaimer': 'Planning aid — verify on the ground',
+  'about.shortDisclaimer': 'Planning tool',
 
   'units.metre': 'm',
   'units.metresAboveSea': 'm a.s.l.',
@@ -359,9 +359,9 @@ export const en: Record<MessageKey, string> = {
   'units.grade': '{value} %',
 
   'about.title': 'About data and use',
-  'about.disclaimerTitle': 'A planning aid — not navigation',
+  'about.disclaimerTitle': 'Not a navigation device',
   'about.disclaimer':
-    'This is a planning aid. Conditions on the ground must always be verified: weather, snow, river crossings and closures change. The app is not a navigation device, and the numbers are estimates.',
+    'The numbers are estimates. Weather, snow, river crossings and closures change, and must be checked before you go.',
   'about.dataTitle': 'Data sources',
   'about.kartverket': 'Basemap and elevation: Kartverket (topo, DTM), CC BY 4.0.',
   'about.mapterhorn': '3D terrain: Mapterhorn, derived from Kartverket elevation data.',
