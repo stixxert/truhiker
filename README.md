@@ -103,3 +103,10 @@ Kartverket Turrutebasen, CC BY 4.0, maintained by DNT Oslo og omegn.
 The resupply data is a derivative database of OpenStreetMap, published under ODbL
 1.0 and offered for download from this repository's releases. Neither UT.no,
 Wikiloc, AllTrails nor Outdooractive content is used or redistributed.
+
+## How it was built
+
+With an AI coding agent working against a written specification. The checks in
+`tools/verify/` are what made that safe: a licence audit, a check that every
+documented default still exists, a hermetic test suite, a headless render under the
+production CSP, and a deploy dry run. `npm run verify` runs them all.
