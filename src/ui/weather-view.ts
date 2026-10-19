@@ -14,7 +14,7 @@
  */
 
 import type { UserProfile, WeatherPlan, WeatherSample, WeatherWarning } from '../contracts';
-import type { I18n, MessageKey } from '../i18n';
+import { formatClock, type I18n, type MessageKey } from '../i18n';
 import { weatherSymbolFamily, type WeatherSymbolFamily } from '../lib/weather-symbol';
 
 export type WeatherPanelState =
@@ -114,12 +114,12 @@ export function parseDateLabel(date: string, i18n: WeatherI18n): string {
   }).format(value);
 }
 
-/** `HH:MM` for an ISO timestamp; empty when the timestamp is unusable. */
+/**
+ * `HH:MM` in Europe/Oslo for an ISO timestamp; empty when it is unusable.
+ * A MET issue time is a Norwegian forecast time, not the device's (D8).
+ */
 export function timeLabel(iso: string | undefined, locale: string): string {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (!Number.isFinite(date.getTime())) return '';
-  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date);
+  return formatClock(iso, locale);
 }
 
 function temperatureLabel(tempC: number | undefined, i18n: WeatherI18n): string | null {

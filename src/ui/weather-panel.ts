@@ -23,6 +23,8 @@ export interface WeatherPanelHandlers {
   onSettings: () => void;
   onOpenRoute: () => void;
   onClose: () => void;
+  /** Escape closed the panel; the app returns focus to the trigger button. */
+  onEscape?: () => void;
 }
 
 export class WeatherPanel {
@@ -43,6 +45,8 @@ export class WeatherPanel {
   private last: { state: WeatherPanelState; profile: UserProfile | null; horizonDays: number } | null =
     null;
   private actionKind: WeatherViewModel['action'] = 'none';
+  /** Where focus was when the panel opened, so `hide()` can put it back. */
+  private returnFocus: HTMLElement | null = null;
 
   constructor(root: HTMLElement, i18n: I18n, handlers: WeatherPanelHandlers) {
     this.root = root;
@@ -66,6 +70,13 @@ export class WeatherPanel {
       else if (this.actionKind === 'refresh') this.handlers.onRefresh();
       else if (this.actionKind === 'open-route') this.handlers.onOpenRoute();
     });
+    // The supply panel closes on Escape; this one must not be the exception.
+    this.root.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      event.preventDefault();
+      this.handlers.onClose();
+      this.handlers.onEscape?.();
+    });
   }
 
   get isOpen(): boolean {
@@ -73,11 +84,28 @@ export class WeatherPanel {
   }
 
   show(): void {
+    if (this.root.hidden) {
+      const active = this.root.ownerDocument.activeElement;
+      this.returnFocus = active instanceof HTMLElement ? active : null;
+    }
     this.root.hidden = false;
+    // Take the keyboard: the panel closes on Escape, and a keydown only reaches
+    // it when focus is inside. `hide()` puts focus back where it came from.
+    this.close.focus();
   }
 
   hide(): void {
+    const wasOpen = !this.root.hidden;
     this.root.hidden = true;
+    // A hidden panel must not keep the keyboard: return it to the trigger, or a
+    // screen-reader user is left with focus on an invisible element.
+    if (wasOpen) this.restoreFocus();
+  }
+
+  private restoreFocus(): void {
+    const target = this.returnFocus;
+    this.returnFocus = null;
+    if (target && target.isConnected) target.focus();
   }
 
   toggle(): void {

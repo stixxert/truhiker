@@ -88,6 +88,11 @@ export interface EnergyViewModel {
   readonly message: string | null;
   readonly detail: string | null;
   readonly action: 'none' | 'settings' | 'open-route';
+  /**
+   * The badge for a body nobody entered (B3): the numbers are computed from
+   * `defaultProfile()`, and saying so is the only honest thing to do.
+   */
+  readonly profileNotice: string | null;
   /** The one sentence that matters: unavoidable, or not. */
   readonly headline: string;
   readonly headlineBody: string | null;
@@ -122,6 +127,51 @@ export interface EnergyViewModel {
 }
 
 type ViewI18n = Pick<I18n, 't' | 'locale' | 'format'>;
+
+/** Extra inputs the panel needs to describe the inputs it was given. */
+export interface EnergyViewOptions {
+  /** The profile the numbers were computed from (the trip's own profile). */
+  readonly profile?: UserProfile | null;
+  /** `defaultProfile()` for this build; equality means the body was never entered. */
+  readonly defaults?: UserProfile | null;
+}
+
+/**
+ * True when the *body* is still the built-in placeholder.
+ *
+ * Only the body fields count: daily distance and start date are trip settings a
+ * user reaches for first, and changing one of those does not mean the mass,
+ * height and age were ever entered. `defaultProfile()` is 75 kg / 178 cm / 35 y
+ * / male, and every energy number is derived from exactly those.
+ */
+export function isPlaceholderBody(profile: UserProfile, defaults: UserProfile): boolean {
+  return (
+    profile.massKg === defaults.massKg &&
+    profile.heightCm === defaults.heightCm &&
+    profile.ageYears === defaults.ageYears &&
+    profile.sex === defaults.sex &&
+    profile.bodyFatPercent === defaults.bodyFatPercent
+  );
+}
+
+/**
+ * The visible badge sentence for a placeholder body, or `null` when the profile
+ * is the user's own. Used by the energy panel and the stats bar, so the two
+ * cannot word the same caveat differently.
+ */
+export function placeholderProfileNotice(
+  profile: UserProfile | null | undefined,
+  defaults: UserProfile | null | undefined,
+  i18n: ViewI18n,
+): string | null {
+  if (!profile || !defaults) return null;
+  if (!isPlaceholderBody(profile, defaults)) return null;
+  return i18n.t('energy.placeholderProfile', {
+    mass: i18n.format.number(profile.massKg, { maximumFractionDigits: 0 }),
+    height: i18n.format.number(profile.heightCm, { maximumFractionDigits: 0 }),
+    age: i18n.format.number(profile.ageYears, { maximumFractionDigits: 0 }),
+  });
+}
 
 const BMR_KEYS: Record<BmrEquation, MessageKey> = {
   'mifflin-st-jeor': 'energy.equation.mifflin',
@@ -210,12 +260,18 @@ export function computeEnergyModel(inputs: EnergyInputs): EnergyModel | null {
   };
 }
 
-export function buildEnergyView(state: EnergyPanelState, i18n: ViewI18n): EnergyViewModel {
+export function buildEnergyView(
+  state: EnergyPanelState,
+  i18n: ViewI18n,
+  options: EnergyViewOptions = {},
+): EnergyViewModel {
+  const profileNotice = placeholderProfileNotice(options.profile, options.defaults, i18n);
   const shell = (): EnergyViewModel => ({
     state: 'message',
     message: null,
     detail: null,
     action: 'none',
+    profileNotice,
     headline: '',
     headlineBody: null,
     unsustainable: false,

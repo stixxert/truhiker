@@ -18,7 +18,7 @@
  */
 
 import type { LonLat } from '../core/geo';
-import type { I18n, MessageKey } from '../i18n';
+import { formatClock, formatDay, type I18n, type MessageKey } from '../i18n';
 import type { ResupplyCandidate, ResupplyLeg, ResupplyPlan } from '../resupply';
 
 /** Everything a successful corridor query produced, plus its provenance. */
@@ -65,6 +65,12 @@ export interface ResupplyRowView {
   readonly warning: string | null;
   /** "ikke bekreftet", "ubemannet", "åpningstid ukjent" — never "åpen". */
   readonly badges: readonly string[];
+  /**
+   * Where to check a fact this app cannot confirm (D1: DNT for a hut), or
+   * `null` when the row carries no unverifiable claim. Rendered as a link.
+   */
+  readonly checkUrl: string | null;
+  readonly checkLabel: string | null;
   /** False for huts, unmanned fuel and post points under carry-all. */
   readonly countsAsFood: boolean;
   /** "OSM/ODbL" or "Turrutebasen (CC BY 4.0)". */
@@ -136,6 +142,9 @@ function candidateKey(candidate: ResupplyCandidate): string {
 }
 
 function daysLabel(days: number, i18n: ViewI18n): string {
+  // A sub-hour leg is not "0 d": rounding to one decimal would print zero days
+  // and read as "no gap" where there is a short one. Say "< 0,1 d" instead.
+  if (days > 0 && days < 0.05) return i18n.t('supply.dayValueUnderTenth');
   return i18n.t('supply.dayValue', {
     value: i18n.format.number(days, { maximumFractionDigits: 1 }),
   });
@@ -170,8 +179,18 @@ function badgesFor(candidate: ResupplyCandidate, i18n: ViewI18n): string[] {
   return badges;
 }
 
+const DNT_HUTS_URL = 'https://www.dnt.no/hytter/';
+
 /** The leg whose span contains `alongM` (the plan's legs are contiguous). */
 function legAt(plan: ResupplyPlan, alongM: number): ResupplyLeg | null {
+  // The warning belongs to the leg that **starts** here: that is the stretch the
+  // point supplies food for. Returning the first containing leg instead picks
+  // the leg that *ends* here, so a shop with a 7-day carry ahead showed no
+  // warning while the last shop before the finish was flagged critical.
+  const starting = plan.legs.find((leg) => Math.abs(leg.from.alongRouteM - alongM) <= 1);
+  if (starting) return starting;
+  // Not an anchor (a hut, an unmanned pump, a post point under carry-all): the
+  // containing leg is the only leg it can belong to.
   for (const leg of plan.legs) {
     if (alongM >= leg.from.alongRouteM - 1 && alongM <= leg.to.alongRouteM + 1) return leg;
   }
@@ -269,9 +288,9 @@ function buildReady(
     rows.length === 1 ? 'supply.countOne' : 'supply.countMany',
     { count: i18n.format.number(rows.length, { maximumFractionDigits: 0 }) },
   );
-  const fetchedTime = timeOf(data.fetchedAt, i18n.locale);
+  const fetchedTime = formatClock(data.fetchedAt, i18n.locale);
 
-  const indexDate = dayOf(data.indexBuiltAt, i18n.locale);
+  const indexDate = formatDay(data.indexBuiltAt, i18n.locale);
   const indexLabel = i18n.t('supply.indexLine', {
     date: indexDate,
     count: i18n.format.number(data.indexCount, { maximumFractionDigits: 0 }),
@@ -350,6 +369,9 @@ function buildRow(
           days: daysLabel(daysToNext, i18n),
         });
   const badges = badgesFor(candidate, i18n);
+  // D1: a hut's food status is only checkable at DNT. Every other row is a
+  // bundled fact with its provenance already shown.
+  const checkUrl = candidate.kind === 'hut' ? DNT_HUTS_URL : null;
 
   return {
     id: candidateKey(candidate),
@@ -364,6 +386,8 @@ function buildRow(
     gapDanger,
     warning,
     badges,
+    checkUrl,
+    checkLabel: checkUrl === null ? null : i18n.t('supply.checkDnt'),
     countsAsFood,
     provenanceLabel: provenanceOf(candidate, i18n),
     ariaLabel: i18n.t('supply.rowAria', {
@@ -377,7 +401,18 @@ function buildRow(
 }
 
 function buildLeg(leg: ResupplyLeg, maxCarryDays: number, i18n: ViewI18n): ResupplyLegView {
-  const title = i18n.t('supply.legTitle', { from: leg.from.name, to: leg.to.name });
+  // The plan's boundary anchors are named 'Start'/'End' in English, and place
+  // names are never translated (D8) — but these two are words, not places.
+  const anchorName = (anchor: ResupplyLeg['from']): string =>
+    anchor.kind === 'start'
+      ? i18n.t('supply.anchorStart')
+      : anchor.kind === 'end'
+        ? i18n.t('supply.anchorEnd')
+        : anchor.name;
+  const title = i18n.t('supply.legTitle', {
+    from: anchorName(leg.from),
+    to: anchorName(leg.to),
+  });
   const numbersLabel = i18n.t('supply.legNumbers', {
     distance: i18n.format.distance(leg.distanceM),
     days: daysLabel(leg.days, i18n),
@@ -505,20 +540,4 @@ function listOf(names: readonly string[], i18n: ViewI18n): string {
 function firstLine(message: string): string {
   const line = message.split('\n')[0].trim();
   return line.length > 140 ? `${line.slice(0, 137)}…` : line;
-}
-
-function timeOf(iso: string, locale: string): string {
-  const date = new Date(iso);
-  if (!Number.isFinite(date.getTime())) return '';
-  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date);
-}
-
-function dayOf(iso: string, locale: string): string {
-  const date = new Date(iso);
-  if (!Number.isFinite(date.getTime())) return iso;
-  return new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
 }

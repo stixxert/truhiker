@@ -130,6 +130,13 @@ describe('resupply view — honesty', () => {
     expect(fuel.badges).toContain('ubemannet');
     expect(fuel.countsAsFood).toBe(false);
     expect(view.warnings.some((warning) => warning.text.includes('Ubemannet'))).toBe(true);
+
+    // D1: the hut's unconfirmed status comes with a place to check it. A shop is
+    // a bundled fact with its provenance already shown, so it gets no link.
+    expect(hut.checkUrl).toBe('https://www.dnt.no/hytter/');
+    expect(hut.checkLabel).toBe('Sjekk hos DNT');
+    expect(withHours.checkUrl).toBeNull();
+    expect(withHours.checkLabel).toBeNull();
   });
 
   it('attaches the plan’s carry warning to the leg, in both languages', () => {
@@ -145,8 +152,14 @@ describe('resupply view — honesty', () => {
     expect(view.worstGapDanger).toBe(true);
     expect(view.totalsLabel).toContain('kg mat');
 
+    // The plan's boundary anchors are named 'Start'/'End'; those are words, not
+    // place names, so they are translated (D8 translates the UI, not the places).
+    expect(view.legs[0].title.startsWith('Start →')).toBe(true);
+    expect(view.legs[view.legs.length - 1].title).toContain('Slutt');
+
     const english = buildResupplyView(ready(candidates), en);
     expect(english.legs.find((leg) => leg.danger)!.carryWarning).toContain('Carry');
+    expect(english.legs[english.legs.length - 1].title).toContain('End');
     expect(english.rows[0].badges.join(' ')).toMatch(/hours/);
     // The engine's own sentences are kept verbatim, for traceability.
     expect(view.engineWarnings.length).toBeGreaterThan(0);

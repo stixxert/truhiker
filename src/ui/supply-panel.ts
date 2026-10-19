@@ -73,6 +73,10 @@ export class SupplyPanel {
   private readonly energyMessage: HTMLElement;
   private readonly energyMessageText: HTMLElement;
   private readonly energyAction: HTMLButtonElement;
+  /** B3: the badge for numbers computed from the default body. */
+  private readonly energyNotice: HTMLElement;
+  private readonly energyNoticeText: HTMLElement;
+  private readonly energyNoticeButton: HTMLButtonElement;
   private readonly energyHeadline: HTMLElement;
   private readonly energyBody: HTMLElement;
   private readonly energyChartWrap: HTMLElement;
@@ -150,6 +154,24 @@ export class SupplyPanel {
     this.energyMessage = q('energy-message');
     this.energyMessageText = q('energy-message-text');
     this.energyAction = q<HTMLButtonElement>('energy-action');
+
+    // Built here rather than in index.html: it only exists while the numbers
+    // come from the built-in default body (B3). The panel is not hidden for
+    // it — it is labelled, in place, with the button that fixes it.
+    const doc = this.sections.energy.ownerDocument;
+    this.energyNotice = doc.createElement('div');
+    this.energyNotice.className = 'energy-notice';
+    this.energyNotice.hidden = true;
+    this.energyNotice.setAttribute('role', 'status');
+    this.energyNoticeText = doc.createElement('span');
+    this.energyNoticeText.className = 'energy-notice-text';
+    this.energyNoticeButton = doc.createElement('button');
+    this.energyNoticeButton.type = 'button';
+    this.energyNoticeButton.className = 'btn btn-small';
+    this.energyNoticeButton.textContent = i18n.t('energy.setOwnNumbers');
+    this.energyNoticeButton.addEventListener('click', () => this.handlers.onSettings());
+    this.energyNotice.append(this.energyNoticeText, this.energyNoticeButton);
+    this.sections.energy.prepend(this.energyNotice);
     this.energyHeadline = q('energy-headline');
     this.energyBody = q('energy-headline-body');
     this.energyChartWrap = q('energy-chart-wrap');
@@ -430,6 +452,19 @@ export class SupplyPanel {
         warning.textContent = row.warning;
         item.append(warning);
       }
+
+      // D1: "ikke bekreftet" is only honest if the user can check it. The link
+      // sits outside the row button (a link inside a button is not clickable)
+      // and opens in a new tab with no opener and no referrer.
+      if (row.checkUrl !== null) {
+        const check = doc.createElement('a');
+        check.className = 'supply-check';
+        check.href = row.checkUrl;
+        check.target = '_blank';
+        check.rel = 'noopener noreferrer';
+        check.textContent = row.checkLabel ?? row.checkUrl;
+        item.append(check);
+      }
       this.pointList.append(item);
     }
   }
@@ -513,6 +548,11 @@ export class SupplyPanel {
   renderEnergy(view: EnergyViewModel): void {
     this.root.dataset.energyState = view.state;
     this.setMessage(this.energyMessage, this.energyMessageText, this.energyAction, view);
+
+    // The placeholder-body badge, always re-stated, in the current language.
+    this.energyNotice.hidden = view.profileNotice === null;
+    this.energyNoticeText.textContent = view.profileNotice ?? '';
+    this.energyNoticeButton.textContent = this.i18n.t('energy.setOwnNumbers');
 
     this.energyRangeTitle.textContent = view.rangeTitle;
     this.assumptionsTitle.textContent = view.assumptionsTitle;

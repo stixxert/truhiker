@@ -42,6 +42,7 @@ import {
 import { nearestRoutePoint, pointAtDistance } from '../lib/sync';
 import {
   createI18n,
+  formatClockAt,
   readStoredLang,
   resolveLang,
   storeLang,
@@ -70,11 +71,12 @@ import {
   DEFAULT_FOOD_KCAL_PER_G,
   buildEnergyView,
   computeEnergyModel,
+  placeholderProfileNotice,
   type EnergyAssumptions,
   type EnergyPanelState,
 } from '../ui/energy-view';
 import { SupplyService } from './supply-service';
-import { planResupplyForTrip } from '../resupply';
+import { loadShopIndex, planResupplyForTrip } from '../resupply';
 import { TripLibraryDialog } from '../ui/trip-library';
 import { TripSettingsDialog } from '../ui/trip-settings';
 import { EditorToolbar, type EditorAction } from '../ui/editor-toolbar';
@@ -119,6 +121,22 @@ const ZOOM_STEP = 1;
 
 type ProfileStatus = 'empty' | 'loading' | 'ready' | 'error';
 type ProfileErrorKind = 'dem' | 'scope';
+
+/**
+ * `fetch` that resolves an app-absolute path against `document.baseURI`.
+ *
+ * The bundled shop index is requested as `/data/shops.osm.bin`; on a host that
+ * serves the app from a sub-path, that absolute path points at the domain root
+ * and 404s. Everything else passes through untouched.
+ */
+function baseAwareFetch(fetchImpl: typeof fetch): typeof fetch {
+  return (input, init) => {
+    if (typeof input === 'string' && input.startsWith('/')) {
+      return fetchImpl(new URL(input.replace(/^\//, ''), document.baseURI).toString(), init);
+    }
+    return fetchImpl(input, init);
+  };
+}
 
 interface AppState {
   route: Route | null;
@@ -394,7 +412,9 @@ export class App {
       this.i18n,
       { onCursor: (distance, source) => this.handleChartCursor(distance, source) },
     );
-    this.stats = new StatsBar(this.elements.stats, this.i18n);
+    this.stats = new StatsBar(this.elements.stats, this.i18n, {
+      onSetOwnNumbers: () => this.openSettings(),
+    });
 
     await this.initPhase3();
 
@@ -472,6 +492,10 @@ export class App {
       kind: 'warning',
       message: this.i18n.t('storage.fallback'),
       detail: info.problem ?? undefined,
+      retext: () => ({
+        message: this.i18n.t('storage.fallback'),
+        detail: info.problem ?? null,
+      }),
     });
   }
 
@@ -506,9 +530,16 @@ export class App {
       onSettings: () => this.openSettings(),
       onOpenRoute: () => this.openFilePicker(),
       onClose: () => this.hideWeatherPanel(),
+      onEscape: () => this.elements.weatherButton.focus(),
     });
 
-    this.supplyService = new SupplyService({ fetchImpl: window.fetch.bind(window) });
+    this.supplyService = new SupplyService({
+      fetchImpl: window.fetch.bind(window),
+      // `SHOP_INDEX_PATH` is app-absolute ('/data/shops.osm.bin'); resolve it
+      // against the page's base so a deployment under a sub-path still finds
+      // the bundled file instead of a 404 at the domain root.
+      loadIndex: (fetchImpl) => loadShopIndex(baseAwareFetch(fetchImpl)),
+    });
     this.supplyPanel = new SupplyPanel(this.elements.supplyPanel, this.i18n, {
       onClose: () => this.hideSupplyPanel(),
       onRefresh: () => void this.refreshSupply(true),
@@ -563,6 +594,11 @@ export class App {
         message: this.i18n.t('banner.enginesMissing'),
         detail: result.error ?? undefined,
         action: { label: this.i18n.t('action.retry'), onClick: () => window.location.reload() },
+        retext: () => ({
+          message: this.i18n.t('banner.enginesMissing'),
+          detail: result.error ?? null,
+          actionLabel: this.i18n.t('action.retry'),
+        }),
       });
       for (const button of [
         this.elements.tripsButton,
@@ -592,12 +628,14 @@ export class App {
       void this.announceStorageBackend();
     } catch (error) {
       this.engines = null;
-      this.engineError = messageOf(error);
+      const reason = messageOf(error);
+      this.engineError = reason;
       this.banners.show({
         id: 'engines-missing',
         kind: 'error',
         message: this.i18n.t('banner.enginesMissing'),
-        detail: messageOf(error),
+        detail: reason,
+        retext: () => ({ message: this.i18n.t('banner.enginesMissing'), detail: reason }),
       });
     }
 
@@ -695,7 +733,9 @@ export class App {
           detail: detail ?? undefined,
         });
       }
-    } else if (this.lastSaveBanner !== null) {
+    } else {
+      // Always dismiss: the banner is a state, and this is the only place that
+      // knows the state changed. A no-op when nothing is on screen.
       this.lastSaveBanner = null;
       this.banners.dismiss('trip-save');
     }
@@ -729,11 +769,15 @@ export class App {
     try {
       trip = engines.tripFromPoints(points, name, profile);
     } catch (error) {
+      const reason = messageOf(error);
+      const text = (): string =>
+        this.i18n.t('banner.tripBuildFailed', { message: briefError(reason) });
       this.banners.show({
         id: 'trip-build',
         kind: 'error',
-        message: this.i18n.t('banner.tripBuildFailed', { message: briefError(messageOf(error)) }),
-        detail: messageOf(error),
+        message: text(),
+        detail: reason,
+        retext: () => ({ message: text(), detail: reason }),
       });
       return;
     }
@@ -745,11 +789,13 @@ export class App {
 
   private openTripLibrary(): void {
     if (!this.engines) {
+      const reason = this.engineError;
       this.banners.show({
         id: 'trips-unavailable',
         kind: 'warning',
         message: this.i18n.t('trips.engineMissing'),
-        detail: this.engineError ?? undefined,
+        detail: reason ?? undefined,
+        retext: () => ({ message: this.i18n.t('trips.engineMissing'), detail: reason }),
       });
       return;
     }
@@ -832,6 +878,7 @@ export class App {
     this.renderSaveStatus();
     this.updateRouteMeta();
     this.scheduleOffTrail();
+    this.resetWeatherForTrip();
     this.showToast(this.i18n.t('route.loaded', { name: trip.name }));
   }
 
@@ -863,6 +910,7 @@ export class App {
       this.renderEditor();
       this.renderSaveStatus();
       this.updateRouteMeta();
+      this.resetWeatherForTrip();
     }
   }
 
@@ -909,7 +957,8 @@ export class App {
     this.updateRouteMeta();
     this.renderEditor();
     this.renderSaveStatus();
-    this.renderWeather();
+    // There is no trip any more: no forecast can belong to it.
+    this.resetWeatherForTrip();
   }
 
   private async exportSavedTrip(id: string, format: 'gpx' | 'geojson'): Promise<void> {
@@ -942,18 +991,15 @@ export class App {
       return;
     }
     if (file.size > MAX_FILE_BYTES) {
-      this.banners.show({
-        id: 'file-too-large',
-        kind: 'error',
-        message: this.i18n.t('banner.fileTooLarge', {
-          size: this.i18n.format.number(file.size / (1024 * 1024), { maximumFractionDigits: 1 }),
-          max: this.i18n.format.number(MAX_FILE_BYTES / (1024 * 1024), { maximumFractionDigits: 0 }),
-        }),
-      });
+      this.showFileTooLarge(file.size);
       return;
     }
-    const text = await file.text();
+    let text = '';
     try {
+      // Reading the file can fail (the file was moved, the stream was cut):
+      // that rejection must land in the same visible banner as a parse error,
+      // not escape as an unhandled promise the user never sees.
+      text = await file.text();
       const trip = await session.importFile(text, file.name);
       this.banners.dismiss('import-failed');
       this.editorUi = initialEditorState(trip, this.editorUi.snapping);
@@ -964,19 +1010,42 @@ export class App {
       this.renderEditor();
       this.renderSaveStatus();
       this.renderTrips();
+      this.resetWeatherForTrip();
       this.showToast(this.i18n.t('trips.imported', { name: trip.name }));
     } catch (error) {
-      this.banners.show({
-        id: 'import-failed',
-        kind: 'error',
-        message: this.i18n.t('banner.importFailed', {
-          message: storeErrorText(error, this.i18n),
-        }),
-        detail: storeErrorDetail(error) ?? undefined,
-      });
+      this.showImportFailed(error);
       // The map and profile do not depend on the store: show the route anyway.
-      if (error instanceof StoreError) await this.loadGpxText(text, 'file', file.name);
+      if (error instanceof StoreError && text.length > 0) {
+        await this.loadGpxText(text, 'file', file.name);
+      }
     }
+  }
+
+  /** The two import banners, in one place so a language change can re-word them. */
+  private showFileTooLarge(bytes: number): void {
+    const text = (): string =>
+      this.i18n.t('banner.fileTooLarge', {
+        size: this.i18n.format.number(bytes / (1024 * 1024), { maximumFractionDigits: 1 }),
+        max: this.i18n.format.number(MAX_FILE_BYTES / (1024 * 1024), { maximumFractionDigits: 0 }),
+      });
+    this.banners.show({
+      id: 'file-too-large',
+      kind: 'error',
+      message: text(),
+      retext: () => ({ message: text() }),
+    });
+  }
+
+  private showImportFailed(error: unknown): void {
+    const text = (): string =>
+      this.i18n.t('banner.importFailed', { message: storeErrorText(error, this.i18n) });
+    this.banners.show({
+      id: 'import-failed',
+      kind: 'error',
+      message: text(),
+      detail: storeErrorDetail(error) ?? undefined,
+      retext: () => ({ message: text(), detail: storeErrorDetail(error) }),
+    });
   }
 
   /**
@@ -1024,7 +1093,7 @@ export class App {
     this.offTrailLabels = [];
     this.renderTrips();
     this.renderSaveStatus();
-    this.renderWeather();
+    this.resetWeatherForTrip();
   }
 
   private safeFileName(name: string, extension: string): string {
@@ -1053,11 +1122,13 @@ export class App {
 
   private openSettings(focus?: 'startDate' | 'dailyKm'): void {
     if (!this.engines) {
+      const reason = this.engineError;
       this.banners.show({
         id: 'settings-unavailable',
         kind: 'warning',
         message: this.i18n.t('settings.engineMissing'),
-        detail: this.engineError ?? undefined,
+        detail: reason ?? undefined,
+        retext: () => ({ message: this.i18n.t('settings.engineMissing'), detail: reason }),
       });
       return;
     }
@@ -1103,6 +1174,18 @@ export class App {
       this.session?.trip?.profile ?? null,
       this.horizonDays,
     );
+  }
+
+  /**
+   * A different trip (or no trip) is now open: the forecast on screen was about
+   * another route. Never leave it there with the trip name changed.
+   */
+  private resetWeatherForTrip(): void {
+    // Invalidate an in-flight fetch as well, or it lands on the new trip.
+    this.weatherToken += 1;
+    this.weatherState = { kind: 'no-trip' };
+    this.renderWeather();
+    if (this.weatherPanel?.isOpen) void this.refreshWeather();
   }
 
   private async refreshWeather(): Promise<void> {
@@ -1335,8 +1418,32 @@ export class App {
     return { kind: 'ready', model };
   }
 
+  /**
+   * The badge for numbers computed from the built-in default body (B3).
+   *
+   * `defaultProfile()` satisfies every guard in the energy model, so a first
+   * visitor would otherwise be told "you can eat enough" for a body they never
+   * entered. The panel stays usable; it is labelled, and the label carries the
+   * button that opens the settings dialog.
+   */
+  private profileNotice(): string | null {
+    const engines = this.engines;
+    if (!engines) return null;
+    return placeholderProfileNotice(
+      this.session?.trip?.profile ?? null,
+      engines.defaultProfile(),
+      this.i18n,
+    );
+  }
+
   private renderEnergy(): void {
-    this.supplyPanel?.renderEnergy(buildEnergyView(this.energyState(), this.i18n));
+    const profile = this.session?.trip?.profile ?? null;
+    const defaults = this.engines?.defaultProfile() ?? null;
+    // The bar and the tab carry the same caveat, worded once (B3).
+    this.stats.setProfileNotice(placeholderProfileNotice(profile, defaults, this.i18n));
+    this.supplyPanel?.renderEnergy(
+      buildEnergyView(this.energyState(), this.i18n, { profile, defaults }),
+    );
   }
 
   /** Everything a resupply plan depends on, in one comparable string. */
@@ -1566,11 +1673,15 @@ export class App {
         snapIndex: service.index,
       });
     } catch (error) {
+      const reason = messageOf(error);
+      const text = (): string =>
+        this.i18n.t('banner.tripSaveFailed', { message: briefError(reason) });
       this.banners.show({
         id: 'reroute-failed',
         kind: 'error',
-        message: this.i18n.t('banner.tripSaveFailed', { message: briefError(messageOf(error)) }),
-        detail: messageOf(error),
+        message: text(),
+        detail: reason,
+        retext: () => ({ message: text(), detail: reason }),
       });
       return;
     }
@@ -1854,6 +1965,7 @@ export class App {
         id: 'hash-invalid',
         kind: 'warning',
         message: this.i18n.t('banner.hashInvalid'),
+        retext: () => ({ message: this.i18n.t('banner.hashInvalid') }),
       });
     }
     await this.loadDemo();
@@ -1868,15 +1980,22 @@ export class App {
       await this.loadGpxText(text, 'demo', DEMO_FILE.split('/').pop(), { updateHash: false });
     } catch (error) {
       if (this.state.route === null) this.showEmptyState(true);
+      const reason = messageOf(error);
+      const text = (): string => `${this.i18n.t('banner.demoFailed')} (${briefError(reason)})`;
       this.banners.show({
         id: 'demo-failed',
         kind: 'warning',
-        message: `${this.i18n.t('banner.demoFailed')} (${briefError(messageOf(error))})`,
-        detail: messageOf(error),
+        message: text(),
+        detail: reason,
         action: {
           label: this.i18n.t('action.openGpx'),
           onClick: () => this.openFilePicker(),
         },
+        retext: () => ({
+          message: text(),
+          detail: reason,
+          actionLabel: this.i18n.t('action.openGpx'),
+        }),
       });
     }
   }
@@ -1893,11 +2012,21 @@ export class App {
       const documentNode = parseGpx(text);
       track = pickTrack(documentNode);
       if (!track) {
-        this.banners.show({ id: 'gpx-error', kind: 'error', message: this.i18n.t('banner.noTrack') });
+        this.banners.show({
+          id: 'gpx-error',
+          kind: 'error',
+          message: this.i18n.t('banner.noTrack'),
+          retext: () => ({ message: this.i18n.t('banner.noTrack') }),
+        });
         return;
       }
       if (track.points.length < 2) {
-        this.banners.show({ id: 'gpx-error', kind: 'error', message: this.i18n.t('banner.tooShort') });
+        this.banners.show({
+          id: 'gpx-error',
+          kind: 'error',
+          message: this.i18n.t('banner.tooShort'),
+          retext: () => ({ message: this.i18n.t('banner.tooShort') }),
+        });
         return;
       }
       route = buildRoute({
@@ -1908,11 +2037,7 @@ export class App {
         gpxText: text,
       });
     } catch (error) {
-      this.banners.show({
-        id: 'gpx-error',
-        kind: 'error',
-        message: this.i18n.t('banner.gpxError', { message: messageOf(error) }),
-      });
+      this.showGpxError(messageOf(error));
       return;
     }
 
@@ -2041,13 +2166,7 @@ export class App {
   private writeRouteHash(text: string): void {
     const hash = encodeRouteHash(compactGpx(text));
     if (hash === null) {
-      this.banners.show({
-        id: 'hash-too-long',
-        kind: 'info',
-        message: this.i18n.t('banner.hashTooLong', {
-          max: this.i18n.format.number(MAX_HASH_CHARS, { maximumFractionDigits: 0 }),
-        }),
-      });
+      this.showHashTooLong();
       return;
     }
     const url = `${window.location.pathname}${window.location.search}${hash}`;
@@ -2120,6 +2239,7 @@ export class App {
 
   private renderStats(): void {
     const { route, profile, profileStatus, profileError } = this.state;
+    this.stats.setProfileNotice(this.profileNotice());
     const ready = profileStatus === 'ready' && profile !== null;
     const range = ready ? minMaxElevation(profile) : null;
     const minutes = ready ? naismithMinutes(profile.distanceM, profile.ascentM, this.pace) : null;
@@ -2210,10 +2330,9 @@ export class App {
     }
 
     // Ready. The fetch time is the "last verified" date for live DEM numbers.
+    // D8: Europe/Oslo, not the device's zone.
     const fetched = this.state.profileFetchedAt;
-    const time = fetched
-      ? new Intl.DateTimeFormat(this.i18n.locale, { hour: '2-digit', minute: '2-digit' }).format(fetched)
-      : '';
+    const time = fetched ? formatClockAt(fetched.getTime(), this.i18n.locale) : '';
     if (profile && profile.filledSamples > 0) {
       this.elements.profileStatus.textContent = time
         ? this.i18n.t('profile.fetchedFilled', {
@@ -2404,6 +2523,31 @@ export class App {
     }
   }
 
+  /** A GPX that could not be read: the reason is kept, so it can be said again. */
+  private showGpxError(reason: string): void {
+    const text = (): string => this.i18n.t('banner.gpxError', { message: reason });
+    this.banners.show({
+      id: 'gpx-error',
+      kind: 'error',
+      message: text(),
+      retext: () => ({ message: text() }),
+    });
+  }
+
+  /** The route is too long to encode into a share link. */
+  private showHashTooLong(): void {
+    const text = (): string =>
+      this.i18n.t('banner.hashTooLong', {
+        max: this.i18n.format.number(MAX_HASH_CHARS, { maximumFractionDigits: 0 }),
+      });
+    this.banners.show({
+      id: 'hash-too-long',
+      kind: 'info',
+      message: text(),
+      retext: () => ({ message: text() }),
+    });
+  }
+
   private retryBasemap(): void {
     if (!this.map) return;
     this.map.retryBasemap();
@@ -2542,11 +2686,7 @@ export class App {
       const text = await file.text();
       await this.loadGpxText(text, 'file', file.name);
     } catch (error) {
-      this.banners.show({
-        id: 'gpx-error',
-        kind: 'error',
-        message: this.i18n.t('banner.gpxError', { message: messageOf(error) }),
-      });
+      this.showGpxError(messageOf(error));
     }
   }
 
@@ -2556,13 +2696,7 @@ export class App {
     if (route && route.origin !== 'demo' && route.gpxText) {
       const hash = encodeRouteHash(compactGpx(route.gpxText));
       if (hash === null) {
-        this.banners.show({
-          id: 'hash-too-long',
-          kind: 'info',
-          message: this.i18n.t('banner.hashTooLong', {
-            max: this.i18n.format.number(MAX_HASH_CHARS, { maximumFractionDigits: 0 }),
-          }),
-        });
+        this.showHashTooLong();
         return;
       }
       url = `${window.location.pathname}${window.location.search}${hash}`;
@@ -2607,9 +2741,14 @@ export class App {
     this.applyLanguageChrome();
     this.i18n.apply(this.doc);
     this.updateLangButtons();
-    this.banners.clear();
-    this.refreshBanners();
+    // A language switch re-words the screen; it must not delete a banner the
+    // user still has to act on (a quota error, a failed import). The derived
+    // states come back from `refreshBanners()`; the event banners are re-worded
+    // in place, and `lastSaveBanner` is cleared so the save banner can return.
     this.banners.setCloseLabel(this.i18n.t('action.close'));
+    this.banners.refreshLanguage();
+    this.lastSaveBanner = null;
+    this.refreshBanners();
     this.chart.setLanguage();
     this.stats.refresh();
     this.renderProfilePanel();
@@ -2840,6 +2979,7 @@ export class App {
           id: 'hash-invalid',
           kind: 'warning',
           message: this.i18n.t('banner.hashInvalid'),
+          retext: () => ({ message: this.i18n.t('banner.hashInvalid') }),
         });
         return;
       }

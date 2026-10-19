@@ -5,6 +5,13 @@
  * Degradation rule: when the DEM is unavailable, DEM-derived numbers are
  * rendered as "—" with a visible explanation — never as zero. Distance comes
  * from the GPX geometry and stays meaningful, so it remains.
+ *
+ * Unit rule (D8): ascent and descent are **vertical metres**. They must not go
+ * through the horizontal `distance()` formatter, which switches to kilometres
+ * above 1,000 m and would print a 1,500 m climb as "1,50 km".
+ *
+ * Honesty rule (D10/B3): when the energy numbers come from the built-in default
+ * body, the bar says so, in place, with a way to fix it.
  */
 
 import type { I18n } from '../i18n';
@@ -29,6 +36,11 @@ export interface StatsModel {
   paceHint?: string;
 }
 
+export interface StatsBarHandlers {
+  /** The badge's button: open the trip settings so the user can enter a body. */
+  onSetOwnNumbers?: () => void;
+}
+
 const ID = {
   distance: 'stat-distance',
   ascent: 'stat-ascent',
@@ -37,21 +49,74 @@ const ID = {
   elevation: 'stat-elevation',
 } as const;
 
+/**
+ * Ascent as a vertical distance: `+1 500 m`, never `+1,50 km`.
+ *
+ * Exported so the unit rule can be asserted without a DOM; the sign is part of
+ * the value, because a bare "1 500 m" in the ascent cell reads as an elevation.
+ */
+export function ascentLabel(metres: number, i18n: Pick<I18n, 'format'>): string {
+  return `+${i18n.format.elevation(metres, false)}`;
+}
+
+/** Descent as a vertical distance: `−3 000 m` (U+2212, not a hyphen). */
+export function descentLabel(metres: number, i18n: Pick<I18n, 'format'>): string {
+  return `−${i18n.format.elevation(metres, false)}`;
+}
+
 export class StatsBar {
   private readonly root: HTMLElement;
   private readonly i18n: I18n;
+  private readonly handlers: StatsBarHandlers;
   private readonly sourceBadge: HTMLElement;
   private readonly sourceLabel: HTMLElement;
+  private readonly notice: HTMLElement;
+  private readonly noticeText: HTMLElement;
+  private readonly noticeButton: HTMLButtonElement;
   private lastModel: StatsModel | null = null;
+  private noticeMessage: string | null = null;
 
-  constructor(root: HTMLElement, i18n: I18n) {
+  constructor(root: HTMLElement, i18n: I18n, handlers: StatsBarHandlers = {}) {
     this.root = root;
     this.i18n = i18n;
+    this.handlers = handlers;
     const badge = root.querySelector<HTMLElement>('#source-badge');
     const label = root.querySelector<HTMLElement>('#source-label');
     if (!badge || !label) throw new Error('stats bar is missing #source-badge/#source-label');
     this.sourceBadge = badge;
     this.sourceLabel = label;
+
+    // Built here rather than in index.html: the bar is a model-driven component
+    // and this row only exists while the numbers come from a placeholder body.
+    const doc = root.ownerDocument;
+    this.notice = doc.createElement('div');
+    this.notice.className = 'stat stat-notice';
+    this.notice.hidden = true;
+    this.notice.setAttribute('role', 'status');
+    this.noticeText = doc.createElement('span');
+    this.noticeText.className = 'stat-notice-text';
+    this.noticeButton = doc.createElement('button');
+    this.noticeButton.type = 'button';
+    this.noticeButton.className = 'btn btn-small';
+    this.noticeButton.addEventListener('click', () => this.handlers.onSetOwnNumbers?.());
+    this.notice.append(this.noticeText, this.noticeButton);
+    root.append(this.notice);
+  }
+
+  /**
+   * The badge for numbers computed from the default body, or `null` to hide it.
+   * Shown, never hidden-and-implied: the panel stays usable, it is just labelled.
+   */
+  setProfileNotice(message: string | null): void {
+    this.noticeMessage = message;
+    this.renderNotice();
+  }
+
+  private renderNotice(): void {
+    const message = this.noticeMessage;
+    this.notice.hidden = message === null;
+    this.noticeText.textContent = message ?? '';
+    this.noticeButton.textContent = this.i18n.t('energy.setOwnNumbers');
   }
 
   render(model: StatsModel): void {
@@ -81,12 +146,12 @@ export class StatsBar {
     );
     apply(
       ID.ascent,
-      demReady && values.ascentM !== null ? `+${this.i18n.format.distance(values.ascentM)}` : '—',
+      demReady && values.ascentM !== null ? ascentLabel(values.ascentM, this.i18n) : '—',
       demReady && values.ascentM !== null,
     );
     apply(
       ID.descent,
-      demReady && values.descentM !== null ? `−${this.i18n.format.distance(values.descentM)}` : '—',
+      demReady && values.descentM !== null ? descentLabel(values.descentM, this.i18n) : '—',
       demReady && values.descentM !== null,
     );
     apply(
@@ -121,5 +186,6 @@ export class StatsBar {
   /** Re-render after a language change, using the last model. */
   refresh(): void {
     if (this.lastModel) this.render(this.lastModel);
+    this.renderNotice();
   }
 }

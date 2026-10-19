@@ -189,6 +189,24 @@ describe('acceptance: resupply corridor', () => {
     expect(gapWarning).toBeDefined();
     expect(view.worstGapDanger).toBe(true);
     expect(view.worstGapLabel).toMatch(/km/);
+
+    // Row level, not just leg level: the warning belongs to the shop that the
+    // long carry starts *at*. The first containing leg would have attached it to
+    // the shop 500 m from the finish instead, and left this one unflagged.
+    const start = view.rows.find((row) => row.name === 'Start shop')!;
+    const end = view.rows.find((row) => row.name === 'End shop')!;
+    expect(start.gapDanger).toBe(true);
+    expect(start.warning).not.toBeNull();
+    expect(start.warning).toContain('Start shop');
+    expect(start.warning).toContain(kg);
+    expect(end.gapDanger).toBe(false);
+    expect(end.warning).toBeNull();
+    // The gap each row reports to the next point still comes from the plan.
+    expect(start.gapLabel).toMatch(/km/);
+    expect(end.gapLabel).not.toBeNull();
+    // A 500 m leg is not "0 d": rounding to one decimal would print zero days.
+    expect(end.gapLabel).toContain('< 0,1 d');
+    expect(view.legs[0].numbersLabel).toContain('< 0,1 d');
   });
 
   it('does not let a hut close the gap, and labels it "ikke bekreftet"', () => {
@@ -200,6 +218,9 @@ describe('acceptance: resupply corridor', () => {
     expect(row.kindLabel).toBe('hytte');
     expect(row.badges).toContain('ikke bekreftet');
     expect(row.countsAsFood).toBe(false);
+    // D1: "ikke bekreftet" is only honest with somewhere to check it.
+    expect(row.checkUrl).toBe('https://www.dnt.no/hytter/');
+    expect(row.checkLabel).toContain('DNT');
     // Nothing usable on the route: the plan is one leg, start to end.
     expect(view.legs).toHaveLength(1);
     expect(view.legs[0].danger).toBe(true);

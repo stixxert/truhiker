@@ -198,7 +198,7 @@ describe('buildWeatherView — honesty rules', () => {
     expect(no[3].action).toBe('refresh');
   });
 
-  it('counts in the singular for one day, and says when none is inside the horizon', () => {
+  it('counts days in the singular, says when none is in the horizon, and dates them in Oslo', () => {
     const single: WeatherPlan = { ...plan(), days: [plan().days[0]] };
     const one = buildWeatherView({ kind: 'ready', plan: single }, PROFILE, 9, createI18n('no'));
     expect(one.statusLine).toBe('1 dag med varsel');
@@ -216,17 +216,18 @@ describe('buildWeatherView — honesty rules', () => {
     );
     expect(none.withoutForecast).toBe(true);
     expect(none.statusLine).toContain('Ingen dager ligger innenfor');
-  });
-});
 
-describe('weather date helpers', () => {
-  it('formats dates without a timezone shift, times in the locale, and tolerates junk', () => {
+    // Dates carry no timezone shift and times are Oslo times (D8); junk is
+    // refused rather than rendered as "Invalid Date".
     // Midnight UTC must stay on the same calendar day in every UI timezone.
     expect(parseDateLabel('2026-07-01', createI18n('en'))).toContain('1 Jul');
     expect(parseDateLabel('2026-07-01', createI18n('no'))).toContain('1. juli');
 
-    const time = timeLabel('2026-06-30T21:00:00.000Z', 'en-GB');
-    expect(time).toMatch(/^\d{2}:\d{2}$/);
+    // D8: a timestamp is shown in Europe/Oslo, never in the device's zone.
+    // 21:00 UTC on 30 June is 23:00 in Oslo (CEST), and the device may be UTC.
+    expect(timeLabel('2026-06-30T21:00:00.000Z', 'en-GB')).toBe('23:00');
+    // Winter time is +01:00: the same wall clock needs a different instant.
+    expect(timeLabel('2026-01-15T09:05:00.000Z', 'en-GB')).toBe('10:05');
     expect(timeLabel(undefined, 'en-GB')).toBe('');
     expect(timeLabel('not-a-date', 'en-GB')).toBe('');
   });

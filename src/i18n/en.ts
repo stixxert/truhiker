@@ -339,7 +339,10 @@ export const en: Record<MessageKey, string> = {
   'empty.title': 'Drop a GPX file here',
   'empty.body':
     'or open one from the menu. Everything runs in your browser — no account, nothing uploaded.',
-  'empty.privacy': 'The route never leaves your device.',
+  // B4: the route itself never leaves the browser, but positions from it are
+  // sent to fetch elevation, trails and weather. Say both, precisely.
+  'empty.privacy':
+    'The route is stored only in this browser. To fetch elevation, trails and weather the app sends positions from the route to Kartverket, MET and hoydedata.no. No account, no tracking.',
 
   'map.ariaLabel': 'Map of the route. Use the arrow keys to pan and + and − to zoom.',
   'map.zoomIn': 'Zoom in',
@@ -379,6 +382,9 @@ export const en: Record<MessageKey, string> = {
   'about.odblLink': 'ODbL 1.0',
   'about.osmNote':
     'The resupply points are an OSM extract of shops, fuel stations and post points. Opening hours are not stored in the file — only whether OSM had them.',
+  'about.privacyTitle': 'Storage and privacy',
+  'about.privacy':
+    'The trip and its route are stored only in this browser (IndexedDB, with localStorage as a fallback). Nothing is uploaded and there is no account. To fetch trails, shops, elevation and weather the app sends positions from the route to Kartverket (Turrutebasen and the basemap), MET and hoydedata.no. No tracking and no analytics; map tiles load from the source you choose.',
 
   'supply.open': 'Resupply',
   'supply.title': 'Resupply and energy',
@@ -419,6 +425,8 @@ export const en: Record<MessageKey, string> = {
   'supply.rowAria':
     '{name}, {kind}, {distance} from the start, {detour}, next usable point {gap}',
   'supply.legTitle': '{from} → {to}',
+  'supply.anchorStart': 'Start',
+  'supply.anchorEnd': 'End',
   'supply.legNumbers': '{distance} · {days} · {kcal} kcal · {kg} kg food · {cost} NOK',
   'supply.carryWarning': 'Carry {kg} kg for {days} — more than the {max} days you can carry for.',
   'supply.warnHutsCounted':
@@ -453,7 +461,9 @@ export const en: Record<MessageKey, string> = {
   'supply.badgeUnmanned': 'unmanned',
   'supply.badgeHoursUnread': 'hours not read',
   'supply.badgeHoursMissing': 'hours unknown',
+  'supply.checkDnt': 'Check with DNT',
   'supply.dayValue': '{value} d',
+  'supply.dayValueUnderTenth': '< 0.1 d',
   'supply.kind.supermarket': 'supermarket',
   'supply.kind.convenience': 'convenience',
   'supply.kind.general': 'shop',
@@ -506,6 +516,9 @@ export const en: Record<MessageKey, string> = {
   'energy.foodMass': 'Food for the whole trip: {kg} kg',
   'energy.daysLabel': '{days} at {km}',
   'energy.rangeNote': 'The band is the model’s uncertainty (×0.75–×1.30), not a measurement.',
+  'energy.placeholderProfile':
+    'Calculated with the default profile {mass} kg / {height} cm / {age} years — not your own numbers.',
+  'energy.setOwnNumbers': 'Set your own numbers',
   'energy.fatAssumed': 'Body fat is assumed at {percent} % because you did not enter it.',
   'energy.chartAxis': 'kcal per day',
   'energy.massAxis': 'Days',

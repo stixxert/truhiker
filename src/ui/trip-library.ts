@@ -130,8 +130,31 @@ export class TripLibraryDialog {
     this.importButton.disabled = !view.importEnabled;
     this.renderStorage(view);
 
+    // A re-render replaces every row, so the focused button is removed from the
+    // document and the keyboard falls back to <body>. Remember which row (and
+    // which action) had focus and put it back afterwards — a rename or delete
+    // must not drop the user out of the list.
+    const previous = this.root.ownerDocument.activeElement as HTMLElement | null;
+    const previousRow = previous?.closest<HTMLElement>('.trip-row');
+    const previousId = previousRow && this.root.contains(previousRow) ? previousRow.dataset.id : undefined;
+    const previousAction = previous?.dataset.action;
+
     this.list.replaceChildren();
     for (const row of view.rows) this.list.append(this.buildRow(row));
+    if (previousId) this.focusRow(previousId, previousAction);
+  }
+
+  /** Focus the same row (and action) after a re-render, when it still exists. */
+  private focusRow(id: string, action: string | undefined): void {
+    for (const item of this.list.querySelectorAll<HTMLElement>('.trip-row')) {
+      if (item.dataset.id !== id) continue;
+      const buttons = [...item.querySelectorAll<HTMLButtonElement>('.trip-actions button')];
+      const match = action ? buttons.find((button) => button.dataset.action === action) : undefined;
+      (match ?? buttons[0] ?? item.querySelector<HTMLButtonElement>('button'))?.focus();
+      return;
+    }
+    // The row is gone (deleted): the library's own controls stay reachable.
+    if (this.list.children.length === 0) this.importButton.focus();
   }
 
   /**

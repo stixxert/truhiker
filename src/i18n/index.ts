@@ -28,6 +28,9 @@ import {
 export type { MessageKey };
 export type { Lang };
 
+// Times and dates are shown in Europe/Oslo, not the device's zone (D8).
+export { OSLO_TIME_ZONE, formatClock, formatClockAt, formatDay } from './time';
+
 const DICTIONARIES: Record<Lang, Record<MessageKey, string>> = { no, en };
 const STORAGE_KEY = 'ruteanalyse.lang';
 export const DEFAULT_LANG: Lang = 'no';

@@ -86,6 +86,25 @@ describe('energy view — the honest range and the unavoidable deficit', () => {
     expect(view.unsustainable).toBe(false);
     expect(view.headline).toBe('Du kan spise nok');
     expect(view.headlineBody).toContain('et valg, ikke et krav');
+    // Without a profile to compare against, no badge is invented.
+    expect(view.profileNotice).toBeNull();
+
+    // B3: a body nobody entered satisfies every guard, so "you can eat enough"
+    // would be a verdict about a stranger. The panel is labelled, not hidden.
+    const shipped = { ...PROFILE, massKg: 75, heightCm: 178, ageYears: 35 };
+    const placeholder = buildEnergyView({ kind: 'ready', model: easy }, no, {
+      profile: shipped,
+      defaults: shipped,
+    });
+    expect(placeholder.profileNotice).toContain('standardprofil');
+    expect(placeholder.profileNotice).toContain('75 kg');
+    expect(placeholder.headline).toBe('Du kan spise nok');
+    expect(
+      buildEnergyView({ kind: 'ready', model: easy }, en, {
+        profile: shipped,
+        defaults: shipped,
+      }).profileNotice,
+    ).toContain('default profile');
 
     // Elevation missing is a disabled panel with a reason — never a zero.
     const disabled = buildEnergyView({ kind: 'elevation-missing', reason: 'dem' }, no);

@@ -340,7 +340,10 @@ export const no = {
   'empty.title': 'Slipp en GPX-fil her',
   'empty.body':
     'eller åpne en fil fra menyen. Alt skjer i nettleseren din – ingen konto, ingenting lastes opp.',
-  'empty.privacy': 'Ruten forlater aldri enheten.',
+  // B4: the route itself never leaves the browser, but positions from it are
+  // sent to fetch elevation, trails and weather. Say both, precisely.
+  'empty.privacy':
+    'Ruten lagres bare i denne nettleseren. For å hente høydedata, stier og vær sender appen posisjoner fra ruten til Kartverket, MET og hoydedata.no. Ingen konto, ingen sporing.',
 
   'map.ariaLabel': 'Kart over ruten. Bruk piltastene for å panorere og + og − for å zoome.',
   'map.zoomIn': 'Zoom inn',
@@ -380,6 +383,9 @@ export const no = {
   'about.odblLink': 'ODbL 1.0',
   'about.osmNote':
     'Forsyningspunktene er et OSM-uttrekk av butikker, bensinstasjoner og postpunkt. Åpningstider er ikke lagret i filen, bare hvorvidt OSM hadde dem.',
+  'about.privacyTitle': 'Lagring og personvern',
+  'about.privacy':
+    'Tur og rute lagres bare i denne nettleseren (IndexedDB, med localStorage som reserve). Ingenting lastes opp og det finnes ingen konto. For å hente stier, butikker, høydedata og vær sender appen posisjoner fra ruten til Kartverket (Turrutebasen og bakgrunnskart), MET og hoydedata.no. Ingen sporing og ingen analyseverktøy; kartflisene lastes fra den kilden du velger.',
 
   // --- Resupply and energy (docs/13) --------------------------------------
   'supply.open': 'Forsyning',
@@ -421,6 +427,8 @@ export const no = {
   'supply.rowAria':
     '{name}, {kind}, {distance} fra start, {detour}, til neste brukbare punkt {gap}',
   'supply.legTitle': '{from} → {to}',
+  'supply.anchorStart': 'Start',
+  'supply.anchorEnd': 'Slutt',
   'supply.legNumbers': '{distance} · {days} · {kcal} kcal · {kg} kg mat · {cost} kr',
   'supply.carryWarning': 'Bær {kg} kg for {days} – mer enn {max} dager du kan bære for.',
   'supply.warnHutsCounted':
@@ -455,7 +463,9 @@ export const no = {
   'supply.badgeUnmanned': 'ubemannet',
   'supply.badgeHoursUnread': 'åpningstid ikke lest',
   'supply.badgeHoursMissing': 'åpningstid ukjent',
+  'supply.checkDnt': 'Sjekk hos DNT',
   'supply.dayValue': '{value} d',
+  'supply.dayValueUnderTenth': '< 0,1 d',
   'supply.kind.supermarket': 'supermarked',
   'supply.kind.convenience': 'nærbutikk',
   'supply.kind.general': 'butikk',
@@ -508,6 +518,9 @@ export const no = {
   'energy.foodMass': 'Mat for hele turen: {kg} kg',
   'energy.daysLabel': '{days} à {km}',
   'energy.rangeNote': 'Spennet er modellens usikkerhet (×0,75–×1,30), ikke en måling.',
+  'energy.placeholderProfile':
+    'Beregnet med standardprofil {mass} kg / {height} cm / {age} år — ikke dine egne tall.',
+  'energy.setOwnNumbers': 'Sett dine egne tall',
   'energy.fatAssumed': 'Kroppsfett er antatt {percent} % fordi du ikke oppgav det.',
   'energy.chartAxis': 'kcal per dag',
   'energy.massAxis': 'Dager',

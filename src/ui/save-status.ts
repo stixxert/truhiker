@@ -6,12 +6,15 @@
  */
 
 import type { SaveStatus } from '../app/trip-session';
-import type { I18n } from '../i18n';
+import { formatClockAt, type I18n } from '../i18n';
 
+/**
+ * `HH:MM` in Europe/Oslo (D8). The device's zone is not the trip's zone: a save
+ * made at 23:30 UTC is 01:30 the next day in Oslo, and only one of those is the
+ * time the user experienced.
+ */
 export function formatSaveTime(at: number, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(
-    new Date(at),
-  );
+  return formatClockAt(at, locale);
 }
 
 /** One line for the visible status region. Empty when there is nothing to say. */

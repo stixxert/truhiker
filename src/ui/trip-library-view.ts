@@ -8,7 +8,7 @@
  */
 
 import type { TripSummary } from '../contracts';
-import type { I18n } from '../i18n';
+import { formatDay, type I18n } from '../i18n';
 import type { SaveStatus } from '../app/trip-session';
 
 export interface TripRowView {
@@ -53,15 +53,13 @@ export interface TripLibraryStorage {
   readonly migrationError: string | null;
 }
 
-/** Date only, short form — the trip list is a list, not a changelog. */
+/**
+ * Date only, short form — the trip list is a list, not a changelog. The day is
+ * taken in Europe/Oslo (D8): a save at 23:30 UTC on 30 June is 1 July in Oslo,
+ * and the list must not show a different day from the save status line.
+ */
 export function formatTripDate(iso: string, locale: string): string {
-  const date = new Date(iso);
-  if (!Number.isFinite(date.getTime())) return iso;
-  return new Intl.DateTimeFormat(locale, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(date);
+  return formatDay(iso, locale, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 export interface TripLibraryInput {

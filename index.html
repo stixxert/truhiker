@@ -562,7 +562,10 @@
               <button class="btn btn-primary" id="btn-demo" type="button" data-i18n="action.demo">
                 Prøv demoruten
               </button>
-              <p class="empty-privacy" data-i18n="empty.privacy">Ruten forlater aldri enheten.</p>
+              <p class="empty-privacy" data-i18n="empty.privacy">
+                Ruten lagres bare i denne nettleseren. For å hente høydedata, stier og vær sender appen posisjoner fra
+                ruten til Kartverket, MET og hoydedata.no. Ingen konto, ingen sporing.
+              </p>
             </div>
           </div>
 
@@ -734,6 +737,13 @@
           </ul>
           <p data-i18n="about.naismith"></p>
           <p data-i18n="about.demo"></p>
+          <h3 data-i18n="about.privacyTitle">Lagring og personvern</h3>
+          <p data-i18n="about.privacy">
+            Tur og rute lagres bare i denne nettleseren (IndexedDB, med localStorage som reserve). Ingenting lastes opp
+            og det finnes ingen konto. For å hente stier, butikker, høydedata og vær sender appen posisjoner fra ruten
+            til Kartverket (Turrutebasen og bakgrunnskart), MET og hoydedata.no. Ingen sporing og ingen analyseverktøy;
+            kartflisene lastes fra den kilden du velger.
+          </p>
         </div>
       </div>
     </dialog>
