@@ -255,6 +255,10 @@ await step('route between two points along the trails', async () => {
     if (Math.abs(redo - routed) > 0.05) throw new Error(`redo did not restore the routed distance (${redo} km)`);
   });
 
+  // Editing must not relabel the demo as an imported file.
+  const tag = (await page.locator('#demo-summary').innerText()).replace(/\s+/g, ' ').trim();
+  if (!/demo route|demorute/i.test(tag)) throw new Error(`route tag changed after routing: "${tag}"`);
+
   return `${routed.toFixed(2)} km committed, matches the distance stat, undo/redo verified`;
 });
 

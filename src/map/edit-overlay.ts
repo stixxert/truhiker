@@ -157,7 +157,7 @@ export class EditOverlay {
         source: SOURCE_SNAP,
         paint: {
           'circle-radius': 7,
-          'circle-color': '#3ad9c4',
+          'circle-color': '#4fae9c',
           'circle-opacity': 0.35,
           'circle-stroke-color': '#f2fffc',
           'circle-stroke-width': 1.6,
@@ -173,7 +173,7 @@ export class EditOverlay {
         paint: {
           'circle-radius': ['case', ['==', ['get', 'selected'], true], 6.5, 3.2],
           'circle-color': ['case', ['==', ['get', 'selected'], true], '#f2fffc', '#0b1416'],
-          'circle-stroke-color': ['case', ['==', ['get', 'selected'], true], '#3ad9c4', 'rgba(242,255,252,0.9)'],
+          'circle-stroke-color': ['case', ['==', ['get', 'selected'], true], '#4fae9c', 'rgba(242,255,252,0.9)'],
           'circle-stroke-width': ['case', ['==', ['get', 'selected'], true], 2, 1.3],
         },
       });

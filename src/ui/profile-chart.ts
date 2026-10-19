@@ -68,7 +68,7 @@ export class ProfileChart {
   private height = 0;
   private dpr = 1;
   private theme: Theme = {
-    accent: '#3ad9c4',
+    accent: '#4fae9c',
     accentSoft: 'rgba(58,217,196,0.22)',
     text: '#e8efef',
     muted: '#93a7aa',
@@ -357,7 +357,7 @@ export class ProfileChart {
       return value.length > 0 ? value : fallback;
     };
     this.theme = {
-      accent: read('--accent', '#3ad9c4'),
+      accent: read('--data', '#4fae9c'),
       accentSoft: read('--accent-soft', 'rgba(58,217,196,0.22)'),
       text: read('--text', '#e8efef'),
       muted: read('--muted', '#93a7aa'),

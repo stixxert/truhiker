@@ -75,8 +75,6 @@ export const no = {
     'Kartverkets høydedata (DTM) kunne ikke hentes. Høyde, stigning, nedstigning og gangtid er slått av – ikke satt til null.',
   'profile.outOfScope': 'Ruten går utenfor Norge, der høydedata ikke er tilgjengelig.',
   'profile.filled': '{n} punkter manglet høyde og er interpolert.',
-  'profile.fetched': 'Høydedata hentet {time}',
-  'profile.fetchedFilled': '{n} punkter interpolert · hentet {time}',
   'profile.ariaLabel':
     'Høydeprofil. Bruk piltastene for å flytte markøren, Home og End for start og slutt.',
   'profile.ariaValue': '{distance} fra start, {ele} over havet, stigning {grade}',
@@ -94,7 +92,6 @@ export const no = {
   'stats.descent': 'Nedstigning',
   'stats.time': 'Gangtid',
   'stats.elevation': 'Høyde',
-  'stats.elevationSource': 'Høydedatakilde',
   'stats.pace': 'Juster gangtempo',
   'stats.disabled': 'Utilgjengelig – krever høydedata',
   'stats.range': '{min}–{max}',
@@ -378,7 +375,6 @@ export const no = {
   'map.zoomIn': 'Zoom inn',
   'map.zoomOut': 'Zoom ut',
   'map.resetNorth': 'Rett kartet mot nord',
-  'about.shortDisclaimer': 'Planleggingsverktøy – ikke navigasjon',
 
   'units.metre': 'm',
   'units.metresAboveSea': 'moh',
@@ -389,9 +385,9 @@ export const no = {
   'units.grade': '{value} %',
 
   'about.title': 'Om data og bruk',
-  'about.disclaimerTitle': 'Planleggingsverktøy – ikke navigasjon',
+  'about.disclaimerTitle': 'Estimater',
   'about.disclaimer':
-    'Dette er et planleggingsverktøy. Sjekk forholdene på bakken: vær, snø, elvekryssinger og stengsler endrer seg. Tallene er estimater.',
+    'Tallene er estimater. Sjekk forholdene på bakken: vær, snø, elvekryssinger og stengsler endrer seg.',
   'about.dataTitle': 'Datakilder',
   'about.kartverket': 'Bakgrunnskart og høydedata: Kartverket (topo, DTM), CC BY 4.0.',
   'about.mapterhorn': '3D-terreng: Mapterhorn, avledet av Kartverkets høydedata.',

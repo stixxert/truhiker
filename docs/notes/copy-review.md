@@ -149,7 +149,7 @@ does not connect the points — there is no "as the crow flies" wording anywhere
 
 ## Evidence
 
-- `npm run i18n` — 455 keys in both languages, identical placeholder sets, no
+- `npm run i18n` — 451 keys in both languages, identical placeholder sets, no
   Nynorsk forms, no hardcoded UI text.
 - `npm run verify` — PASS, including the i18n, accessibility and failure-path
   gates.

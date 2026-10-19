@@ -71,8 +71,6 @@ export const en: Record<MessageKey, string> = {
     'Kartverket elevation data (DTM) could not be loaded. Elevation, ascent, descent and walking time are disabled — not set to zero.',
   'profile.outOfScope': 'The route leaves Norway, where elevation data is unavailable.',
   'profile.filled': '{n} points had no elevation and were interpolated.',
-  'profile.fetched': 'Elevation data fetched {time}',
-  'profile.fetchedFilled': '{n} points interpolated · fetched {time}',
   'profile.ariaLabel':
     'Elevation profile. Use the arrow keys to move the cursor, Home and End for start and end.',
   'profile.ariaValue': '{distance} from the start, {ele} above sea level, grade {grade}',
@@ -90,7 +88,6 @@ export const en: Record<MessageKey, string> = {
   'stats.descent': 'Descent',
   'stats.time': 'Walking time',
   'stats.elevation': 'Elevation',
-  'stats.elevationSource': 'Elevation source',
   'stats.pace': 'Adjust walking pace',
   'stats.disabled': 'Unavailable — requires elevation data',
   'stats.range': '{min}–{max}',
@@ -374,7 +371,6 @@ export const en: Record<MessageKey, string> = {
   'map.zoomIn': 'Zoom in',
   'map.zoomOut': 'Zoom out',
   'map.resetNorth': 'Reset the map to north',
-  'about.shortDisclaimer': 'Planning tool – not navigation',
 
   'units.metre': 'm',
   'units.metresAboveSea': 'm a.s.l.',
@@ -385,9 +381,9 @@ export const en: Record<MessageKey, string> = {
   'units.grade': '{value} %',
 
   'about.title': 'About data and use',
-  'about.disclaimerTitle': 'Planning tool – not navigation',
+  'about.disclaimerTitle': 'Estimates',
   'about.disclaimer':
-    'This is a planning tool. Check conditions on the ground: weather, snow, river crossings and closures change. The numbers are estimates.',
+    'The numbers are estimates. Check conditions on the ground: weather, snow, river crossings and closures change.',
   'about.dataTitle': 'Data sources',
   'about.kartverket': 'Basemap and elevation: Kartverket (topo, DTM), CC BY 4.0.',
   'about.mapterhorn': '3D terrain: Mapterhorn, derived from Kartverket elevation data.',

@@ -145,8 +145,9 @@ unavoidable — it does not quietly plan a 15 kg loss.
 
 **Default: refuse, and say so on screen.**
 
-- It is not a navigation device; the "planning aid — verify on the ground" notice
-  is visible at every width.
+- It is not a navigation device. The full "planning aid — check conditions on the
+  ground" notice sits in **About data**, one action away at every width; the map
+  footer is attribution, not a disclaimer.
 - No route is "official". Provenance is always shown.
 - No season is promised by the app itself; opening data belongs to the sources.
 - No mountain safety advice: avalanche and flood warnings are shown if available,

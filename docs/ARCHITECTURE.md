@@ -31,7 +31,10 @@ Live sources, all CORS-enabled and called directly by the browser:
 One bundled data set: an OpenStreetMap extract of resupply points (ODbL), because every
 live alternative measured 40 s+ or was prohibited. It is committed as a build
 input and served by the app; `data/shops.osm.json` records its SHA-256 and
-`tools/build-shops.mjs` regenerates it from the OSM extract.
+`tools/build-shops.mjs` regenerates it from the OSM extract. The file is 175 KB;
+rebuilding it needs the ~1.5 GB Geofabrik PBF and a network, which would make a
+fresh clone dependent on an external service. The committed bytes are also the
+public ODbL copy the app serves, so they are the offer the licence requires.
 
 ## Modules
 

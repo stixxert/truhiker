@@ -378,17 +378,18 @@
               <button class="btn btn-small" id="editor-rename-apply" type="button" data-i18n="editor.renameApply">
                 Lagre navn
               </button>
-              <button class="btn btn-small btn-reroute" id="btn-reroute" type="button" data-i18n="editor.reroute">
+              <button
+                class="btn btn-small btn-reroute"
+                id="btn-reroute"
+                type="button"
+                data-i18n="editor.reroute"
+                data-i18n-title="editor.rerouteHint"
+              >
                 Reroute
               </button>
               <button class="btn btn-small" id="btn-route" type="button" data-i18n="editor.route" data-i18n-title="editor.routeHint">
                 Rute
               </button>
-              <span
-                class="reroute-note"
-                id="editor-reroute-note"
-                data-i18n="editor.rerouteHint"
-              ></span>
             </div>
 
             <div class="editor-row editor-row--hints">
@@ -589,7 +590,6 @@
           <div class="map-attrib">
             <a href="https://www.kartverket.no" target="_blank" rel="noopener">©Kartverket</a>
             <a href="https://mapterhorn.com/attribution" target="_blank" rel="noopener">Mapterhorn</a>
-            <span data-i18n="about.shortDisclaimer">Planleggingsverktøy</span>
           </div>
 
           <div class="empty-state" id="empty-state" hidden>
@@ -648,6 +648,10 @@
               <span id="profile-title" data-i18n="profile.title">Høydeprofil</span>
             </button>
             <span class="profile-status" id="profile-status"></span>
+            <span class="source-badge profile-source" id="source-badge" data-status="idle">
+              <span class="dot" aria-hidden="true"></span>
+              <span id="source-label">—</span>
+            </span>
             <span class="profile-readout" id="profile-readout"></span>
           </div>
           <div class="profile-body" id="profile-body">
@@ -711,13 +715,6 @@
         <div class="stat">
           <span class="stat-label" data-i18n="stats.elevation">Høyde</span>
           <span class="stat-value" id="stat-elevation">—</span>
-        </div>
-        <div class="stat stat-source">
-          <span class="stat-label" data-i18n="stats.elevationSource">Høydedata</span>
-          <span class="source-badge" id="source-badge" data-status="idle">
-            <span class="dot" aria-hidden="true"></span>
-            <span id="source-label">—</span>
-          </span>
         </div>
       </footer>
     </div>

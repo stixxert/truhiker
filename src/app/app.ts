@@ -42,7 +42,6 @@ import {
 import { nearestRoutePoint, pointAtDistance } from '../lib/sync';
 import {
   createI18n,
-  formatClockAt,
   readStoredLang,
   resolveLang,
   storeLang,
@@ -158,7 +157,6 @@ interface AppState {
   cursorSource: CursorSource;
   demoMeta: GpxMetadata | null;
   /** When the live DEM finished sampling — provenance for the numbers. */
-  profileFetchedAt: Date | null;
 }
 
 function byId<T extends HTMLElement>(id: string): T {
@@ -282,7 +280,6 @@ export class App {
     cursorDistance: null,
     cursorSource: 'map',
     demoMeta: null,
-    profileFetchedAt: null,
   };
 
   private readonly elements: {
@@ -954,7 +951,6 @@ export class App {
     this.state.route = null;
     this.state.profile = null;
     this.state.profileStatus = 'empty';
-    this.state.profileFetchedAt = null;
     this.state.cursorDistance = null;
     this.state.profileError = null;
     this.state.profileErrorMessage = '';
@@ -1088,7 +1084,6 @@ export class App {
     this.state.route = null;
     this.state.profile = null;
     this.state.profileStatus = 'empty';
-    this.state.profileFetchedAt = null;
     this.state.cursorDistance = null;
     this.state.demoMeta = null;
     this.chart.setProfile(null);
@@ -1900,7 +1895,9 @@ export class App {
       route = buildRoute({
         name: trip.name,
         coords: flat.points.map((point) => ({ lon: point.lon, lat: point.lat })),
-        origin: 'file',
+        // Editing a demo keeps its origin: the trip still came from the demo,
+        // it is not suddenly an imported file.
+        origin: this.state.route?.origin ?? 'file',
       });
     } catch {
       // A zero-length or degenerate edit: leave the current view alone.
@@ -1912,7 +1909,6 @@ export class App {
     this.state.route = route;
     this.state.profile = null;
     this.state.profileStatus = 'loading';
-    this.state.profileFetchedAt = null;
     this.state.profileError = null;
     this.state.profileErrorMessage = '';
     this.state.progress = { done: 0, total: 0 };
@@ -2204,7 +2200,6 @@ export class App {
     this.state.demoMeta = origin === 'demo' ? parseGpxMetadata(text) : null;
     this.state.profile = null;
     this.state.profileStatus = 'loading';
-    this.state.profileFetchedAt = null;
     this.state.profileError = null;
     this.state.profileErrorMessage = '';
     this.state.progress = { done: 0, total: 0 };
@@ -2268,7 +2263,6 @@ export class App {
         }
         this.state.profile = profile;
         this.state.profileStatus = 'ready';
-        this.state.profileFetchedAt = new Date();
         this.state.profileError = null;
         this.chart.setProfile(profile);
         this.renderProfilePanel();
@@ -2288,7 +2282,6 @@ export class App {
     this.job = null;
     this.state.profile = null;
     this.state.profileStatus = 'error';
-    this.state.profileFetchedAt = null;
     this.state.profileError = kind;
     this.state.profileErrorMessage = message;
     this.state.cursorDistance = null;
@@ -2478,22 +2471,14 @@ export class App {
       return;
     }
 
-    // Ready. The fetch time is the "last verified" date for live DEM numbers.
-    // D8: Europe/Oslo, not the device's zone.
-    const fetched = this.state.profileFetchedAt;
-    const time = fetched ? formatClockAt(fetched.getTime(), this.i18n.locale) : '';
-    if (profile && profile.filledSamples > 0) {
-      this.elements.profileStatus.textContent = time
-        ? this.i18n.t('profile.fetchedFilled', {
+    // Ready. The source is named in the header badge; a clock time adds nothing
+    // to a national terrain model, so only interpolation is worth saying.
+    this.elements.profileStatus.textContent =
+      profile && profile.filledSamples > 0
+        ? this.i18n.t('profile.filled', {
             n: this.i18n.format.number(profile.filledSamples, { maximumFractionDigits: 0 }),
-            time,
           })
-        : this.i18n.t('profile.filled', {
-            n: this.i18n.format.number(profile.filledSamples, { maximumFractionDigits: 0 }),
-          });
-    } else {
-      this.elements.profileStatus.textContent = time ? this.i18n.t('profile.fetched', { time }) : '';
-    }
+        : '';
     setOverlay(false);
   }
 

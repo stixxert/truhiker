@@ -80,8 +80,12 @@ export class StatsBar {
     this.root = root;
     this.i18n = i18n;
     this.handlers = handlers;
-    const badge = root.querySelector<HTMLElement>('#source-badge');
-    const label = root.querySelector<HTMLElement>('#source-label');
+    // The source badge sits in the profile header, not the stats bar: it is
+    // attribution, not a sixth metric. Look in the document when the caller's
+    // root does not contain it.
+    const owner = root.ownerDocument;
+    const badge = root.querySelector<HTMLElement>('#source-badge') ?? owner.querySelector<HTMLElement>('#source-badge');
+    const label = root.querySelector<HTMLElement>('#source-label') ?? owner.querySelector<HTMLElement>('#source-label');
     if (!badge || !label) throw new Error('stats bar is missing #source-badge/#source-label');
     this.sourceBadge = badge;
     this.sourceLabel = label;
