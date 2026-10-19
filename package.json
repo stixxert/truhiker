@@ -1,0 +1,38 @@
+{
+  "name": "npl-map",
+  "version": "0.2.0",
+  "private": true,
+  "description": "GPX route analyser for Norwegian hiking \u2014 elevation core and map shell",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node scripts/copy-data.mjs",
+    "preview": "vite preview",
+    "verify": "node scripts/verify.mjs",
+    "cf:dev": "npm run build && npx wrangler dev",
+    "deploy": "npm run build && npx wrangler deploy",
+    "test": "vitest run --exclude \"**/*.live.test.ts\"",
+    "test:watch": "vitest --exclude \"**/*.live.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "profile": "tsx src/cli/profile.ts",
+    "size": "node scripts/bundle-size.mjs",
+    "visual-check": "node scripts/visual-check.mjs",
+    "test:live": "NETWORK_TESTS=1 vitest run"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.9.12",
+    "maplibre-gl": "^6.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "playwright": "^1.58.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  }
+}

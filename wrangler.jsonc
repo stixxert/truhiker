@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "route-analyser",
+  "compatibility_date": "2026-10-01",
+
+  // Static-only deployment: there is no Worker script.
+  //
+  // Nothing in this app needs server-side execution. Every data source
+  // (Kartverket WMTS/WFS, Mapterhorn terrain, hoydedata elevation) is CORS-
+  // enabled and fetched directly by the browser, which also keeps the browser
+  // out of the 100,000 dynamic-requests/day budget entirely.
+  //
+  // Re-add a Worker ONLY when one of these becomes true:
+  //   1. MET Norway weather — their terms require an identifying User-Agent and
+  //      a server-side cache, neither of which a browser can provide.
+  //   2. Anything that needs a secret (today: nothing).
+  // The previous Worker entry point is preserved in git history and is roughly
+  // 80 lines; the trigger above is the reason to bring it back.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}

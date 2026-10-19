@@ -1,0 +1,2490 @@
+/**
+ * The application shell: owns state, wires the map to the profile, and keeps
+ * every degradation visible.
+ *
+ * State flow, in one line: GPX → `buildRoute` (map geometry) → worker DEM
+ * sampling → `buildProfile` (numbers) → stats bar + chart → cursor ↔ map.
+ */
+
+import { parseGpx, type GpxTrack } from '../core/gpx';
+import { buildProfile, type Profile } from '../core/profile';
+import type { LonLat } from '../core/geo';
+import {
+  StoreError,
+  type RoutePoint,
+  type Trip,
+  type UserProfile,
+} from '../contracts';
+import {
+  DEFAULT_PACE,
+  PACE_LIMITS,
+  naismithMinutes,
+  normalizePace,
+  type Pace,
+} from '../lib/format';
+import { elevationAtDistance, gradeAtDistance } from '../lib/chart';
+import { parseGpxMetadata, type GpxMetadata } from '../lib/gpx-meta';
+import { createElevationJob, type ElevationJob, type ElevationProgress } from '../lib/elevation-client';
+import {
+  MAX_HASH_CHARS,
+  compactGpx,
+  decodeRouteHash,
+  encodeRouteHash,
+  hasRouteHash,
+} from '../lib/share';
+import {
+  buildRoute,
+  checkSupported,
+  pickTrack,
+  type Route,
+  type RouteOrigin,
+} from '../lib/route';
+import { nearestRoutePoint, pointAtDistance } from '../lib/sync';
+import {
+  createI18n,
+  readStoredLang,
+  resolveLang,
+  storeLang,
+  type I18n,
+  type Lang,
+} from '../i18n';
+import {
+  MapController,
+  type BasemapState,
+  type CameraInfo,
+  type TerrainState,
+} from '../map/map-controller';
+import { BannerHost } from '../ui/banners';
+import { loadPace, savePace } from '../ui/pace-store';
+import { ProfileChart, type CursorSource } from '../ui/profile-chart';
+import { StatsBar } from '../ui/stats';
+import { WeatherPanel } from '../ui/weather-panel';
+import { TripLibraryDialog } from '../ui/trip-library';
+import { TripSettingsDialog } from '../ui/trip-settings';
+import { EditorToolbar, type EditorAction } from '../ui/editor-toolbar';
+import { saveStatusDetail, saveStatusText } from '../ui/save-status';
+import { storeErrorDetail, storeErrorText } from '../ui/store-error';
+import { buildTripLibraryView } from '../ui/trip-library-view';
+import type { WeatherPanelState } from '../ui/weather-view';
+import { MemoryWeatherCache } from '../lib/weather-cache';
+import { findLeg, flattenTrip } from '../lib/trip-route';
+import { snapRouteLabel } from '../lib/snap-label';
+import { loadEngines } from './engine-loader';
+import { DOCUMENTED_HORIZON_DAYS, type EngineSurface } from './engine-types';
+import { TripSession, type SaveStatus } from './trip-session';
+import {
+  availableCommands,
+  clearSelection,
+  deleteLegCommand,
+  deleteVertexCommand,
+  drawPointCommand,
+  initialEditorState,
+  insertVertexCommand,
+  moveVertexCommand,
+  noteDrawnPoint,
+  renameCommand,
+  reverseCommand,
+  selectVertex,
+  setMode,
+  setRadius,
+  setSnapping,
+  splitCommand,
+  trimCommand,
+  type EditorUiState,
+  type InteractionMode,
+} from './editor-state';
+import { SnapService } from './snap-service';
+import { EditOverlay, type OffTrailSegment } from '../map/edit-overlay';
+import type { SnapResult } from '../snap';
+
+const DEMO_FILE = 'demo/memurubu-glitterheim-jot21.gpx';
+const MAX_FILE_BYTES = 15 * 1024 * 1024;
+const ZOOM_STEP = 1;
+
+type ProfileStatus = 'empty' | 'loading' | 'ready' | 'error';
+type ProfileErrorKind = 'dem' | 'scope';
+
+interface AppState {
+  route: Route | null;
+  profile: Profile | null;
+  profileStatus: ProfileStatus;
+  profileError: ProfileErrorKind | null;
+  profileErrorMessage: string;
+  progress: ElevationProgress;
+  terrain: TerrainState;
+  basemap: BasemapState;
+  fatal: string | null;
+  cursorDistance: number | null;
+  cursorSource: CursorSource;
+  demoMeta: GpxMetadata | null;
+  /** When the live DEM finished sampling — provenance for the numbers. */
+  profileFetchedAt: Date | null;
+}
+
+function byId<T extends HTMLElement>(id: string): T {
+  const element = document.getElementById(id);
+  if (!element) throw new Error(`index.html is missing #${id}`);
+  return element as T;
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * A banner gets one line. URLs and retry logs belong in the tooltip, not in the
+ * visible message — a public app should not shout query strings at people.
+ */
+function briefError(message: string): string {
+  const http = /\bHTTP (\d{3})\b/.exec(message);
+  if (http) return `HTTP ${http[1]}`;
+  if (/abort|timed? ?out/i.test(message)) return 'timeout';
+  const firstLine = message.split('\n')[0].trim();
+  return firstLine.length > 90 ? `${firstLine.slice(0, 87)}…` : firstLine;
+}
+
+function minMaxElevation(profile: Profile): { min: number; max: number } {
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  for (const sample of profile.samples) {
+    if (!Number.isFinite(sample.ele)) continue;
+    if (sample.ele < min) min = sample.ele;
+    if (sample.ele > max) max = sample.ele;
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) {
+    return { min: Number.NaN, max: Number.NaN };
+  }
+  return { min, max };
+}
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
+function safeStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    // Sandboxed iframe or blocked storage: everything still works, it just
+    // will not remember the language or the pace.
+    return null;
+  }
+}
+
+export class App {
+  private readonly doc: Document;
+  private readonly storage = safeStorage();
+  private readonly i18n: I18n;
+
+  private pace: Pace;
+  private map: MapController | null = null;
+  private chart!: ProfileChart;
+  private stats!: StatsBar;
+  private banners!: BannerHost;
+  private job: ElevationJob | null = null;
+  private markerFrame = 0;
+  private pendingMarker: LonLat | null = null;
+
+  // Phase 3 — trips, weather, editing
+  private engines: EngineSurface | null = null;
+  private engineError: string | null = null;
+  private session: TripSession | null = null;
+  private snapService: SnapService | null = null;
+  private overlay: EditOverlay | null = null;
+  private toolbar: EditorToolbar | null = null;
+  private weatherPanel: WeatherPanel | null = null;
+  private trips: TripLibraryDialog | null = null;
+  private settings: TripSettingsDialog | null = null;
+  private editorUi: EditorUiState = initialEditorState(null);
+  private snapTrackerLine: string | null = null;
+  private snapIndicatorSnap: SnapResult | null = null;
+  private snapHovering = false;
+  private weatherState: WeatherPanelState = { kind: 'no-trip' };
+  private horizonDays = DOCUMENTED_HORIZON_DAYS;
+  private readonly weatherCache = new MemoryWeatherCache();
+  private weatherToken = 0;
+  private offTrailLabels: string[] = [];
+  private offTrailComputed = false;
+  private geometryTimer: number | null = null;
+  private offTrailTimer: number | null = null;
+  private weatherTimer: number | null = null;
+  private snapTimer: number | null = null;
+  private editorFrame = 0;
+  private lastSaveBanner: string | null = null;
+
+  private readonly state: AppState = {
+    route: null,
+    profile: null,
+    profileStatus: 'empty',
+    profileError: null,
+    profileErrorMessage: '',
+    progress: { done: 0, total: 0 },
+    terrain: { status: 'probing' },
+    basemap: { status: 'ok' },
+    fatal: null,
+    cursorDistance: null,
+    cursorSource: 'map',
+    demoMeta: null,
+    profileFetchedAt: null,
+  };
+
+  private readonly elements: {
+    mapContainer: HTMLElement;
+    profilePanel: HTMLElement;
+    profileBody: HTMLElement;
+    profileToggle: HTMLButtonElement;
+    profileStatus: HTMLElement;
+    profileReadout: HTMLElement;
+    profileOverlay: HTMLElement;
+    profileOverlayTitle: HTMLElement;
+    profileOverlayDetail: HTMLElement;
+    profileProgress: HTMLElement;
+    profileRetry: HTMLButtonElement;
+    profileChart: HTMLElement;
+    profileCanvas: HTMLCanvasElement;
+    stats: HTMLElement;
+    emptyState: HTMLElement;
+    mapFatal: HTMLElement;
+    mapFatalMessage: HTMLElement;
+    dropzone: HTMLElement;
+    routeMeta: HTMLElement;
+    routeName: HTMLElement;
+    routeTag: HTMLElement;
+    demoDetails: HTMLDetailsElement;
+    demoSummary: HTMLElement;
+    demoPopover: HTMLElement;
+    demoName: HTMLElement;
+    demoNumber: HTMLElement;
+    demoMaintainer: HTMLElement;
+    demoMarked: HTMLElement;
+    demoSource: HTMLElement;
+    fileInput: HTMLInputElement;
+    terrainButton: HTMLButtonElement;
+    terrainHint: HTMLElement;
+    langButtons: HTMLButtonElement[];
+    basemapButtons: HTMLButtonElement[];
+    aboutDialog: HTMLDialogElement;
+    paceDialog: HTMLDialogElement;
+    paceForm: HTMLFormElement;
+    paceSpeed: HTMLInputElement;
+    paceAscent: HTMLInputElement;
+    paceError: HTMLElement;
+    paceHint: HTMLElement;
+    toast: HTMLElement;
+    saveButton: HTMLButtonElement;
+    saveStatus: HTMLElement;
+    tripsButton: HTMLButtonElement;
+    weatherButton: HTMLButtonElement;
+    settingsButton: HTMLButtonElement;
+    editorToolbar: HTMLElement;
+    weatherPanel: HTMLElement;
+    tripsDialog: HTMLDialogElement;
+    settingsDialog: HTMLDialogElement;
+  };
+
+  constructor() {
+    this.doc = document;
+    const lang = resolveLang(window.location.search, readStoredLang(this.storage));
+    this.i18n = createI18n(lang);
+    this.pace = loadPace(this.storage);
+
+    this.elements = {
+      mapContainer: byId('map'),
+      profilePanel: byId('profile'),
+      profileBody: byId('profile-body'),
+      profileToggle: byId('profile-toggle'),
+      profileStatus: byId('profile-status'),
+      profileReadout: byId('profile-readout'),
+      profileOverlay: byId('profile-overlay'),
+      profileOverlayTitle: byId('profile-overlay-title'),
+      profileOverlayDetail: byId('profile-overlay-detail'),
+      profileProgress: byId('profile-progress'),
+      profileRetry: byId('profile-retry'),
+      profileChart: byId('profile-chart'),
+      profileCanvas: byId<HTMLCanvasElement>('profile-canvas'),
+      stats: byId('stats'),
+      emptyState: byId('empty-state'),
+      mapFatal: byId('map-fatal'),
+      mapFatalMessage: byId('map-fatal-message'),
+      dropzone: byId('dropzone'),
+      routeMeta: byId('route-meta'),
+      routeName: byId('route-name'),
+      routeTag: byId('route-tag'),
+      demoDetails: byId<HTMLDetailsElement>('demo-details'),
+      demoSummary: byId('demo-summary'),
+      demoPopover: byId('demo-popover'),
+      demoName: byId('demo-name'),
+      demoNumber: byId('demo-number'),
+      demoMaintainer: byId('demo-maintainer'),
+      demoMarked: byId('demo-marked'),
+      demoSource: byId('demo-source'),
+      fileInput: byId<HTMLInputElement>('file-input'),
+      terrainButton: byId<HTMLButtonElement>('btn-terrain'),
+      terrainHint: byId('terrain-hint'),
+      langButtons: [...this.doc.querySelectorAll<HTMLButtonElement>('[data-lang]')],
+      basemapButtons: [...this.doc.querySelectorAll<HTMLButtonElement>('[data-basemap]')],
+      aboutDialog: byId<HTMLDialogElement>('about-dialog'),
+      paceDialog: byId<HTMLDialogElement>('pace-dialog'),
+      paceForm: byId<HTMLFormElement>('pace-form'),
+      paceSpeed: byId<HTMLInputElement>('pace-speed'),
+      paceAscent: byId<HTMLInputElement>('pace-ascent'),
+      paceError: byId('pace-error'),
+      paceHint: byId('pace-hint'),
+      toast: byId('toast'),
+      saveButton: byId<HTMLButtonElement>('btn-save'),
+      saveStatus: byId('save-status'),
+      tripsButton: byId<HTMLButtonElement>('btn-trips'),
+      weatherButton: byId<HTMLButtonElement>('btn-weather'),
+      settingsButton: byId<HTMLButtonElement>('btn-settings'),
+      editorToolbar: byId('editor-toolbar'),
+      weatherPanel: byId('weather-panel'),
+      tripsDialog: byId<HTMLDialogElement>('trips-dialog'),
+      settingsDialog: byId<HTMLDialogElement>('settings-dialog'),
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Boot
+  // -------------------------------------------------------------------------
+
+  async start(): Promise<void> {
+    this.applyLanguageChrome();
+    this.i18n.apply(this.doc);
+
+    this.banners = new BannerHost(byId('banners'), this.i18n.t('action.close'));
+    this.chart = new ProfileChart(
+      this.elements.profileChart,
+      this.elements.profileCanvas,
+      this.i18n,
+      { onCursor: (distance, source) => this.handleChartCursor(distance, source) },
+    );
+    this.stats = new StatsBar(this.elements.stats, this.i18n);
+
+    await this.initPhase3();
+
+    this.wireControls();
+    this.wireDialogs();
+    this.wireDropzone();
+    this.wireProfileCollapse();
+    this.wireHashChanges();
+
+    this.createMap();
+    this.renderProfilePanel();
+    this.renderStats();
+    this.renderReadout(null);
+    this.updateRouteMeta();
+
+    if (this.map === null) return;
+    await this.map.whenReady();
+    this.initOverlay();
+    // The style already shows the topo layer. Do not force it here: a basemap
+    // fallback can fire while the first tiles load, and re-selecting topo would
+    // silently undo it.
+    await this.loadInitialRoute();
+  }
+
+  private createMap(): void {
+    try {
+      this.map = new MapController(
+        this.elements.mapContainer,
+        {
+          onBasemapState: (state) => {
+            this.state.basemap = state;
+            this.updateBasemapButtons();
+            this.refreshBanners();
+          },
+          onTerrainState: (state) => {
+            this.state.terrain = state;
+            this.syncTerrainButton();
+            this.refreshBanners();
+          },
+          onCamera: (info) => this.handleCamera(info),
+          onFatal: (message) => this.handleFatal(message),
+        },
+        { reducedMotion: prefersReducedMotion() },
+      );
+      if (import.meta.env.DEV) {
+        // Exposed for the visual smoke test in development only.
+        (window as unknown as { __map?: MapController }).__map = this.map;
+      }
+    } catch (error) {
+      this.handleFatal(messageOf(error));
+    }
+  }
+
+  private handleFatal(message: string): void {
+    this.state.fatal = message;
+    this.elements.mapFatal.hidden = false;
+    this.elements.mapFatalMessage.textContent = this.i18n.t('banner.mapFailed', { message });
+    this.showEmptyState(false);
+    this.refreshBanners();
+  }
+
+  // -------------------------------------------------------------------------
+  // Phase 3 — engines, trips, weather, editing
+  // -------------------------------------------------------------------------
+
+  /**
+   * Load the engine bundle and build the Phase 3 UI.
+   *
+   * A missing engine is a visible state, never a blank panel: the shell keeps
+   * the map and the profile, disables the trip actions, and says why.
+   */
+  private async initPhase3(): Promise<void> {
+    const result = await loadEngines();
+    this.engines = result.engines;
+    this.engineError = result.error;
+
+    this.toolbar = new EditorToolbar(this.elements.editorToolbar, this.i18n, {
+      onMode: (mode) => this.switchMode(mode),
+      onSnapToggle: (enabled) => this.toggleSnapping(enabled),
+      onRadius: (radius) => this.changeRadius(radius),
+      onUndo: () => this.undoEdit(),
+      onRedo: () => this.redoEdit(),
+      onAction: (action) => this.runEditorAction(action),
+      onRename: (name) => this.renameLeg(name),
+    });
+    this.toolbar.setVisible(true);
+
+    this.weatherPanel = new WeatherPanel(this.elements.weatherPanel, this.i18n, {
+      onRefresh: () => void this.refreshWeather(),
+      onSettings: () => this.openSettings(),
+      onOpenRoute: () => this.openFilePicker(),
+      onClose: () => this.hideWeatherPanel(),
+    });
+
+    this.trips = new TripLibraryDialog(this.elements.tripsDialog, this.i18n, {
+      onOpen: (id) => this.openSavedTrip(id),
+      onRename: (id, name) => this.renameSavedTrip(id, name),
+      onDuplicate: (id) => this.duplicateSavedTrip(id),
+      onDelete: (id) => this.deleteSavedTrip(id),
+      onExportGpx: (id) => this.exportSavedTrip(id, 'gpx'),
+      onExportGeoJson: (id) => this.exportSavedTrip(id, 'geojson'),
+      onImport: (file) => void this.importTripFile(file),
+      onSettings: () => this.openSettings(),
+      onNewTrip: () => this.startNewTrip(),
+    });
+
+    this.settings = new TripSettingsDialog(this.elements.settingsDialog, this.i18n, {
+      onSave: (profile) => this.saveProfile(profile),
+    });
+
+    this.elements.saveButton.addEventListener('click', () => this.saveTrip());
+    this.elements.tripsButton.addEventListener('click', () => this.openTripLibrary());
+    this.elements.weatherButton.addEventListener('click', () => {
+      if (this.weatherPanel?.isOpen) this.hideWeatherPanel();
+      else this.showWeatherPanel();
+    });
+    this.elements.settingsButton.addEventListener('click', () => this.openSettings());
+
+    if (!this.engines) {
+      this.banners.show({
+        id: 'engines-missing',
+        kind: 'warning',
+        message: this.i18n.t('banner.enginesMissing'),
+        detail: result.error ?? undefined,
+        action: { label: this.i18n.t('action.retry'), onClick: () => window.location.reload() },
+      });
+      for (const button of [
+        this.elements.tripsButton,
+        this.elements.weatherButton,
+        this.elements.settingsButton,
+        this.elements.saveButton,
+      ]) {
+        button.disabled = true;
+      }
+      this.elements.saveStatus.textContent = this.i18n.t('save.unavailable');
+      this.elements.saveStatus.dataset.kind = 'unavailable';
+      this.weatherState = { kind: 'engine-missing', message: result.error ?? '' };
+      this.renderEditor();
+      this.renderWeather();
+      return;
+    }
+
+    try {
+      this.session = new TripSession({
+        engines: this.engines,
+        storage: this.storage,
+        onChange: () => this.handleSessionChange(),
+      });
+    } catch (error) {
+      this.engines = null;
+      this.engineError = messageOf(error);
+      this.banners.show({
+        id: 'engines-missing',
+        kind: 'error',
+        message: this.i18n.t('banner.enginesMissing'),
+        detail: messageOf(error),
+      });
+    }
+
+    this.snapService = new SnapService({
+      onChange: () => {
+        this.renderEditor();
+        this.scheduleOffTrail();
+      },
+    });
+
+    try {
+      const engines = this.engines;
+      this.horizonDays = engines ? engines.forecastHorizonDays() : DOCUMENTED_HORIZON_DAYS;
+    } catch {
+      this.horizonDays = DOCUMENTED_HORIZON_DAYS;
+    }
+
+    this.renderEditor();
+    this.renderSaveStatus();
+    this.renderWeather();
+  }
+
+  private initOverlay(): void {
+    if (!this.map) return;
+    this.overlay = new EditOverlay({
+      map: this.map.map,
+      getTrip: () => this.session?.trip ?? null,
+      isSnapping: () => this.editorUi.snapping,
+      snap: (point) => this.snapAt(point),
+      onDrawPoint: (point) => this.drawPoint(point),
+      onSelect: (legId, index, extend) => this.selectVertexAt(legId, index, extend),
+      onMoveVertex: (legId, index, point) => this.moveVertex(legId, index, point),
+      onInsertPoint: (legId, index, point) => this.insertVertex(legId, index, point),
+      onSnapIndicator: (snap, hovering) => this.setSnapIndicator(snap, hovering),
+    });
+    this.overlay.setEnabled(this.engines !== null);
+    this.overlay.setMode(this.editorUi.mode);
+    this.overlay.setTrip(this.session?.trip ?? null);
+  }
+
+  // --- session -------------------------------------------------------------
+
+  private handleSessionChange(): void {
+    const trip = this.session?.trip ?? null;
+    // Keep the route object identity when the name is unchanged: `showRouteOnMap`
+    // uses identity to drop a stale render, and a needless spread would make the
+    // first route draw (and its fit) look stale.
+    if (trip && this.state.route && this.state.route.name !== trip.name) {
+      this.state.route = { ...this.state.route, name: trip.name };
+    }
+    this.renderSaveStatus();
+    this.updateRouteMeta();
+    if (this.trips?.isOpen) this.renderTrips();
+  }
+
+  private saveTrip(): void {
+    const session = this.session;
+    if (!session?.trip) return;
+    const status = session.saveNow();
+    if (status.kind === 'saved') {
+      this.showToast(
+        saveStatusText(status, this.i18n),
+      );
+    }
+    this.renderSaveStatus();
+  }
+
+  private renderSaveStatus(): void {
+    const session = this.session;
+    const status: SaveStatus = !this.engines
+      ? { kind: 'unavailable', message: this.engineError ?? undefined }
+      : (session?.saveStatus ?? { kind: 'idle' });
+    const element = this.elements.saveStatus;
+    element.textContent = saveStatusText(status, this.i18n);
+    element.dataset.kind = status.kind;
+    const detail = saveStatusDetail(status);
+    if (detail) element.title = detail;
+    else element.removeAttribute('title');
+    this.elements.saveButton.disabled = !session?.trip;
+
+    if (status.kind === 'error') {
+      const signature = `${status.code ?? ''}:${status.message ?? ''}`;
+      if (this.lastSaveBanner !== signature) {
+        this.lastSaveBanner = signature;
+        this.banners.show({
+          id: 'trip-save',
+          kind: 'error',
+          message: this.i18n.t('banner.tripSaveFailed', {
+            message: saveStatusText(status, this.i18n),
+          }),
+          detail: detail ?? undefined,
+        });
+      }
+    } else if (this.lastSaveBanner !== null) {
+      this.lastSaveBanner = null;
+      this.banners.dismiss('trip-save');
+    }
+  }
+
+  // --- trips ---------------------------------------------------------------
+
+  private adoptTrip(trip: Trip, options: { save?: 'now' | 'deferred' | 'manual' } = {}): void {
+    this.session?.adopt(trip, { save: options.save ?? 'deferred' });
+    this.editorUi = initialEditorState(trip, this.editorUi.snapping);
+    this.overlay?.setTrip(trip);
+    this.overlay?.setMode(this.editorUi.mode);
+    this.overlay?.setSelection(null);
+    this.renderEditor();
+    this.renderSaveStatus();
+    this.scheduleOffTrail();
+  }
+
+  private adoptTripFromTrack(track: GpxTrack, origin: RouteOrigin): void {
+    const engines = this.engines;
+    const session = this.session;
+    if (!engines || !session) return;
+    const points: RoutePoint[] = track.points.map((point) =>
+      point.ele !== undefined && Number.isFinite(point.ele)
+        ? { lon: point.lon, lat: point.lat, ele: point.ele, eleSource: 'gpx' as const }
+        : { lon: point.lon, lat: point.lat },
+    );
+    const name = track.name?.trim() || this.i18n.t('route.unnamed');
+    const profile = session.trip?.profile ?? engines.defaultProfile();
+    let trip: Trip;
+    try {
+      trip = engines.tripFromPoints(points, name, profile);
+    } catch (error) {
+      this.banners.show({
+        id: 'trip-build',
+        kind: 'error',
+        message: this.i18n.t('banner.tripBuildFailed', { message: briefError(messageOf(error)) }),
+        detail: messageOf(error),
+      });
+      return;
+    }
+    this.banners.dismiss('trip-build');
+    // A demo or shared link is something the user is looking at, not something
+    // they chose to keep: do not write it until they edit or press Save.
+    this.adoptTrip(trip, { save: origin === 'file' ? 'deferred' : 'manual' });
+  }
+
+  private openTripLibrary(): void {
+    if (!this.engines) {
+      this.banners.show({
+        id: 'trips-unavailable',
+        kind: 'warning',
+        message: this.i18n.t('trips.engineMissing'),
+        detail: this.engineError ?? undefined,
+      });
+      return;
+    }
+    this.renderTrips();
+    this.trips?.open();
+  }
+
+  private renderTrips(): void {
+    if (!this.trips) return;
+    const session = this.session;
+    const view = buildTripLibraryView(
+      {
+        summaries: session?.list() ?? [],
+        currentId: session?.trip?.id ?? null,
+        problem: session?.listProblem ?? (session ? null : { kind: 'unavailable' }),
+        importEnabled: this.engines !== null && session !== null,
+      },
+      this.i18n,
+    );
+    this.trips.render(view);
+  }
+
+  private openSavedTrip(id: string): void {
+    const session = this.session;
+    if (!session) return;
+    const trip = session.open(id);
+    if (!trip) {
+      this.renderTrips();
+      this.showToast(this.i18n.t('store.notFound'), 'warning');
+      return;
+    }
+    this.trips?.close();
+    this.editorUi = initialEditorState(trip, this.editorUi.snapping);
+    this.overlay?.setTrip(trip);
+    this.overlay?.setMode(this.editorUi.mode);
+    this.overlay?.setSelection(null);
+    this.applyTripGeometry();
+    this.renderEditor();
+    this.renderSaveStatus();
+    this.updateRouteMeta();
+    this.scheduleOffTrail();
+    this.showToast(this.i18n.t('route.loaded', { name: trip.name }));
+  }
+
+  private renameSavedTrip(id: string, name: string): void {
+    const session = this.session;
+    if (!session) return;
+    const ok = session.renameSaved(id, name);
+    if (ok) this.showToast(this.i18n.t('route.loaded', { name: name.trim() }));
+    this.renderTrips();
+    this.handleSessionChange();
+  }
+
+  private duplicateSavedTrip(id: string): void {
+    const session = this.session;
+    if (!session) return;
+    const newId = session.duplicate(id, this.i18n.t('trips.duplicateSuffix'));
+    this.renderTrips();
+    if (!newId) {
+      this.showToast(this.i18n.t('store.quota'), 'warning');
+      return;
+    }
+    const copy = session.open(newId);
+    if (copy) {
+      this.editorUi = initialEditorState(copy, this.editorUi.snapping);
+      this.overlay?.setTrip(copy);
+      this.overlay?.setMode(this.editorUi.mode);
+      this.overlay?.setSelection(null);
+      this.applyTripGeometry();
+      this.renderEditor();
+      this.renderSaveStatus();
+      this.updateRouteMeta();
+    }
+  }
+
+  private deleteSavedTrip(id: string): void {
+    const session = this.session;
+    if (!session) return;
+    const wasCurrent = session.trip?.id === id;
+    if (!session.remove(id)) {
+      this.showToast(this.i18n.t('store.quota'), 'warning');
+    }
+    this.renderTrips();
+    if (wasCurrent) this.clearActiveRoute();
+  }
+
+  /**
+   * Remove the displayed route after its trip was deleted from the library.
+   * Keeping it on screen with no trip and no save status would be a lie about
+   * what is currently open.
+   */
+  private clearActiveRoute(): void {
+    this.job?.cancel();
+    this.job = null;
+    this.session?.close();
+    this.editorUi = initialEditorState(null, this.editorUi.snapping);
+    this.overlay?.setTrip(null);
+    this.overlay?.setOffTrail([]);
+    this.offTrailLabels = [];
+    this.offTrailComputed = false;
+    this.state.route = null;
+    this.state.profile = null;
+    this.state.profileStatus = 'empty';
+    this.state.profileFetchedAt = null;
+    this.state.cursorDistance = null;
+    this.state.profileError = null;
+    this.state.profileErrorMessage = '';
+    this.state.demoMeta = null;
+    this.chart.setProfile(null);
+    this.map?.setRoute(null, { fit: false });
+    this.map?.setCursor(null);
+    this.showEmptyState(true);
+    this.renderProfilePanel();
+    this.renderStats();
+    this.renderReadout(null);
+    this.updateRouteMeta();
+    this.renderEditor();
+    this.renderSaveStatus();
+    this.renderWeather();
+  }
+
+  private exportSavedTrip(id: string, format: 'gpx' | 'geojson'): void {
+    const session = this.session;
+    if (!session) return;
+    const summary = session.list().find((candidate) => candidate.id === id);
+    const text = format === 'gpx' ? session.exportGpxFor(id) : session.exportGeoJsonFor(id);
+    if (text === null) {
+      this.showToast(this.i18n.t('store.unsupported'), 'warning');
+      return;
+    }
+    const name = this.safeFileName(
+      summary?.name ?? 'tur',
+      format === 'gpx' ? '.gpx' : '.geojson',
+    );
+    this.downloadText(
+      name,
+      text,
+      format === 'gpx' ? 'application/gpx+xml' : 'application/geo+json',
+    );
+  }
+
+  private async importTripFile(file: File): Promise<void> {
+    const session = this.session;
+    if (!session) {
+      await this.loadFile(file);
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      this.banners.show({
+        id: 'file-too-large',
+        kind: 'error',
+        message: this.i18n.t('banner.fileTooLarge', {
+          size: this.i18n.format.number(file.size / (1024 * 1024), { maximumFractionDigits: 1 }),
+          max: this.i18n.format.number(MAX_FILE_BYTES / (1024 * 1024), { maximumFractionDigits: 0 }),
+        }),
+      });
+      return;
+    }
+    const text = await file.text();
+    try {
+      const trip = session.importFile(text, file.name);
+      this.banners.dismiss('import-failed');
+      this.editorUi = initialEditorState(trip, this.editorUi.snapping);
+      this.overlay?.setTrip(trip);
+      this.overlay?.setMode(this.editorUi.mode);
+      this.overlay?.setSelection(null);
+      this.applyTripGeometry();
+      this.renderEditor();
+      this.renderSaveStatus();
+      this.renderTrips();
+      this.showToast(this.i18n.t('trips.imported', { name: trip.name }));
+    } catch (error) {
+      this.banners.show({
+        id: 'import-failed',
+        kind: 'error',
+        message: this.i18n.t('banner.importFailed', {
+          message: storeErrorText(error, this.i18n),
+        }),
+        detail: storeErrorDetail(error) ?? undefined,
+      });
+      // The map and profile do not depend on the store: show the route anyway.
+      if (error instanceof StoreError) await this.loadGpxText(text, 'file', file.name);
+    }
+  }
+
+  /**
+   * Start an empty trip and switch to draw mode. The engine's `emptyTrip`
+   * carries one placeholder leg (the two-point invariant), which the first
+   * drawn point replaces — see `drawPointCommand`.
+   */
+  private startNewTrip(): void {
+    const engines = this.engines;
+    const session = this.session;
+    if (!engines || !session) return;
+    let trip: Trip;
+    try {
+      trip = engines.emptyTrip(
+        this.i18n.t('trips.newTripName'),
+        session.trip?.profile ?? engines.defaultProfile(),
+      );
+    } catch (error) {
+      this.showToast(this.i18n.t('banner.tripBuildFailed', { message: messageOf(error) }), 'warning');
+      return;
+    }
+    this.job?.cancel();
+    this.job = null;
+    session.adopt(trip, { save: 'manual' });
+    this.editorUi = initialEditorState(trip, this.editorUi.snapping);
+    this.overlay?.setTrip(trip);
+    this.overlay?.setSelection(null);
+    this.state.route = null;
+    this.state.profile = null;
+    this.state.profileStatus = 'empty';
+    this.state.profileFetchedAt = null;
+    this.state.cursorDistance = null;
+    this.state.demoMeta = null;
+    this.chart.setProfile(null);
+    this.map?.setRoute(null, { fit: false });
+    this.map?.setCursor(null);
+    this.showEmptyState(false);
+    this.renderProfilePanel();
+    this.renderStats();
+    this.renderReadout(null);
+    this.updateRouteMeta();
+    this.trips?.close();
+    this.switchMode('draw');
+    this.offTrailComputed = false;
+    this.offTrailLabels = [];
+    this.renderTrips();
+    this.renderSaveStatus();
+    this.renderWeather();
+  }
+
+  private safeFileName(name: string, extension: string): string {
+    const base = name
+      .trim()
+      .replace(/[\\/:*?"<>|]+/g, '-')
+      .replace(/\s+/g, '_')
+      .slice(0, 80);
+    return `${base.length > 0 ? base : 'tur'}${extension}`;
+  }
+
+  private downloadText(filename: string, text: string, mime: string): void {
+    const blob = new Blob([text], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const link = this.doc.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.rel = 'noopener';
+    this.doc.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  // --- settings ------------------------------------------------------------
+
+  private openSettings(focus?: 'startDate' | 'dailyKm'): void {
+    if (!this.engines) {
+      this.banners.show({
+        id: 'settings-unavailable',
+        kind: 'warning',
+        message: this.i18n.t('settings.engineMissing'),
+        detail: this.engineError ?? undefined,
+      });
+      return;
+    }
+    this.settings?.open(this.session?.trip?.profile ?? null, { available: true });
+    if (focus) this.settings?.focusField(focus);
+  }
+
+  private saveProfile(profile: UserProfile): void {
+    const session = this.session;
+    if (!session?.trip) {
+      this.settings?.close();
+      this.showToast(this.i18n.t('settings.missingTrip'), 'warning');
+      return;
+    }
+    session.rewrite({ ...session.trip, profile });
+    this.settings?.close();
+    this.afterTripChange(false);
+    this.showToast(this.i18n.t('settings.saved'));
+    if (this.weatherPanel?.isOpen) void this.refreshWeather();
+  }
+
+  // --- weather -------------------------------------------------------------
+
+  private showWeatherPanel(): void {
+    this.weatherPanel?.show();
+    this.elements.weatherButton.setAttribute('aria-expanded', 'true');
+    void this.refreshWeather();
+  }
+
+  private hideWeatherPanel(): void {
+    this.weatherPanel?.hide();
+    this.elements.weatherButton.setAttribute('aria-expanded', 'false');
+  }
+
+  private renderWeather(): void {
+    this.weatherPanel?.render(
+      this.weatherState,
+      this.session?.trip?.profile ?? null,
+      this.horizonDays,
+    );
+  }
+
+  private async refreshWeather(): Promise<void> {
+    const token = ++this.weatherToken;
+    if (!this.engines) {
+      this.weatherState = { kind: 'engine-missing', message: this.engineError ?? '' };
+      this.renderWeather();
+      return;
+    }
+    const trip = this.session?.trip;
+    if (!trip) {
+      this.weatherState = { kind: 'no-trip' };
+      this.renderWeather();
+      return;
+    }
+    if (!trip.profile.startDate) {
+      this.weatherState = { kind: 'needs-start-date' };
+      this.renderWeather();
+      return;
+    }
+    if (!(trip.profile.dailyKm > 0)) {
+      this.weatherState = { kind: 'needs-daily-km' };
+      this.renderWeather();
+      return;
+    }
+
+    this.weatherState = { kind: 'loading' };
+    this.renderWeather();
+    try {
+      const plan = await this.engines.planTripWeather(trip, {
+        fetch: window.fetch.bind(window),
+        cache: this.weatherCache,
+        now: () => new Date(),
+        maxPoints: 40,
+        concurrency: 2,
+      });
+      if (token !== this.weatherToken) return;
+      this.weatherState = { kind: 'ready', plan };
+    } catch (error) {
+      if (token !== this.weatherToken) return;
+      this.weatherState = { kind: 'error', message: messageOf(error) };
+    }
+    this.renderWeather();
+  }
+
+  private scheduleWeatherRefresh(): void {
+    if (this.weatherTimer !== null) window.clearTimeout(this.weatherTimer);
+    this.weatherTimer = window.setTimeout(() => {
+      this.weatherTimer = null;
+      void this.refreshWeather();
+    }, 900);
+  }
+
+  // --- editor --------------------------------------------------------------
+
+  private switchMode(mode: InteractionMode): void {
+    if (!this.engines || !this.session?.trip) return;
+    this.editorUi = setMode(this.editorUi, mode, this.session.trip);
+    this.overlay?.setMode(mode);
+    this.overlay?.setTrip(this.session.trip);
+    this.snapTrackerLine = null;
+    if (mode !== 'view') this.ensureSnapNetwork();
+    this.renderEditor();
+  }
+
+  private toggleSnapping(enabled: boolean): void {
+    this.editorUi = setSnapping(this.editorUi, enabled);
+    this.snapTrackerLine = null;
+    if (enabled) this.ensureSnapNetwork();
+    this.scheduleOffTrail();
+    this.renderEditor();
+  }
+
+  private changeRadius(radius: number): void {
+    this.editorUi = setRadius(this.editorUi, radius);
+    this.snapTrackerLine = null;
+    this.scheduleOffTrail();
+    this.renderEditor();
+  }
+
+  private ensureSnapNetwork(): void {
+    const service = this.snapService;
+    if (!service || !this.map) return;
+    if (service.status === 'loading') return;
+    const bounds = this.map.map.getBounds();
+    void service.loadViewport({
+      minLon: bounds.getWest(),
+      minLat: bounds.getSouth(),
+      maxLon: bounds.getEast(),
+      maxLat: bounds.getNorth(),
+    });
+  }
+
+  private snapAt(point: LonLat): SnapResult | null {
+    const service = this.snapService;
+    if (!service || !this.editorUi.snapping) return null;
+    const result = service.snap(point, this.editorUi.radiusM, this.snapTrackerLine);
+    this.snapTrackerLine = result?.lineId ?? null;
+    return result;
+  }
+
+  private setSnapIndicator(snap: SnapResult | null, hovering = false): void {
+    this.snapIndicatorSnap = snap;
+    this.snapHovering = hovering;
+    if (this.editorFrame !== 0) return;
+    this.editorFrame = requestAnimationFrame(() => {
+      this.editorFrame = 0;
+      this.renderEditor();
+    });
+  }
+
+  private selectVertexAt(legId: string, index: number, extend: boolean): void {
+    this.editorUi = selectVertex(this.editorUi, legId, index, extend);
+    this.overlay?.setSelection(this.editorUi.selection);
+    this.renderEditor();
+  }
+
+  private drawPoint(point: LonLat): void {
+    const session = this.session;
+    const engines = this.engines;
+    let trip = session?.trip;
+    if (!session || !trip || !engines) return;
+
+    // A brand-new trip has no legs (emptyTrip is genuinely empty). The first
+    // drawn point creates the placeholder leg that `emptyLeg` is for; this is
+    // the one whole-trip replacement in the drawing flow, and it has no history
+    // to lose.
+    if (findLeg(trip, this.editorUi.activeLegId) === undefined) {
+      const leg = engines.emptyLeg();
+      const withLeg: Trip = { ...trip, legs: [...trip.legs, leg] };
+      session.rewrite(withLeg);
+      this.editorUi = {
+        ...this.editorUi,
+        activeLegId: leg.id,
+        selection: null,
+        drawPoints: [],
+        drawReplacesLeg: true,
+      };
+      this.overlay?.setTrip(withLeg);
+      trip = withLeg;
+    }
+
+    const command = drawPointCommand(this.editorUi, trip, { lon: point.lon, lat: point.lat });
+    if (!command) return;
+    if (session.apply(command)) {
+      this.editorUi = noteDrawnPoint(this.editorUi, { lon: point.lon, lat: point.lat });
+      this.afterTripChange();
+    }
+  }
+
+  private moveVertex(legId: string, index: number, point: LonLat): void {
+    const session = this.session;
+    if (!session?.trip) return;
+    if (session.apply(moveVertexCommand(legId, index, { lon: point.lon, lat: point.lat }))) {
+      this.afterTripChange();
+    }
+  }
+
+  private insertVertex(legId: string, index: number, point: LonLat): void {
+    const session = this.session;
+    if (!session?.trip) return;
+    if (session.apply(insertVertexCommand(legId, index, { lon: point.lon, lat: point.lat }))) {
+      this.afterTripChange();
+    }
+  }
+
+  private undoEdit(): void {
+    if (this.session?.undo()) {
+      this.editorUi = clearSelection(this.editorUi);
+      this.afterTripChange();
+    }
+  }
+
+  private redoEdit(): void {
+    if (this.session?.redo()) {
+      this.editorUi = clearSelection(this.editorUi);
+      this.afterTripChange();
+    }
+  }
+
+  private runEditorAction(action: EditorAction): void {
+    const session = this.session;
+    const trip = session?.trip;
+    if (!session || !trip) return;
+    let command = null;
+    switch (action) {
+      case 'delete-vertex':
+        command = deleteVertexCommand(this.editorUi);
+        break;
+      case 'split':
+        command = splitCommand(this.editorUi);
+        break;
+      case 'reverse':
+        command = reverseCommand(this.editorUi, trip);
+        break;
+      case 'trim':
+        command = trimCommand(this.editorUi);
+        break;
+      case 'delete-leg':
+        command = deleteLegCommand(this.editorUi, trip);
+        break;
+      case 'reroute':
+        this.rerouteSelection();
+        return;
+      case 'rename':
+        return;
+    }
+    if (command && session.apply(command)) {
+      this.editorUi = clearSelection(this.editorUi);
+      this.overlay?.setSelection(null);
+      this.afterTripChange();
+    }
+  }
+
+  private renameLeg(name: string): void {
+    const session = this.session;
+    const trip = session?.trip;
+    if (!session || !trip) return;
+    const command = renameCommand(this.editorUi, trip, name);
+    if (command && session.apply(command)) this.afterTripChange();
+  }
+
+  /**
+   * Reroute re-snaps the selected span and applies the result as a normal
+   * `replace-span` command, so it lands on the undo stack like every other edit.
+   * If the engine returns unchanged geometry (no trail within the radius) we do
+   * not pretend an edit happened: the span is left alone and the off-trail
+   * computation marks it.
+   */
+  private rerouteSelection(): void {
+    const session = this.session;
+    const engines = this.engines;
+    const selection = this.editorUi.selection;
+    const trip = session?.trip;
+    const service = this.snapService;
+    if (!session || !engines || !trip || !selection || selection.to === null) return;
+    if (!service || service.lineCount === 0) {
+      this.showToast(this.i18n.t('editor.rerouteNeedsSnap'), 'warning');
+      return;
+    }
+    const from = Math.min(selection.from, selection.to);
+    const to = Math.max(selection.from, selection.to);
+    const leg = findLeg(trip, selection.legId);
+    if (!leg) return;
+    let rerouted: Trip;
+    try {
+      rerouted = engines.rerouteSpan(trip, selection.legId, from, to, {
+        radiusM: this.editorUi.radiusM,
+        snapIndex: service.index,
+      });
+    } catch (error) {
+      this.banners.show({
+        id: 'reroute-failed',
+        kind: 'error',
+        message: this.i18n.t('banner.tripSaveFailed', { message: briefError(messageOf(error)) }),
+        detail: messageOf(error),
+      });
+      return;
+    }
+    const reroutedLeg = findLeg(rerouted, selection.legId);
+    if (!reroutedLeg) return;
+    const span = reroutedLeg.points.slice(from, to + 1);
+    const original = leg.points.slice(from, to + 1);
+    const changed =
+      span.length !== original.length ||
+      span.some(
+        (point, index) =>
+          point.lon !== original[index].lon || point.lat !== original[index].lat,
+      );
+    if (!changed) {
+      this.showToast(this.i18n.t('editor.rerouteNoTrail'), 'warning');
+      this.recomputeOffTrail();
+      return;
+    }
+    const applied = session.apply({
+      type: 'replace-span',
+      legId: selection.legId,
+      from,
+      to,
+      points: span,
+      snapped: true,
+    });
+    if (applied) this.afterTripChange();
+  }
+
+  private afterTripChange(refreshGeometry = true): void {
+    const session = this.session;
+    const trip = session?.trip ?? null;
+    if (!trip) {
+      this.renderEditor();
+      this.renderSaveStatus();
+      return;
+    }
+    if (this.state.route && this.state.route.name !== trip.name) {
+      this.state.route = { ...this.state.route, name: trip.name };
+    }
+    this.overlay?.setTrip(trip);
+    this.overlay?.setSelection(this.editorUi.selection);
+    this.renderEditor();
+    this.renderSaveStatus();
+    this.updateRouteMeta();
+    this.scheduleOffTrail();
+    if (refreshGeometry) this.scheduleGeometryRefresh();
+    if (this.weatherPanel?.isOpen) this.scheduleWeatherRefresh();
+  }
+
+  private scheduleGeometryRefresh(): void {
+    if (this.geometryTimer !== null) window.clearTimeout(this.geometryTimer);
+    this.geometryTimer = window.setTimeout(() => {
+      this.geometryTimer = null;
+      this.applyTripGeometry();
+    }, 350);
+  }
+
+  /** Rebuild the displayed route from the trip and re-sample the DEM. */
+  private applyTripGeometry(): void {
+    const trip = this.session?.trip;
+    if (!trip) return;
+    const flat = flattenTrip(trip);
+    if (flat.points.length < 2 || !(flat.distanceM > 0)) return;
+    let route: Route;
+    try {
+      route = buildRoute({
+        name: trip.name,
+        coords: flat.points.map((point) => ({ lon: point.lon, lat: point.lat })),
+        origin: 'file',
+      });
+    } catch {
+      // A zero-length or degenerate edit: leave the current view alone.
+      return;
+    }
+    this.job?.cancel();
+    this.job = null;
+    this.banners.dismiss('gpx-error');
+    this.state.route = route;
+    this.state.profile = null;
+    this.state.profileStatus = 'loading';
+    this.state.profileFetchedAt = null;
+    this.state.profileError = null;
+    this.state.profileErrorMessage = '';
+    this.state.progress = { done: 0, total: 0 };
+    this.state.cursorDistance = null;
+    this.state.cursorSource = 'map';
+    this.showEmptyState(false);
+    this.updateRouteMeta();
+    void this.showRouteOnMap(route);
+    this.chart.setProfile(null);
+    this.renderProfilePanel();
+    this.renderStats();
+    this.renderReadout(null);
+    if (!checkSupported(route.points).ok) {
+      this.setProfileError('scope');
+      return;
+    }
+    this.sampleRoute(route);
+  }
+
+  private scheduleOffTrail(): void {
+    if (this.offTrailTimer !== null) window.clearTimeout(this.offTrailTimer);
+    this.offTrailTimer = window.setTimeout(() => {
+      this.offTrailTimer = null;
+      this.recomputeOffTrail();
+    }, 450);
+  }
+
+  /**
+   * Classify every segment as on- or off-trail by snapping its midpoint.
+   * Consecutive off-trail segments are merged into one labelled stretch; the
+   * dashed map line uses the individual segments.
+   */
+  private recomputeOffTrail(): void {
+    const trip = this.session?.trip;
+    const service = this.snapService;
+    const segments: OffTrailSegment[] = [];
+    const labels: string[] = [];
+    this.offTrailComputed = Boolean(
+      trip && service && service.isReady && service.lineCount > 0 && this.editorUi.snapping,
+    );
+    if (this.offTrailComputed && trip && service) {
+      const flat = flattenTrip(trip);
+      let runStart: number | null = null;
+      let runEnd: number | null = null;
+      for (let i = 0; i + 1 < flat.points.length; i++) {
+        const a = flat.points[i];
+        const b = flat.points[i + 1];
+        const off =
+          service.snap(
+            { lon: (a.lon + b.lon) / 2, lat: (a.lat + b.lat) / 2 },
+            this.editorUi.radiusM,
+          ) === null;
+        if (off) {
+          if (runStart === null) runStart = i;
+          runEnd = i + 1;
+          segments.push({
+            from: { lon: a.lon, lat: a.lat },
+            to: { lon: b.lon, lat: b.lat },
+          });
+        } else if (runStart !== null && runEnd !== null) {
+          labels.push(this.offTrailLabel(labels.length + 1, flat.distances[runStart], flat.distances[runEnd]));
+          runStart = null;
+          runEnd = null;
+        }
+      }
+      if (runStart !== null && runEnd !== null) {
+        labels.push(this.offTrailLabel(labels.length + 1, flat.distances[runStart], flat.distances[runEnd]));
+      }
+    }
+    this.offTrailLabels = labels.slice(0, 3);
+    this.overlay?.setOffTrail(segments);
+    this.renderEditor();
+  }
+
+  private offTrailLabel(n: number, fromM: number, toM: number): string {
+    return this.i18n.t('editor.offTrailSpan', {
+      n: this.i18n.format.number(n, { maximumFractionDigits: 0 }),
+      from: this.i18n.format.distance(fromM),
+      to: this.i18n.format.distance(toM),
+    });
+  }
+
+  private renderEditor(): void {
+    if (!this.toolbar) return;
+    const trip = this.session?.trip ?? null;
+    const available = this.engines !== null && trip !== null;
+    const legId = this.editorUi.selection?.legId ?? this.editorUi.activeLegId;
+    const leg = findLeg(trip, legId);
+    const legIndex = leg && trip ? trip.legs.findIndex((candidate) => candidate.id === leg.id) : -1;
+    const legLabel =
+      leg?.name?.trim() ||
+      (legIndex >= 0 ? this.i18n.t('editor.legFallback', { n: legIndex + 1 }) : '');
+    const selection = this.editorUi.selection;
+    let selectionLabel: string | null = null;
+    if (leg && selection) {
+      const from = Math.min(selection.from, selection.to ?? selection.from);
+      const to = Math.max(selection.from, selection.to ?? selection.from);
+      selectionLabel =
+        selection.to !== null && to !== from
+          ? this.i18n.t('editor.selectionSpan', {
+              leg: legLabel,
+              from: this.i18n.format.number(from + 1, { maximumFractionDigits: 0 }),
+              to: this.i18n.format.number(to + 1, { maximumFractionDigits: 0 }),
+            })
+          : this.i18n.t('editor.selection', {
+              leg: legLabel,
+              from: this.i18n.format.number(selection.from + 1, { maximumFractionDigits: 0 }),
+              total: this.i18n.format.number(leg.points.length, { maximumFractionDigits: 0 }),
+            });
+    }
+
+    let snapIndicator = '';
+    let snapState: 'off' | 'loading' | 'failed' | 'idle' | 'hit' | 'miss' | 'ready' = 'off';
+    if (available) {
+      if (!this.editorUi.snapping) {
+        snapIndicator = this.i18n.t('editor.snapDisabled');
+        snapState = 'off';
+      } else if (this.snapService?.status === 'loading') {
+        snapIndicator = this.i18n.t('editor.snapLoading');
+        snapState = 'loading';
+      } else if (this.snapService?.status === 'failed') {
+        snapIndicator = this.i18n.t('editor.snapFailed');
+        snapState = 'failed';
+      } else if ((this.snapService?.lineCount ?? 0) === 0) {
+        snapIndicator = this.i18n.t('editor.snapIdle');
+        snapState = 'idle';
+      } else if (this.snapIndicatorSnap) {
+        snapIndicator = this.i18n.t('editor.snapOn', {
+          route: snapRouteLabel(this.snapIndicatorSnap.attributes).label,
+        });
+        snapState = 'hit';
+      } else if (this.snapHovering) {
+        snapIndicator = this.i18n.t('editor.snapOff', {
+          radius: this.i18n.format.number(this.editorUi.radiusM, { maximumFractionDigits: 0 }),
+        });
+        snapState = 'miss';
+      } else {
+        snapIndicator = this.i18n.t('editor.snapReady');
+        snapState = 'ready';
+      }
+    }
+
+    let offTrailLabel: string;
+    if (!available) offTrailLabel = '';
+    else if (!this.editorUi.snapping) offTrailLabel = this.i18n.t('editor.offTrailSnapOff');
+    else if (!this.offTrailComputed) offTrailLabel = this.i18n.t('editor.offTrailUnknown');
+    else if (this.offTrailLabels.length === 0) offTrailLabel = this.i18n.t('editor.offTrailNone');
+    else {
+      offTrailLabel = this.i18n.t('editor.offTrail', {
+        count: this.i18n.format.number(this.offTrailLabels.length, {
+          maximumFractionDigits: 0,
+        }),
+      });
+    }
+
+    const hint = !this.engines
+      ? this.i18n.t('editor.engineMissing')
+      : !trip
+        ? this.i18n.t('editor.noTrip')
+        : this.editorUi.mode === 'draw'
+          ? this.i18n.t('editor.drawHint')
+          : this.editorUi.mode === 'edit'
+            ? this.i18n.t('editor.selectHint')
+            : this.i18n.t('editor.viewHint');
+
+    this.toolbar.render({
+      available,
+      mode: this.editorUi.mode,
+      snapping: this.editorUi.snapping,
+      radiusM: this.editorUi.radiusM,
+      canUndo: this.session?.canUndo ?? false,
+      canRedo: this.session?.canRedo ?? false,
+      commands: availableCommands(this.editorUi, trip),
+      selectionLabel,
+      legName: leg?.name ?? '',
+      snapIndicator,
+      snapState,
+      offTrailLabel,
+      offTrailSpans: this.offTrailLabels,
+      hint,
+      vertexCount: trip ? flattenTrip(trip).points.length : 0,
+      renameEnabled: leg !== undefined,
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Route loading
+  // -------------------------------------------------------------------------
+
+  private async loadInitialRoute(): Promise<void> {
+    const hash = window.location.hash;
+    if (hasRouteHash(hash)) {
+      const text = decodeRouteHash(hash);
+      if (text !== null) {
+        await this.loadGpxText(text, 'link', undefined, { updateHash: false });
+        return;
+      }
+      this.banners.show({
+        id: 'hash-invalid',
+        kind: 'warning',
+        message: this.i18n.t('banner.hashInvalid'),
+      });
+    }
+    await this.loadDemo();
+  }
+
+  private async loadDemo(): Promise<void> {
+    try {
+      const url = new URL(DEMO_FILE, document.baseURI);
+      const response = await fetch(url, { headers: { accept: 'application/gpx+xml,text/xml,application/xml' } });
+      if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
+      const text = await response.text();
+      await this.loadGpxText(text, 'demo', DEMO_FILE.split('/').pop(), { updateHash: false });
+    } catch (error) {
+      if (this.state.route === null) this.showEmptyState(true);
+      this.banners.show({
+        id: 'demo-failed',
+        kind: 'warning',
+        message: `${this.i18n.t('banner.demoFailed')} (${briefError(messageOf(error))})`,
+        detail: messageOf(error),
+        action: {
+          label: this.i18n.t('action.openGpx'),
+          onClick: () => this.openFilePicker(),
+        },
+      });
+    }
+  }
+
+  private async loadGpxText(
+    text: string,
+    origin: RouteOrigin,
+    fileName?: string,
+    options: { updateHash?: boolean } = {},
+  ): Promise<void> {
+    let route: Route;
+    let track: GpxTrack | null = null;
+    try {
+      const documentNode = parseGpx(text);
+      track = pickTrack(documentNode);
+      if (!track) {
+        this.banners.show({ id: 'gpx-error', kind: 'error', message: this.i18n.t('banner.noTrack') });
+        return;
+      }
+      if (track.points.length < 2) {
+        this.banners.show({ id: 'gpx-error', kind: 'error', message: this.i18n.t('banner.tooShort') });
+        return;
+      }
+      route = buildRoute({
+        name: track.name,
+        coords: track.points.map((point) => ({ lon: point.lon, lat: point.lat })),
+        origin,
+        fileName,
+        gpxText: text,
+      });
+    } catch (error) {
+      this.banners.show({
+        id: 'gpx-error',
+        kind: 'error',
+        message: this.i18n.t('banner.gpxError', { message: messageOf(error) }),
+      });
+      return;
+    }
+
+    this.banners.dismiss('gpx-error');
+    this.banners.dismiss('demo-failed');
+    this.banners.dismiss('hash-invalid');
+    this.banners.dismiss('dem-failed');
+    this.banners.dismiss('hash-too-long');
+    this.banners.dismiss('off-scope');
+
+    this.job?.cancel();
+    this.job = null;
+    this.elements.demoDetails.open = false;
+    this.state.route = route;
+    this.state.demoMeta = origin === 'demo' ? parseGpxMetadata(text) : null;
+    this.state.profile = null;
+    this.state.profileStatus = 'loading';
+    this.state.profileFetchedAt = null;
+    this.state.profileError = null;
+    this.state.profileErrorMessage = '';
+    this.state.progress = { done: 0, total: 0 };
+    this.state.cursorDistance = null;
+    this.state.cursorSource = 'map';
+
+    this.showEmptyState(false);
+    this.updateRouteMeta();
+    void this.showRouteOnMap(route);
+    this.chart.setProfile(null);
+    this.renderProfilePanel();
+    this.renderStats();
+    this.renderReadout(null);
+
+    if (track) this.adoptTripFromTrack(track, origin);
+
+    if (options.updateHash !== false && origin === 'file') {
+      this.writeRouteHash(text);
+    }
+
+    const support = checkSupported(route.points);
+    if (!support.ok) {
+      this.setProfileError('scope');
+      return;
+    }
+    this.sampleRoute(route);
+  }
+
+  private async showRouteOnMap(route: Route): Promise<void> {
+    if (!this.map) return;
+    await this.map.whenReady();
+    if (this.state.route !== route) return;
+    this.map.setRoute(route, { fit: true });
+  }
+
+  private sampleRoute(route: Route): void {
+    this.state.profileStatus = 'loading';
+    this.state.progress = { done: 0, total: 0 };
+    this.renderProfilePanel();
+    this.renderStats();
+
+    const job = createElevationJob(route.points, {
+      onProgress: (progress) => {
+        if (this.job !== job) return;
+        this.state.progress = progress;
+        this.renderProfilePanel();
+      },
+    });
+    this.job = job;
+
+    job.promise
+      .then((elevations) => {
+        if (this.job !== job) return;
+        this.job = null;
+        let profile: Profile;
+        try {
+          profile = buildProfile(route.points, Array.from(elevations));
+        } catch (error) {
+          this.setProfileError('dem', messageOf(error));
+          return;
+        }
+        this.state.profile = profile;
+        this.state.profileStatus = 'ready';
+        this.state.profileFetchedAt = new Date();
+        this.state.profileError = null;
+        this.chart.setProfile(profile);
+        this.renderProfilePanel();
+        this.renderStats();
+        this.syncCursorToCamera();
+      })
+      .catch((error: unknown) => {
+        if (this.job !== job) return;
+        this.job = null;
+        this.setProfileError('dem', messageOf(error));
+      });
+  }
+
+  private setProfileError(kind: ProfileErrorKind, message = ''): void {
+    this.job?.cancel();
+    this.job = null;
+    this.state.profile = null;
+    this.state.profileStatus = 'error';
+    this.state.profileFetchedAt = null;
+    this.state.profileError = kind;
+    this.state.profileErrorMessage = message;
+    this.state.cursorDistance = null;
+    this.chart.setProfile(null);
+    this.map?.setCursor(null);
+    this.renderProfilePanel();
+    this.renderStats();
+    this.renderReadout(null);
+    this.refreshBanners();
+  }
+
+  private retryElevation(): void {
+    const route = this.state.route;
+    if (!route) return;
+    if (!checkSupported(route.points).ok) {
+      this.setProfileError('scope');
+      return;
+    }
+    this.banners.dismiss('dem-failed');
+    this.sampleRoute(route);
+  }
+
+  private writeRouteHash(text: string): void {
+    const hash = encodeRouteHash(compactGpx(text));
+    if (hash === null) {
+      this.banners.show({
+        id: 'hash-too-long',
+        kind: 'info',
+        message: this.i18n.t('banner.hashTooLong', {
+          max: this.i18n.format.number(MAX_HASH_CHARS, { maximumFractionDigits: 0 }),
+        }),
+      });
+      return;
+    }
+    const url = `${window.location.pathname}${window.location.search}${hash}`;
+    window.history.replaceState(null, '', url);
+    this.banners.dismiss('hash-too-long');
+  }
+
+  // -------------------------------------------------------------------------
+  // Cursor + camera sync
+  // -------------------------------------------------------------------------
+
+  private handleChartCursor(distance: number | null, source: CursorSource): void {
+    this.state.cursorDistance = distance;
+    this.state.cursorSource = source;
+    this.renderReadout(distance);
+
+    if (source === 'map' || distance === null || this.state.route === null) {
+      this.scheduleMarker(null);
+      return;
+    }
+    this.scheduleMarker(pointAtDistance(this.state.route, distance));
+  }
+
+  private handleCamera(info: CameraInfo): void {
+    // Editing needs trails for the viewport the user is looking at, not the one
+    // they started in. Prefetch is debounced; the cache makes repeats free.
+    if (this.editorUi.mode !== 'view' && this.editorUi.snapping) this.scheduleSnapPrefetch();
+    if (!this.state.route || this.state.profileStatus !== 'ready') return;
+    const nearest = nearestRoutePoint(this.state.route, info.center, info.zoom);
+    if (!nearest) return;
+    this.chart.setExternalCursor(nearest.distanceM);
+    // Do not fight the pointer or keyboard for the readout.
+    if (this.state.cursorSource === 'map') {
+      this.state.cursorDistance = nearest.distanceM;
+      this.renderReadout(nearest.distanceM);
+    }
+  }
+
+  private scheduleSnapPrefetch(): void {
+    if (this.snapTimer !== null) window.clearTimeout(this.snapTimer);
+    this.snapTimer = window.setTimeout(() => {
+      this.snapTimer = null;
+      this.ensureSnapNetwork();
+    }, 600);
+  }
+
+  private syncCursorToCamera(): void {
+    if (!this.map || !this.state.route || this.state.profileStatus !== 'ready') return;
+    const camera = this.map.getCamera();
+    const nearest = nearestRoutePoint(this.state.route, camera.center, camera.zoom);
+    if (!nearest) return;
+    this.state.cursorSource = 'map';
+    this.state.cursorDistance = nearest.distanceM;
+    this.chart.setExternalCursor(nearest.distanceM);
+    this.renderReadout(nearest.distanceM);
+  }
+
+  private scheduleMarker(position: LonLat | null): void {
+    this.pendingMarker = position;
+    if (this.markerFrame !== 0) return;
+    this.markerFrame = requestAnimationFrame(() => {
+      this.markerFrame = 0;
+      this.map?.setCursor(this.pendingMarker);
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Rendering
+  // -------------------------------------------------------------------------
+
+  private renderStats(): void {
+    const { route, profile, profileStatus, profileError } = this.state;
+    const ready = profileStatus === 'ready' && profile !== null;
+    const range = ready ? minMaxElevation(profile) : null;
+    const minutes = ready ? naismithMinutes(profile.distanceM, profile.ascentM, this.pace) : null;
+    const disabledReason =
+      profileStatus === 'error'
+        ? this.i18n.t(profileError === 'scope' ? 'profile.outOfScope' : 'profile.unavailableDetail')
+        : undefined;
+
+    const paceHint = this.i18n.t('stats.timeHint', {
+      speed: this.i18n.format.number(this.pace.speedKmh, { maximumFractionDigits: 1 }),
+      ascent: this.i18n.format.number(this.pace.ascentMPerHour, { maximumFractionDigits: 0 }),
+    });
+
+    this.stats.render({
+      values: {
+        distanceM: route?.distanceM ?? null,
+        ascentM: ready ? profile.ascentM : null,
+        descentM: ready ? profile.descentM : null,
+        minutes: ready ? minutes : null,
+        minEle: range?.min ?? null,
+        maxEle: range?.max ?? null,
+      },
+      source:
+        route === null
+          ? 'idle'
+          : profileStatus === 'ready'
+            ? 'ready'
+            : profileStatus === 'loading'
+              ? 'loading'
+              : 'error',
+      disabledReason,
+      paceHint,
+    });
+  }
+
+  private renderProfilePanel(): void {
+    const { profileStatus, profile, profileError, progress } = this.state;
+    const overlay = this.elements.profileOverlay;
+    const title = this.elements.profileOverlayTitle;
+    const detail = this.elements.profileOverlayDetail;
+    const progressBar = this.elements.profileProgress;
+
+    const setOverlay = (visible: boolean): void => {
+      overlay.hidden = !visible;
+    };
+
+    this.elements.profileRetry.hidden = true;
+    progressBar.hidden = true;
+
+    if (profileStatus === 'empty') {
+      this.elements.profileStatus.textContent = this.i18n.t('profile.empty');
+      title.textContent = this.i18n.t('profile.empty');
+      detail.textContent = this.i18n.t('profile.emptyHint');
+      setOverlay(true);
+      return;
+    }
+
+    if (profileStatus === 'loading') {
+      const { done, total } = progress;
+      this.elements.profileStatus.textContent =
+        total > 0
+          ? this.i18n.t('profile.loading', {
+              done: this.i18n.format.number(done, { maximumFractionDigits: 0 }),
+              total: this.i18n.format.number(total, { maximumFractionDigits: 0 }),
+            })
+          : this.i18n.t('profile.loadingShort');
+      title.textContent = this.i18n.t('profile.loadingShort');
+      detail.textContent = '';
+      progressBar.hidden = false;
+      const span = progressBar.firstElementChild as HTMLElement | null;
+      if (span) {
+        span.classList.toggle('is-indeterminate', total === 0);
+        span.style.width = total > 0 ? `${Math.round((done / total) * 100)}%` : '35%';
+      }
+      setOverlay(true);
+      return;
+    }
+
+    if (profileStatus === 'error') {
+      this.elements.profileStatus.textContent = this.i18n.t('profile.unavailable');
+      title.textContent = this.i18n.t('profile.unavailable');
+      detail.textContent = this.i18n.t(
+        profileError === 'scope' ? 'profile.outOfScope' : 'profile.unavailableDetail',
+      );
+      this.elements.profileRetry.hidden = profileError !== 'dem';
+      setOverlay(true);
+      return;
+    }
+
+    // Ready. The fetch time is the "last verified" date for live DEM numbers.
+    const fetched = this.state.profileFetchedAt;
+    const time = fetched
+      ? new Intl.DateTimeFormat(this.i18n.locale, { hour: '2-digit', minute: '2-digit' }).format(fetched)
+      : '';
+    if (profile && profile.filledSamples > 0) {
+      this.elements.profileStatus.textContent = time
+        ? this.i18n.t('profile.fetchedFilled', {
+            n: this.i18n.format.number(profile.filledSamples, { maximumFractionDigits: 0 }),
+            time,
+          })
+        : this.i18n.t('profile.filled', {
+            n: this.i18n.format.number(profile.filledSamples, { maximumFractionDigits: 0 }),
+          });
+    } else {
+      this.elements.profileStatus.textContent = time ? this.i18n.t('profile.fetched', { time }) : '';
+    }
+    setOverlay(false);
+  }
+
+  private renderReadout(distance: number | null): void {
+    const el = this.elements.profileReadout;
+    const profile = this.state.profile;
+    if (!profile || this.state.profileStatus !== 'ready') {
+      el.textContent = '';
+      return;
+    }
+    if (distance === null || !Number.isFinite(distance)) {
+      const range = minMaxElevation(profile);
+      el.textContent = `${this.i18n.format.distance(profile.distanceM)} · ${this.i18n.format.elevationRange(range.min, range.max)}`;
+      return;
+    }
+    const elevation = elevationAtDistance(profile.samples, distance);
+    const grade = gradeAtDistance(profile.samples, distance);
+    el.textContent = `${this.i18n.format.distance(distance)} · ${this.i18n.format.elevation(elevation)} · ${this.i18n.format.grade(grade)}`;
+  }
+
+  private updateRouteMeta(): void {
+    const { route, fatal, demoMeta } = this.state;
+    if (!route) {
+      this.elements.routeMeta.hidden = fatal === null;
+      this.elements.demoDetails.hidden = true;
+      this.elements.routeTag.hidden = true;
+      if (fatal === null) return;
+      this.elements.routeName.textContent = this.i18n.t('route.none');
+      return;
+    }
+    this.elements.routeMeta.hidden = false;
+    this.elements.routeName.textContent = route.name || this.i18n.t('route.unnamed');
+    this.elements.routeTag.textContent = this.i18n.t(`route.${route.origin}`);
+    this.elements.routeTag.dataset.origin = route.origin;
+
+    const isDemo = route.origin === 'demo' && demoMeta !== null;
+    this.elements.routeTag.hidden = isDemo;
+    this.elements.demoDetails.hidden = !isDemo;
+    if (isDemo) this.renderDemoDetails(demoMeta);
+
+    this.doc.title = `${route.name || this.i18n.t('route.unnamed')} · ${this.i18n.t('app.name')}`;
+  }
+
+  /**
+   * The popover is anchored to the badge on desktop. On narrow screens that
+   * anchor can sit past the right edge, so it becomes a full-width fixed panel
+   * just under the badge.
+   */
+  private positionDemoPopover(): void {
+    const popover = this.elements.demoPopover;
+    const details = this.elements.demoDetails;
+    if (!details.open) {
+      popover.style.removeProperty('position');
+      popover.style.removeProperty('top');
+      popover.style.removeProperty('left');
+      popover.style.removeProperty('right');
+      popover.style.removeProperty('width');
+      return;
+    }
+    if (window.matchMedia?.('(max-width: 760px)').matches) {
+      const header = this.doc.querySelector<HTMLElement>('.topbar');
+      const top = (header?.getBoundingClientRect().bottom ?? 60) + 8;
+      popover.style.position = 'fixed';
+      popover.style.top = `${Math.round(top)}px`;
+      popover.style.left = '10px';
+      popover.style.right = '10px';
+      popover.style.width = 'auto';
+      return;
+    }
+    popover.style.removeProperty('position');
+    popover.style.removeProperty('top');
+    popover.style.removeProperty('left');
+    popover.style.removeProperty('right');
+    popover.style.removeProperty('width');
+  }
+
+  private renderDemoDetails(meta: GpxMetadata): void {
+    const detailParts = [meta.name, meta.routeNumber, meta.maintainer].filter(
+      (part): part is string => typeof part === 'string' && part.length > 0,
+    );
+    this.elements.demoSummary.textContent = this.i18n.t('route.demo');
+    this.elements.demoSummary.title =
+      detailParts.length > 0
+        ? detailParts.join(' · ')
+        : this.i18n.t('route.demoDetails');
+    this.elements.demoSummary.setAttribute(
+      'aria-label',
+      `${this.i18n.t('route.demoDetails')}: ${detailParts.join(', ')}`,
+    );
+    this.elements.demoName.textContent = meta.name ?? '—';
+    this.elements.demoNumber.textContent = meta.routeNumber ?? '—';
+    this.elements.demoMaintainer.textContent = meta.maintainer ?? '—';
+    this.elements.demoMarked.textContent = meta.marked
+      ? this.i18n.t('demo.markedYes')
+      : '—';
+    this.elements.demoSource.textContent = this.i18n.t('demo.sourceValue');
+  }
+
+  private showEmptyState(visible: boolean): void {
+    this.elements.emptyState.hidden = !visible;
+  }
+
+  // -------------------------------------------------------------------------
+  // Banner state
+  // -------------------------------------------------------------------------
+
+  private refreshBanners(): void {
+    if (this.state.fatal !== null) {
+      this.banners.show({
+        id: 'map-fatal',
+        kind: 'error',
+        dismissible: false,
+        message: this.i18n.t('banner.mapFailed', { message: this.state.fatal }),
+      });
+    }
+
+    if (this.state.basemap.status === 'fallback') {
+      this.banners.show({
+        id: 'basemap-fallback',
+        kind: 'warning',
+        message: this.i18n.t('banner.basemapFallback'),
+        action: {
+          label: this.i18n.t('banner.basemapRetry'),
+          onClick: () => this.retryBasemap(),
+        },
+      });
+    } else if (this.state.basemap.status === 'failed') {
+      this.banners.show({
+        id: 'basemap-failed',
+        kind: 'error',
+        message: this.i18n.t('banner.basemapFailed'),
+        action: {
+          label: this.i18n.t('banner.basemapRetry'),
+          onClick: () => this.retryBasemap(),
+        },
+      });
+    } else {
+      this.banners.dismiss('basemap-fallback');
+      this.banners.dismiss('basemap-failed');
+    }
+
+    if (this.state.terrain.status === 'failed') {
+      this.banners.show({
+        id: 'terrain-failed',
+        kind: 'warning',
+        message: this.i18n.t('banner.terrainFailed'),
+        action: {
+          label: this.i18n.t('action.retry'),
+          onClick: () => this.map?.retryTerrain(),
+        },
+      });
+    } else {
+      this.banners.dismiss('terrain-failed');
+    }
+
+    if (this.state.profileStatus === 'error') {
+      const scope = this.state.profileError === 'scope';
+      this.banners.show({
+        id: scope ? 'off-scope' : 'dem-failed',
+        kind: scope ? 'warning' : 'error',
+        message: scope
+          ? this.i18n.t('banner.offScope')
+          : this.i18n.t('banner.demFailed', {
+              message: briefError(
+                this.state.profileErrorMessage || this.i18n.t('profile.unavailable'),
+              ),
+            }),
+        detail: scope ? undefined : this.state.profileErrorMessage,
+        action: scope
+          ? undefined
+          : { label: this.i18n.t('action.retry'), onClick: () => this.retryElevation() },
+      });
+    } else {
+      this.banners.dismiss('dem-failed');
+      this.banners.dismiss('off-scope');
+    }
+  }
+
+  private retryBasemap(): void {
+    if (!this.map) return;
+    this.map.retryBasemap();
+    this.state.basemap = { status: 'ok' };
+    this.updateBasemapButtons();
+    this.refreshBanners();
+  }
+
+  // -------------------------------------------------------------------------
+  // Controls
+  // -------------------------------------------------------------------------
+
+  private wireControls(): void {
+    const openButton = byId<HTMLButtonElement>('btn-open');
+    openButton.addEventListener('click', () => this.openFilePicker());
+
+    this.elements.fileInput.addEventListener('change', () => {
+      const file = this.elements.fileInput.files?.[0];
+      if (file) void this.loadFile(file);
+      this.elements.fileInput.value = '';
+    });
+
+    byId<HTMLButtonElement>('btn-demo').addEventListener('click', () => {
+      void this.loadDemo();
+    });
+
+    for (const button of this.elements.basemapButtons) {
+      button.addEventListener('click', () => {
+        const kind = button.dataset.basemap;
+        if (kind !== 'topo' && kind !== 'grey' && kind !== 'wms') return;
+        this.map?.setBasemap(kind);
+        this.state.basemap = { status: 'ok' };
+        this.updateBasemapButtons();
+        this.refreshBanners();
+      });
+    }
+
+    for (const button of this.elements.langButtons) {
+      button.addEventListener('click', () => {
+        const lang = button.dataset.lang;
+        if (lang === 'no' || lang === 'en') this.setLanguage(lang);
+      });
+    }
+
+    this.elements.terrainButton.addEventListener('click', () => {
+      if (!this.map) return;
+      if (this.state.terrain.status !== 'ready') return;
+      const next = !this.map.terrainOn;
+      if (!this.map.setTerrainEnabled(next)) return;
+      this.elements.terrainButton.setAttribute('aria-pressed', String(next));
+      this.syncTerrainButton();
+    });
+
+    byId<HTMLButtonElement>('btn-share').addEventListener('click', () => {
+      void this.copyShareLink();
+    });
+
+    byId<HTMLButtonElement>('btn-about').addEventListener('click', () => {
+      this.openDialog(this.elements.aboutDialog);
+    });
+
+    byId<HTMLButtonElement>('btn-pace').addEventListener('click', () => {
+      this.openPaceDialog();
+    });
+
+    byId<HTMLButtonElement>('btn-zoom-in').addEventListener('click', () => this.map?.zoomBy(ZOOM_STEP));
+    byId<HTMLButtonElement>('btn-zoom-out').addEventListener('click', () => this.map?.zoomBy(-ZOOM_STEP));
+    byId<HTMLButtonElement>('btn-north').addEventListener('click', () => this.map?.resetNorth());
+    byId<HTMLButtonElement>('btn-fit').addEventListener('click', () => {
+      if (this.map && this.state.route) this.map.fitRoute(this.state.route);
+    });
+
+    this.elements.profileRetry.addEventListener('click', () => this.retryElevation());
+
+    // Native `<details>` stays open until told otherwise; close it like a
+    // popover so the demo provenance never covers the map indefinitely.
+    this.doc.addEventListener('click', (event) => {
+      const details = this.elements.demoDetails;
+      if (!details.open) return;
+      const target = event.target as Node | null;
+      if (target && details.contains(target)) return;
+      details.open = false;
+    });
+    this.doc.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') this.elements.demoDetails.open = false;
+    });
+
+    // Ctrl/Cmd+S saves the open trip even when no editor field has focus.
+    this.doc.addEventListener('keydown', (event) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+      if (event.key !== 's' && event.key !== 'S') return;
+      event.preventDefault();
+      this.saveTrip();
+    });
+    this.elements.demoDetails.addEventListener('toggle', () => {
+      this.positionDemoPopover();
+    });
+    window.addEventListener('resize', () => this.positionDemoPopover());
+
+    window.addEventListener('resize', () => {
+      this.map?.resize();
+      this.chart.layout();
+    });
+
+    this.updateBasemapButtons();
+    this.updateLangButtons();
+    this.syncTerrainButton();
+  }
+
+  private openFilePicker(): void {
+    this.elements.fileInput.click();
+  }
+
+  private async loadFile(file: File): Promise<void> {
+    if (file.size > MAX_FILE_BYTES) {
+      this.banners.show({
+        id: 'file-too-large',
+        kind: 'error',
+        message: this.i18n.t('banner.fileTooLarge', {
+          size: this.i18n.format.number(file.size / (1024 * 1024), { maximumFractionDigits: 1 }),
+          max: this.i18n.format.number(MAX_FILE_BYTES / (1024 * 1024), { maximumFractionDigits: 0 }),
+        }),
+      });
+      return;
+    }
+    try {
+      const text = await file.text();
+      await this.loadGpxText(text, 'file', file.name);
+    } catch (error) {
+      this.banners.show({
+        id: 'gpx-error',
+        kind: 'error',
+        message: this.i18n.t('banner.gpxError', { message: messageOf(error) }),
+      });
+    }
+  }
+
+  private async copyShareLink(): Promise<void> {
+    const route = this.state.route;
+    let url = window.location.href;
+    if (route && route.origin !== 'demo' && route.gpxText) {
+      const hash = encodeRouteHash(compactGpx(route.gpxText));
+      if (hash === null) {
+        this.banners.show({
+          id: 'hash-too-long',
+          kind: 'info',
+          message: this.i18n.t('banner.hashTooLong', {
+            max: this.i18n.format.number(MAX_HASH_CHARS, { maximumFractionDigits: 0 }),
+          }),
+        });
+        return;
+      }
+      url = `${window.location.pathname}${window.location.search}${hash}`;
+    } else if (route && route.origin === 'demo') {
+      url = `${window.location.pathname}${window.location.search}`;
+    }
+
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard API unavailable');
+      await navigator.clipboard.writeText(url);
+      this.showToast(this.i18n.t('banner.shareCopied'));
+    } catch {
+      this.showToast(this.i18n.t('banner.shareFailed'), 'warning');
+    }
+  }
+
+  private showToast(message: string, kind: 'info' | 'warning' = 'info'): void {
+    const toast = this.elements.toast;
+    toast.textContent = message;
+    toast.dataset.kind = kind;
+    toast.hidden = false;
+    window.setTimeout(() => {
+      toast.hidden = true;
+    }, 3200);
+  }
+
+  // -------------------------------------------------------------------------
+  // Language
+  // -------------------------------------------------------------------------
+
+  private applyLanguageChrome(): void {
+    this.doc.documentElement.lang = this.i18n.lang === 'no' ? 'no' : 'en';
+    this.doc.title = this.i18n.t('app.name');
+  }
+
+  private setLanguage(lang: Lang): void {
+    if (lang === this.i18n.lang) return;
+    const previousCursor = this.state.cursorDistance;
+    this.i18n.setLang(lang);
+    storeLang(this.storage, lang);
+    this.syncLangQuery(lang);
+    this.applyLanguageChrome();
+    this.i18n.apply(this.doc);
+    this.updateLangButtons();
+    this.banners.clear();
+    this.refreshBanners();
+    this.banners.setCloseLabel(this.i18n.t('action.close'));
+    this.chart.setLanguage();
+    this.stats.refresh();
+    this.renderProfilePanel();
+    this.renderReadout(this.state.profileStatus === 'ready' ? previousCursor : null);
+    this.updateRouteMeta();
+    this.updateBasemapButtons();
+    this.syncTerrainButton();
+    this.updatePaceDialogText();
+    this.renderEditor();
+    this.renderSaveStatus();
+    this.weatherPanel?.refreshLanguage();
+    this.trips?.refreshLanguage();
+  }
+
+  /**
+   * Keep `?lang=` in sync with an explicit choice. Otherwise a URL override
+   * would win over the user's toggle on the next reload.
+   */
+  private syncLangQuery(lang: Lang): void {
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', lang);
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+  }
+
+  private updateLangButtons(): void {
+    for (const button of this.elements.langButtons) {
+      const pressed = button.dataset.lang === this.i18n.lang;
+      button.setAttribute('aria-pressed', String(pressed));
+    }
+  }
+
+  private updateBasemapButtons(): void {
+    const current = this.map?.basemapKind ?? 'topo';
+    for (const button of this.elements.basemapButtons) {
+      button.setAttribute('aria-pressed', String(button.dataset.basemap === current));
+    }
+  }
+
+  private syncTerrainButton(): void {
+    const button = this.elements.terrainButton;
+    const hint = this.elements.terrainHint;
+    const status = this.state.terrain.status;
+    if (status === 'ready') {
+      button.disabled = false;
+      const on = this.map?.terrainOn ?? false;
+      button.setAttribute('aria-pressed', String(on));
+      button.setAttribute('aria-label', this.i18n.t(on ? 'terrain.disable' : 'terrain.enable'));
+      button.title = this.i18n.t(on ? 'terrain.disable' : 'terrain.enable');
+      hint.textContent = '';
+      return;
+    }
+    button.disabled = true;
+    button.setAttribute('aria-pressed', 'false');
+    button.setAttribute(
+      'aria-label',
+      this.i18n.t(status === 'failed' ? 'terrain.unavailable' : 'terrain.loading'),
+    );
+    button.title =
+      status === 'failed'
+        ? `${this.i18n.t('terrain.unavailable')} — ${this.i18n.t('terrain.failedDetail')}`
+        : this.i18n.t('terrain.loading');
+    hint.textContent = status === 'failed' ? this.i18n.t('terrain.unavailable') : '';
+  }
+
+  // -------------------------------------------------------------------------
+  // Dialogs
+  // -------------------------------------------------------------------------
+
+  private openDialog(dialog: HTMLDialogElement): void {
+    if (typeof dialog.showModal === 'function') {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.setAttribute('open', '');
+    }
+  }
+
+  private closeDialog(dialog: HTMLDialogElement): void {
+    if (typeof dialog.close === 'function') dialog.close();
+    else dialog.removeAttribute('open');
+  }
+
+  private wireDialogs(): void {
+    for (const dialog of [
+      this.elements.aboutDialog,
+      this.elements.paceDialog,
+      this.elements.tripsDialog,
+      this.elements.settingsDialog,
+    ]) {
+      dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) this.closeDialog(dialog);
+      });
+      for (const closer of dialog.querySelectorAll<HTMLElement>('[data-close]')) {
+        closer.addEventListener('click', () => this.closeDialog(dialog));
+      }
+    }
+
+    this.elements.paceForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const speed = Number.parseFloat(this.elements.paceSpeed.value.replace(',', '.'));
+      const ascent = Number.parseFloat(this.elements.paceAscent.value.replace(',', '.'));
+      if (
+        !Number.isFinite(speed) ||
+        !Number.isFinite(ascent) ||
+        speed < PACE_LIMITS.speedKmh.min ||
+        speed > PACE_LIMITS.speedKmh.max ||
+        ascent < PACE_LIMITS.ascentMPerHour.min ||
+        ascent > PACE_LIMITS.ascentMPerHour.max
+      ) {
+        this.elements.paceError.hidden = false;
+        this.elements.paceError.textContent = this.i18n.t('pace.invalid', {
+          min: this.i18n.format.number(PACE_LIMITS.speedKmh.min, { maximumFractionDigits: 0 }),
+          max: this.i18n.format.number(PACE_LIMITS.speedKmh.max, { maximumFractionDigits: 0 }),
+        });
+        return;
+      }
+      this.pace = normalizePace({ speedKmh: speed, ascentMPerHour: ascent });
+      savePace(this.storage, this.pace);
+      this.elements.paceError.hidden = true;
+      this.renderStats();
+      this.updatePaceDialogText();
+      this.showToast(
+        this.i18n.t('pace.saved', {
+          speed: this.i18n.format.number(this.pace.speedKmh, { maximumFractionDigits: 1 }),
+          ascent: this.i18n.format.number(this.pace.ascentMPerHour, { maximumFractionDigits: 0 }),
+        }),
+      );
+      this.closeDialog(this.elements.paceDialog);
+    });
+
+    byId<HTMLButtonElement>('pace-reset').addEventListener('click', () => {
+      this.pace = { ...DEFAULT_PACE };
+      savePace(this.storage, this.pace);
+      this.elements.paceSpeed.value = String(this.pace.speedKmh);
+      this.elements.paceAscent.value = String(this.pace.ascentMPerHour);
+      this.renderStats();
+      this.updatePaceDialogText();
+    });
+  }
+
+  private openPaceDialog(): void {
+    this.elements.paceSpeed.value = String(this.pace.speedKmh);
+    this.elements.paceAscent.value = String(this.pace.ascentMPerHour);
+    this.elements.paceError.hidden = true;
+    this.updatePaceDialogText();
+    this.openDialog(this.elements.paceDialog);
+  }
+
+  private updatePaceDialogText(): void {
+    this.elements.paceHint.textContent = this.i18n.t('pace.formula', {
+      speed: this.i18n.format.number(this.pace.speedKmh, { maximumFractionDigits: 1 }),
+      ascent: this.i18n.format.number(this.pace.ascentMPerHour, { maximumFractionDigits: 0 }),
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Profile collapse + drop zone + hash
+  // -------------------------------------------------------------------------
+
+  private wireProfileCollapse(): void {
+    const panel = this.elements.profilePanel;
+    const toggle = this.elements.profileToggle;
+    const apply = (collapsed: boolean): void => {
+      panel.classList.toggle('is-collapsed', collapsed);
+      this.elements.profileBody.hidden = collapsed;
+      toggle.setAttribute('aria-expanded', String(!collapsed));
+      toggle.setAttribute('aria-label', this.i18n.t(collapsed ? 'action.expand' : 'action.collapse'));
+      toggle.title = this.i18n.t(collapsed ? 'action.expand' : 'action.collapse');
+      if (!collapsed) requestAnimationFrame(() => this.chart.layout());
+    };
+    const startCollapsed = window.matchMedia?.('(max-width: 760px)').matches ?? false;
+    apply(startCollapsed);
+
+    toggle.addEventListener('click', () => {
+      const collapsed = !panel.classList.contains('is-collapsed');
+      apply(collapsed);
+    });
+
+    // Re-apply the label on language change through the same path.
+    this.i18n.onChange(() => {
+      apply(panel.classList.contains('is-collapsed'));
+    });
+  }
+
+  private wireDropzone(): void {
+    let depth = 0;
+    const zone = this.elements.dropzone;
+    const show = (visible: boolean): void => {
+      zone.hidden = !visible;
+    };
+
+    window.addEventListener('dragenter', (event) => {
+      if (!event.dataTransfer?.types.includes('Files')) return;
+      depth++;
+      show(true);
+      event.preventDefault();
+    });
+    window.addEventListener('dragover', (event) => {
+      if (!event.dataTransfer?.types.includes('Files')) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+    });
+    window.addEventListener('dragleave', () => {
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) show(false);
+    });
+    window.addEventListener('drop', (event) => {
+      const files = event.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+      event.preventDefault();
+      depth = 0;
+      show(false);
+      const file = files[0];
+      // With a trip store available, an imported file goes through it so
+      // provenance and elevation survive; otherwise the GPX pipeline runs.
+      if (this.session) void this.importTripFile(file);
+      else void this.loadFile(file);
+    });
+  }
+
+  private wireHashChanges(): void {
+    window.addEventListener('hashchange', () => {
+      const hash = window.location.hash;
+      if (!hasRouteHash(hash)) return;
+      const text = decodeRouteHash(hash);
+      if (text === null) {
+        this.banners.show({
+          id: 'hash-invalid',
+          kind: 'warning',
+          message: this.i18n.t('banner.hashInvalid'),
+        });
+        return;
+      }
+      if (text === this.state.route?.gpxText) return;
+      void this.loadGpxText(text, 'link', undefined, { updateHash: false });
+    });
+  }
+}

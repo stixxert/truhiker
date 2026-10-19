@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta
+      name="description"
+      data-i18n-content="app.metaDescription"
+      content="Analyser GPX-ruter for norsk fjellterreng: 3D-kart, høydeprofil, stigning og estimert gangtid. Alt skjer i nettleseren."
+    />
+    <meta name="theme-color" content="#0e1618" />
+    <title>Ruteanalyse</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e1618'/%3E%3Cpath d='M5 24l7-12 4 6 3-4 8 10z' fill='%233ad9c4'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <h1 class="sr-only" data-i18n="app.name">Ruteanalyse</h1>
+    <div class="app">
+      <header class="topbar">
+        <div class="topbar-row">
+          <div class="brand">
+            <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+              <path d="M3 26L12 9l5.5 9L21 12l8 14H3z" fill="currentColor" opacity="0.9" />
+              <path d="M9.5 26L12 21.5l2.5 4.5H9.5z" fill="#0e1618" opacity="0.6" />
+            </svg>
+            <span class="brand-name" data-i18n="app.name">Ruteanalyse</span>
+          </div>
+
+          <div class="route-meta" id="route-meta" hidden>
+            <span class="route-name" id="route-name"></span>
+            <span class="route-tag" id="route-tag" hidden></span>
+            <details class="demo-details" id="demo-details" hidden>
+              <summary class="route-tag route-tag--button" id="demo-summary" data-i18n="route.demo">
+                Demorute
+              </summary>
+              <div class="route-popover" id="demo-popover" role="group" aria-labelledby="demo-popover-title">
+                <h2 id="demo-popover-title" data-i18n="demo.title">Om demoruten</h2>
+                <dl class="meta-list">
+                  <div>
+                    <dt data-i18n="demo.name">Rute</dt>
+                    <dd id="demo-name"></dd>
+                  </div>
+                  <div>
+                    <dt data-i18n="demo.number">Rutenummer</dt>
+                    <dd id="demo-number"></dd>
+                  </div>
+                  <div>
+                    <dt data-i18n="demo.maintainer">Vedlikehold</dt>
+                    <dd id="demo-maintainer"></dd>
+                  </div>
+                  <div>
+                    <dt data-i18n="demo.marked">Merking</dt>
+                    <dd id="demo-marked"></dd>
+                  </div>
+                  <div>
+                    <dt data-i18n="demo.source">Kilde</dt>
+                    <dd id="demo-source"></dd>
+                  </div>
+                </dl>
+                <p class="popover-note" data-i18n="demo.note"></p>
+              </div>
+            </details>
+          </div>
+
+          <button
+            class="btn btn-primary"
+            id="btn-open"
+            type="button"
+            data-i18n="action.openGpx"
+            data-i18n-aria-label="action.openGpx"
+          >
+            Åpne GPX
+          </button>
+
+          <div class="topbar-actions">
+            <div class="seg" role="group" data-i18n-aria-label="layers.label">
+              <button class="seg-btn" type="button" data-basemap="topo" aria-pressed="true" data-i18n="layers.topo">
+                Topo
+              </button>
+              <button class="seg-btn" type="button" data-basemap="grey" aria-pressed="false" data-i18n="layers.grey">
+                Grå
+              </button>
+              <button class="seg-btn" type="button" data-basemap="wms" aria-pressed="false" data-i18n="layers.wms">
+                WMS
+              </button>
+            </div>
+
+            <button
+              class="btn btn-toggle"
+              id="btn-terrain"
+              type="button"
+              aria-pressed="false"
+              data-i18n-aria-label="terrain.enable"
+              data-i18n-title="terrain.enable"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
+                <path d="M2 15l5-9 3.4 5.6L13 8l5 7H2z" fill="currentColor" />
+              </svg>
+              3D
+            </button>
+
+            <div class="seg seg-lang" role="group" data-i18n-aria-label="lang.label">
+              <button
+                class="seg-btn"
+                type="button"
+                data-lang="no"
+                aria-pressed="true"
+                data-i18n-aria-label="lang.no"
+              >
+                NO
+              </button>
+              <button
+                class="seg-btn"
+                type="button"
+                data-lang="en"
+                aria-pressed="false"
+                data-i18n-aria-label="lang.en"
+              >
+                EN
+              </button>
+            </div>
+
+            <button
+              class="btn btn-icon"
+              id="btn-share"
+              type="button"
+              data-i18n-aria-label="action.share"
+              data-i18n-title="action.share"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
+                <path
+                  d="M7.5 11.5l5-3M7.5 8.5l5 3"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  fill="none"
+                  stroke-linecap="round"
+                />
+                <rect x="2.5" y="6.5" width="5" height="5" rx="2.5" fill="currentColor" opacity="0.85" />
+                <rect x="12.5" y="2.5" width="5" height="5" rx="2.5" fill="currentColor" opacity="0.85" />
+                <rect x="12.5" y="12.5" width="5" height="5" rx="2.5" fill="currentColor" opacity="0.85" />
+              </svg>
+            </button>
+
+            <button class="btn btn-ghost" id="btn-about" type="button" data-i18n="action.about">Om data</button>
+
+            <button
+              class="btn btn-ghost"
+              id="btn-trips"
+              type="button"
+              data-i18n="trips.open"
+              data-i18n-title="trips.title"
+            >
+              Turer
+            </button>
+
+            <button
+              class="btn btn-ghost"
+              id="btn-weather"
+              type="button"
+              aria-expanded="false"
+              aria-controls="weather-panel"
+              data-i18n="weather.open"
+              data-i18n-title="weather.title"
+            >
+              Vær
+            </button>
+
+            <span class="save-group">
+              <button
+                class="btn btn-primary btn-save"
+                id="btn-save"
+                type="button"
+                data-i18n="action.save"
+                data-i18n-title="save.hint"
+              >
+                Lagre
+              </button>
+              <span class="save-status" id="save-status" role="status" aria-live="polite"></span>
+            </span>
+
+            <button
+              class="btn btn-icon"
+              id="btn-settings"
+              type="button"
+              data-i18n-aria-label="trips.settings"
+              data-i18n-title="trips.settings"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
+                <path
+                  d="M3 6h14M3 10h14M3 14h14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+                <circle cx="7" cy="6" r="1.8" fill="currentColor" />
+                <circle cx="13" cy="10" r="1.8" fill="currentColor" />
+                <circle cx="6" cy="14" r="1.8" fill="currentColor" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="banners" id="banners" hidden></div>
+      </header>
+
+      <main class="stage">
+        <div class="map-wrap">
+          <div id="map" class="map" role="region" data-i18n-aria-label="map.ariaLabel"></div>
+
+          <div class="map-controls" role="group" data-i18n-aria-label="layers.label">
+            <button
+              class="map-btn"
+              id="btn-zoom-in"
+              type="button"
+              data-i18n-aria-label="map.zoomIn"
+              data-i18n-title="map.zoomIn"
+            >
+              +
+            </button>
+            <button
+              class="map-btn"
+              id="btn-zoom-out"
+              type="button"
+              data-i18n-aria-label="map.zoomOut"
+              data-i18n-title="map.zoomOut"
+            >
+              −
+            </button>
+            <button
+              class="map-btn"
+              id="btn-north"
+              type="button"
+              data-i18n-aria-label="map.resetNorth"
+              data-i18n-title="map.resetNorth"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M10 2l4 12-4-3-4 3 4-12z" fill="currentColor" />
+              </svg>
+            </button>
+            <button
+              class="map-btn"
+              id="btn-fit"
+              type="button"
+              data-i18n-aria-label="action.fitRoute"
+              data-i18n-title="action.fitRoute"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path
+                  d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  fill="none"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div class="editor-toolbar" id="editor-toolbar" hidden>
+            <div class="editor-row editor-row--main">
+              <div class="seg seg-mode" role="group" data-i18n-aria-label="editor.mode">
+                <button class="seg-btn" type="button" data-mode="view" aria-pressed="true" data-i18n="editor.view">
+                  Vis
+                </button>
+                <button class="seg-btn" type="button" data-mode="draw" aria-pressed="false" data-i18n="editor.draw">
+                  Tegn
+                </button>
+                <button class="seg-btn" type="button" data-mode="edit" aria-pressed="false" data-i18n="editor.edit">
+                  Rediger
+                </button>
+              </div>
+              <button
+                class="btn btn-small"
+                id="btn-undo"
+                type="button"
+                data-i18n-aria-label="editor.undo"
+                data-i18n-title="editor.undo"
+              >
+                ↶
+              </button>
+              <button
+                class="btn btn-small"
+                id="btn-redo"
+                type="button"
+                data-i18n-aria-label="editor.redo"
+                data-i18n-title="editor.redo"
+              >
+                ↷
+              </button>
+              <label class="snap-toggle">
+                <input type="checkbox" id="snap-enabled" checked />
+                <span data-i18n="editor.snap">Snapp</span>
+              </label>
+              <label class="snap-radius">
+                <span data-i18n="editor.radius">Radius</span>
+                <input id="snap-radius" type="number" min="20" max="300" step="5" value="75" inputmode="numeric" />
+                <span class="unit">m</span>
+              </label>
+              <span class="editor-count" id="editor-count"></span>
+            </div>
+
+            <div class="editor-row editor-row--actions" id="editor-actions" hidden>
+              <span class="editor-selection" id="editor-selection"></span>
+              <button class="btn btn-small" id="btn-vertex-delete" type="button" data-i18n="editor.deleteVertex">
+                Slett punkt
+              </button>
+              <button class="btn btn-small" id="btn-split" type="button" data-i18n="editor.split">
+                Del etappe
+              </button>
+              <button class="btn btn-small" id="btn-reverse" type="button" data-i18n="editor.reverse">
+                Snu etappe
+              </button>
+              <button class="btn btn-small" id="btn-trim" type="button" data-i18n="editor.trim">
+                Klipp til
+              </button>
+              <button class="btn btn-small" id="btn-leg-delete" type="button" data-i18n="editor.deleteLeg">
+                Slett etappe
+              </button>
+              <label class="leg-name">
+                <span data-i18n="editor.legName">Etappenavn</span>
+                <input id="leg-name" type="text" maxlength="120" />
+              </label>
+              <button class="btn btn-small" id="editor-rename-apply" type="button" data-i18n="editor.renameApply">
+                Lagre navn
+              </button>
+              <button class="btn btn-small btn-reroute" id="btn-reroute" type="button" data-i18n="editor.reroute">
+                Reroute
+              </button>
+              <span
+                class="reroute-note"
+                id="editor-reroute-note"
+                data-i18n="editor.rerouteHint"
+              ></span>
+            </div>
+
+            <div class="editor-row editor-row--hints">
+              <span class="snap-indicator" id="snap-indicator" role="status" aria-live="polite"></span>
+              <span class="offtrail-legend" id="offtrail-legend"></span>
+              <span class="editor-hint" id="editor-hint"></span>
+            </div>
+          </div>
+
+          <aside class="weather-panel" id="weather-panel" hidden aria-labelledby="weather-title">
+            <header class="panel-head">
+              <h2 id="weather-title" data-i18n="weather.title">Vær langs ruten</h2>
+              <div class="panel-head-actions">
+                <button class="btn btn-small" id="weather-refresh" type="button" data-i18n="weather.refresh">
+                  Oppdater
+                </button>
+                <button
+                  class="icon-btn"
+                  id="weather-close"
+                  type="button"
+                  data-i18n-aria-label="action.close"
+                >
+                  ×
+                </button>
+              </div>
+            </header>
+            <p class="panel-status" id="weather-status" role="status" aria-live="polite"></p>
+            <div class="weather-message" id="weather-message" hidden>
+              <p id="weather-message-text"></p>
+              <button class="btn btn-primary btn-small" id="weather-action" type="button" hidden></button>
+            </div>
+            <div class="weather-table-wrap" id="weather-table-wrap" hidden>
+              <table class="weather-table">
+                <caption class="sr-only" data-i18n="weather.title"></caption>
+                <thead>
+                  <tr>
+                    <th scope="col" data-i18n="weather.colDay">Dag</th>
+                    <th scope="col" data-i18n="weather.colDate">Dato</th>
+                    <th scope="col" data-i18n="weather.colDistance">Distanse</th>
+                    <th scope="col" data-i18n="weather.colConditions">Vær</th>
+                  </tr>
+                </thead>
+                <tbody id="weather-table-body"></tbody>
+              </table>
+            </div>
+            <ul class="weather-warnings" id="weather-warnings" hidden></ul>
+            <p class="panel-note" id="weather-note"></p>
+          </aside>
+
+          <div class="terrain-hint" id="terrain-hint" role="status"></div>
+
+          <div class="map-attrib">
+            <a href="https://www.kartverket.no" target="_blank" rel="noopener">©Kartverket</a>
+            <a href="https://mapterhorn.com/attribution" target="_blank" rel="noopener">Mapterhorn</a>
+            <span data-i18n="about.shortDisclaimer">Planleggingsverktøy – verifiser på bakken</span>
+          </div>
+
+          <div class="empty-state" id="empty-state" hidden>
+            <div class="empty-card">
+              <svg class="empty-icon" viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M4 38L18 12l8 14 5-7 9 19H4z" fill="currentColor" opacity="0.16" />
+                <path d="M4 38L18 12l8 14 5-7 9 19H4z" fill="none" stroke="currentColor" stroke-width="1.5" />
+              </svg>
+              <h2 data-i18n="empty.title">Slipp en GPX-fil her</h2>
+              <p data-i18n="empty.body">
+                eller åpne en fil fra menyen. Alt skjer i nettleseren din – ingen konto, ingenting lastes opp.
+              </p>
+              <button class="btn btn-primary" id="btn-demo" type="button" data-i18n="action.demo">
+                Prøv demoruten
+              </button>
+              <p class="empty-privacy" data-i18n="empty.privacy">Ruten forlater aldri enheten.</p>
+            </div>
+          </div>
+
+          <div class="map-fatal" id="map-fatal" hidden>
+            <p id="map-fatal-message"></p>
+          </div>
+
+          <div class="dropzone" id="dropzone" hidden>
+            <div class="dropzone-inner">
+              <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path
+                  d="M24 8v22m0 0l-8-8m8 8l8-8M8 34h32"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <p data-i18n="empty.title">Slipp en GPX-fil her</p>
+            </div>
+          </div>
+        </div>
+
+        <section class="profile" id="profile" aria-labelledby="profile-title">
+          <div class="profile-head">
+            <button
+              class="profile-toggle"
+              id="profile-toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="profile-body"
+              data-i18n-aria-label="action.collapse"
+            >
+              <svg class="chevron" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+              </svg>
+              <span id="profile-title" data-i18n="profile.title">Høydeprofil</span>
+            </button>
+            <span class="profile-status" id="profile-status"></span>
+            <span class="profile-readout" id="profile-readout"></span>
+          </div>
+          <div class="profile-body" id="profile-body">
+            <div
+              class="profile-chart"
+              id="profile-chart"
+              role="slider"
+              tabindex="0"
+              data-i18n-aria-label="profile.ariaLabel"
+            >
+              <canvas id="profile-canvas"></canvas>
+            </div>
+            <div class="profile-overlay" id="profile-overlay">
+              <p class="profile-overlay-title" id="profile-overlay-title"></p>
+              <p class="profile-overlay-detail" id="profile-overlay-detail"></p>
+              <div class="profile-progress" id="profile-progress" hidden><span></span></div>
+              <button class="btn btn-primary" id="profile-retry" type="button" data-i18n="action.retry" hidden>
+                Prøv igjen
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="stats" id="stats" aria-live="polite">
+        <div class="stat">
+          <span class="stat-label" data-i18n="stats.distance">Distanse</span>
+          <span class="stat-value" id="stat-distance">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label" data-i18n="stats.ascent">Stigning</span>
+          <span class="stat-value" id="stat-ascent">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label" data-i18n="stats.descent">Nedstigning</span>
+          <span class="stat-value" id="stat-descent">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label" data-i18n="stats.time">Gangtid</span>
+          <span class="stat-value-row">
+            <span class="stat-value" id="stat-time">—</span>
+            <button
+              class="icon-btn"
+              id="btn-pace"
+              type="button"
+              data-i18n-aria-label="stats.pace"
+              data-i18n-title="stats.pace"
+            >
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path
+                  d="M4 14L14 4M12.5 3.5l2 2M6 15.5l-1.8.4.4-1.9L14 4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </span>
+        </div>
+        <div class="stat">
+          <span class="stat-label" data-i18n="stats.elevation">Høyde</span>
+          <span class="stat-value" id="stat-elevation">—</span>
+        </div>
+        <div class="stat stat-source">
+          <span class="stat-label" data-i18n="stats.elevationSource">Høydedata</span>
+          <span class="source-badge" id="source-badge" data-status="idle">
+            <span class="dot" aria-hidden="true"></span>
+            <span id="source-label">—</span>
+          </span>
+        </div>
+      </footer>
+    </div>
+
+    <dialog id="about-dialog" class="dialog" aria-labelledby="about-title">
+      <div class="dialog-inner">
+        <header class="dialog-head">
+          <h2 id="about-title" data-i18n="about.title">Om data og bruk</h2>
+          <button class="icon-btn" type="button" data-close data-i18n-aria-label="action.close">×</button>
+        </header>
+        <div class="dialog-body">
+          <div class="notice">
+            <h3 data-i18n="about.disclaimerTitle">Planleggingsverktøy – ikke navigasjon</h3>
+            <p data-i18n="about.disclaimer">
+              Dette er et planleggingsverktøy. Forholdene på bakken må alltid verifiseres: vær, snø, elvekryssinger og
+              stengsler endrer seg. Appen er ikke et navigasjonshjelpemiddel, og tallene er estimater.
+            </p>
+          </div>
+          <h3 data-i18n="about.dataTitle">Datakilder</h3>
+          <ul class="source-list">
+            <li>
+              <strong>Kartverket</strong>
+              <span data-i18n="about.kartverket">Bakgrunnskart og høydedata: Kartverket (topo, DTM), CC BY 4.0.</span>
+              <a href="https://www.kartverket.no" target="_blank" rel="noopener">kartverket.no</a>
+              <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>
+            </li>
+            <li>
+              <strong>Turrutebasen</strong>
+              <span data-i18n="about.turrutebasen">Demorute: Kartverket Turrutebasen (jot21), CC BY 4.0.</span>
+              <a href="https://www.kartverket.no" target="_blank" rel="noopener">kartverket.no</a>
+            </li>
+            <li>
+              <strong>Mapterhorn</strong>
+              <span data-i18n="about.mapterhorn">3D-terreng: Mapterhorn, avledet av Kartverkets høydedata.</span>
+              <a href="https://mapterhorn.com/attribution" target="_blank" rel="noopener">mapterhorn.com</a>
+            </li>
+            <li>
+              <strong>MET Norway</strong>
+              <span data-i18n="about.met">Vær: MET Norway Locationforecast 2.0 (CC BY 4.0 / NLOD).</span>
+              <a href="https://api.met.no" target="_blank" rel="noopener" data-i18n="about.metLink">api.met.no</a>
+            </li>
+            <li>
+              <strong>MapLibre GL JS</strong>
+              <span data-i18n="about.maplibre">Kartmotoren er MapLibre GL JS (BSD-3).</span>
+              <a href="https://maplibre.org" target="_blank" rel="noopener">maplibre.org</a>
+            </li>
+          </ul>
+          <p data-i18n="about.naismith"></p>
+          <p data-i18n="about.demo"></p>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="pace-dialog" class="dialog" aria-labelledby="pace-title">
+      <form id="pace-form" class="dialog-inner" novalidate>
+        <header class="dialog-head">
+          <h2 id="pace-title" data-i18n="pace.title">Gangtempo</h2>
+          <button class="icon-btn" type="button" data-close data-i18n-aria-label="action.close">×</button>
+        </header>
+        <div class="dialog-body">
+          <p data-i18n="pace.intro"></p>
+          <div class="field-row">
+            <label for="pace-speed" data-i18n="pace.speedLabel">Grunnhastighet (km/t)</label>
+            <input id="pace-speed" name="speed" type="number" min="1" max="15" step="0.1" inputmode="decimal" />
+          </div>
+          <div class="field-row">
+            <label for="pace-ascent" data-i18n="pace.ascentLabel">Stigningstempo (m/t)</label>
+            <input id="pace-ascent" name="ascent" type="number" min="100" max="2000" step="10" inputmode="numeric" />
+          </div>
+          <p class="formula" id="pace-hint"></p>
+          <p class="field-error" id="pace-error" role="alert" hidden></p>
+        </div>
+        <footer class="dialog-actions">
+          <button type="button" class="btn" id="pace-reset" data-i18n="action.reset">Tilbakestill</button>
+          <button type="submit" class="btn btn-primary" data-i18n="action.save">Lagre</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="trips-dialog" class="dialog dialog--wide" aria-labelledby="trips-title">
+      <div class="dialog-inner">
+        <header class="dialog-head">
+          <h2 id="trips-title" data-i18n="trips.title">Lagrede turer</h2>
+          <button class="icon-btn" type="button" data-close data-i18n-aria-label="action.close">×</button>
+        </header>
+        <div class="dialog-body">
+          <p class="trips-problem" id="trips-problem" role="alert" hidden></p>
+          <p class="trips-empty" id="trips-empty" hidden></p>
+          <ul class="trip-list" id="trip-list"></ul>
+          <div class="trip-import" id="trip-import">
+            <p data-i18n="trips.dropHint">Slipp en GPX- eller GeoJSON-fil her, eller velg en fil.</p>
+            <button class="btn" id="trips-import-btn" type="button" data-i18n="trips.import">Importer fil</button>
+            <input
+              id="trips-import-input"
+              type="file"
+              accept=".gpx,.geojson,.json,application/gpx+xml,application/geo+json,text/xml,application/json"
+              hidden
+            />
+          </div>
+        </div>
+        <footer class="dialog-actions">
+          <button class="btn" id="trips-settings" type="button" data-i18n="trips.settings">
+            Turinnstillinger
+          </button>
+          <span class="dialog-actions-right">
+            <button class="btn" id="trips-new" type="button" data-i18n="trips.newTrip">Ny tur</button>
+            <button class="btn btn-primary" type="button" data-close data-i18n="action.close">Lukk</button>
+          </span>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog id="settings-dialog" class="dialog dialog--wide" aria-labelledby="settings-title">
+      <form id="settings-form" class="dialog-inner" novalidate>
+        <header class="dialog-head">
+          <h2 id="settings-title" data-i18n="settings.title">Turinnstillinger</h2>
+          <button class="icon-btn" type="button" data-close data-i18n-aria-label="action.close">×</button>
+        </header>
+        <div class="dialog-body">
+          <p data-i18n="settings.intro"></p>
+          <p class="trips-problem" id="settings-unavailable" role="alert" hidden data-i18n="settings.engineMissing"></p>
+          <div class="settings-grid">
+            <div class="settings-field">
+              <label for="settings-mass" data-i18n="settings.mass">Vekt (kg)</label>
+              <input id="settings-mass" type="number" min="30" max="250" step="0.5" inputmode="decimal" />
+            </div>
+            <div class="settings-field">
+              <label for="settings-height" data-i18n="settings.height">Høyde (cm)</label>
+              <input id="settings-height" type="number" min="120" max="230" step="1" inputmode="numeric" />
+            </div>
+            <div class="settings-field">
+              <label for="settings-age" data-i18n="settings.age">Alder (år)</label>
+              <input id="settings-age" type="number" min="10" max="100" step="1" inputmode="numeric" />
+            </div>
+            <div class="settings-field">
+              <label for="settings-sex" data-i18n="settings.sex">Kjønn</label>
+              <select id="settings-sex">
+                <option value="male" data-i18n="settings.sexMale">Mann</option>
+                <option value="female" data-i18n="settings.sexFemale">Kvinne</option>
+              </select>
+            </div>
+            <div class="settings-field">
+              <label for="settings-bodyfat" data-i18n="settings.bodyFat">Kroppsfett (%) – valgfritt</label>
+              <input id="settings-bodyfat" type="number" min="3" max="60" step="1" inputmode="decimal" />
+            </div>
+            <div class="settings-field">
+              <label for="settings-pack" data-i18n="settings.pack">Basevekt i sekk (kg)</label>
+              <input id="settings-pack" type="number" min="0" max="60" step="0.5" inputmode="decimal" />
+            </div>
+            <div class="settings-field">
+              <label for="settings-daily-km" data-i18n="settings.dailyKm">Kilometer per dag</label>
+              <input id="settings-daily-km" type="number" min="1" max="60" step="1" inputmode="decimal" />
+            </div>
+            <div class="settings-field">
+              <label for="settings-daily-hours" data-i18n="settings.dailyHours">Timer per dag</label>
+              <input id="settings-daily-hours" type="number" min="0.5" max="20" step="0.5" inputmode="decimal" />
+            </div>
+            <div class="settings-field">
+              <label for="settings-start-date" data-i18n="settings.startDate">Startdato</label>
+              <input id="settings-start-date" type="date" />
+            </div>
+            <div class="settings-field">
+              <label for="settings-support" data-i18n="settings.support">Forsyningsmodell</label>
+              <select id="settings-support">
+                <option value="carry-all" data-i18n="settings.carryAll">Bær alt selv</option>
+                <option value="mail-drops" data-i18n="settings.mailDrops">Mat sendes i forveien</option>
+              </select>
+            </div>
+          </div>
+          <p class="field-hint" data-i18n="settings.startDateHint"></p>
+          <p class="field-hint" data-i18n="settings.bodyFatHint"></p>
+          <div class="field-error" id="settings-errors" role="alert" hidden></div>
+        </div>
+        <footer class="dialog-actions">
+          <button class="btn" type="button" data-close data-i18n="action.close">Lukk</button>
+          <button class="btn btn-primary" id="settings-submit" type="submit" data-i18n="action.save">
+            Lagre
+          </button>
+        </footer>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" hidden></div>
+    <input id="file-input" type="file" accept=".gpx,application/gpx+xml,text/xml,application/xml" hidden />
+
+    <noscript>
+      <p style="padding: 24px; color: #e8efef; font-family: sans-serif">
+        Denne appen krever JavaScript. / This app requires JavaScript.
+      </p>
+    </noscript>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

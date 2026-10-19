@@ -1,0 +1,33 @@
+# Cloudflare Workers Static Assets headers.
+#
+# Security headers are repeated in every block on purpose: header merge semantics
+# across overlapping rules are easy to get wrong, and being explicit costs nothing.
+# The CSP below is byte-identical to the one in worker/index.ts, enforced by
+# test/hosting.test.ts.
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: geolocation=(self), camera=(), microphone=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cache.kartverket.no https://wms.geonorge.no https://tiles.mapterhorn.com; connect-src 'self' https://cache.kartverket.no https://wms.geonorge.no https://tiles.mapterhorn.com https://hoydedata.no https://wfs.geonorge.no https://api.met.no; worker-src 'self' blob:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+
+/demo/*
+/data/*
+  Cache-Control: public, max-age=3600
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: geolocation=(self), camera=(), microphone=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cache.kartverket.no https://wms.geonorge.no https://tiles.mapterhorn.com; connect-src 'self' https://cache.kartverket.no https://wms.geonorge.no https://tiles.mapterhorn.com https://hoydedata.no https://wfs.geonorge.no https://api.met.no; worker-src 'self' blob:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+
+/*.js
+/*.mjs
+/*.css
+  Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: geolocation=(self), camera=(), microphone=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cache.kartverket.no https://wms.geonorge.no https://tiles.mapterhorn.com; connect-src 'self' https://cache.kartverket.no https://wms.geonorge.no https://tiles.mapterhorn.com https://hoydedata.no https://wfs.geonorge.no https://api.met.no; worker-src 'self' blob:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
