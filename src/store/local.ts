@@ -91,6 +91,7 @@ function writeIndex(storage: Storage, ids: readonly string[], bytesHint?: number
         `Could not update the trip index: storage quota exceeded` +
           (bytesHint === undefined ? '' : ` while writing ${formatBytes(bytesHint)}`) +
           `. Download the trip as GPX instead, then free some space.`,
+        bytesHint,
       );
     }
     throw error;
@@ -185,6 +186,7 @@ export function createTripStore(storage?: Storage): TripStore {
             MAX_TRIP_BYTES,
           )} storage limit (localStorage holds about 5 MB). Nothing was saved. ` +
             `Download it as GPX instead — the round trip is lossless.`,
+          bytes,
         );
       }
 
@@ -204,6 +206,7 @@ export function createTripStore(storage?: Storage): TripStore {
             `Could not save "${trip.name}": storage quota exceeded while writing ${formatBytes(
               bytes,
             )}. Download the trip as GPX instead, then remove an old trip to free space.`,
+            bytes,
           );
         }
         throw error;

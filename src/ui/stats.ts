@@ -16,9 +16,9 @@
 
 import type { I18n } from '../i18n';
 
-export type SourceStatus = 'idle' | 'ready' | 'loading' | 'error';
+type SourceStatus = 'idle' | 'ready' | 'loading' | 'error';
 
-export interface StatsValues {
+interface StatsValues {
   distanceM: number | null;
   ascentM: number | null;
   descentM: number | null;
@@ -27,7 +27,7 @@ export interface StatsValues {
   maxEle: number | null;
 }
 
-export interface StatsModel {
+interface StatsModel {
   values: StatsValues;
   source: SourceStatus;
   /** Why the DEM-derived values are disabled, shown as a tooltip. */
@@ -36,7 +36,7 @@ export interface StatsModel {
   paceHint?: string;
 }
 
-export interface StatsBarHandlers {
+interface StatsBarHandlers {
   /** The badge's button: open the trip settings so the user can enter a body. */
   onSetOwnNumbers?: () => void;
 }

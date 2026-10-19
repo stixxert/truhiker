@@ -15,9 +15,9 @@ import { SnapIndex, type SnapResult } from '../snap';
 import { Prefetcher, type FetchBox, type LonLatBBox, type PrefetchReport } from '../snap/prefetch';
 import { getDefaultTurruteClient } from '../snap/wfs';
 
-export type SnapNetworkStatus = 'idle' | 'loading' | 'ready' | 'failed';
+type SnapNetworkStatus = 'idle' | 'loading' | 'ready' | 'failed';
 
-export interface SnapServiceOptions {
+interface SnapServiceOptions {
   index?: SnapIndex;
   prefetcher?: Prefetcher;
   /** Injected fetcher for tests; wins over the WFS client. */

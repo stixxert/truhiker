@@ -1,6 +1,6 @@
 /**
  * The one place that imports the three Phase 3 engine modules, at the paths and
- * names fixed in `docs/09-phase3-spec.md` §7.
+ * names fixed in `src/contracts`.
  *
  * This module is loaded dynamically by `engine-loader.ts`, so a missing or
  * broken engine produces a visible "not available" state in the UI instead of

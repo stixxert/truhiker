@@ -74,7 +74,7 @@ export function storeLang(storage: Pick<Storage, 'setItem'> | null, lang: Lang):
   }
 }
 
-export type Params = Record<string, string | number>;
+type Params = Record<string, string | number>;
 
 /** Substitute `{name}` placeholders. Unknown placeholders are left untouched. */
 export function interpolate(template: string, params?: Params): string {

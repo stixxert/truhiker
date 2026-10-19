@@ -9,7 +9,7 @@
 
 import type { EngineSurface } from './engine-types';
 
-export interface EngineLoadResult {
+interface EngineLoadResult {
   engines: EngineSurface | null;
   /** One line, technical, for a banner tooltip. */
   error: string | null;

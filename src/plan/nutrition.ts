@@ -19,7 +19,7 @@
  * kcal/NOK from docs/01 §D8. Prices are the author's, not a live feed.
  */
 
-export type FoodCategory =
+type FoodCategory =
   | 'staple'
   | 'fat'
   | 'protein'
@@ -27,7 +27,7 @@ export type FoodCategory =
   | 'freeze-dried'
   | 'drink';
 
-export interface FoodItem {
+interface FoodItem {
   readonly id: string;
   readonly name: string;
   readonly nameEn: string;
@@ -198,7 +198,7 @@ export function kcalPerNok(food: FoodItem): number {
 // Mixes
 // ---------------------------------------------------------------------------
 
-export interface MixComponent {
+interface MixComponent {
   readonly foodId: string;
   /** Share of the mix's **calories**, not its weight. Shares are normalised. */
   readonly kcalShare: number;
@@ -252,7 +252,7 @@ export const FREEZE_DRIED_MIX: FoodMix = {
 /** The planning figure people quote: mixed dry load ≈4.4 kcal/g. */
 export const KCAL_PER_GRAM_MIXED_DRY = 4.4;
 
-export interface MixStats {
+interface MixStats {
   /** g of food per kcal of intake. */
   readonly gramsPerKcal: number;
   readonly kcalPerGram: number;
@@ -321,7 +321,7 @@ export function costFor(kcal: number, mix: FoodMix = DEFAULT_MIX): number {
   return kcal * mixStats(mix).nokPerKcal;
 }
 
-export interface BuyListItem {
+interface BuyListItem {
   readonly food: FoodItem;
   readonly kcal: number;
   readonly grams: number;

@@ -71,7 +71,7 @@ export interface TurruteLine {
 }
 
 /** Result of one GetFeature request. */
-export interface TurruteBoxResult {
+interface TurruteBoxResult {
   lines: TurruteLine[];
   /** `numberMatched` from the collection; may be `undefined` ("unknown"). */
   numberMatched?: number;
@@ -83,7 +83,7 @@ export interface TurruteBoxResult {
   url: string;
 }
 
-export interface FetchTurruteOptions {
+interface FetchTurruteOptions {
   /** Per-attempt timeout. Default 30 s. */
   timeoutMs?: number;
   /** Total attempts (1 = no retry). Default 3. */
@@ -102,7 +102,7 @@ export interface FetchTurruteOptions {
 }
 
 export const WFS_ENDPOINT = 'https://wfs.geonorge.no/skwms1/wfs.turogfriluftsruter';
-export const TURRUTE_TYPE_NAME = 'app:Fotrute';
+const TURRUTE_TYPE_NAME = 'app:Fotrute';
 
 /**
  * Mandatory. The OWS endpoint only serves GML 3.2 for this layer. The semicolon
@@ -289,7 +289,7 @@ function nonEmpty(...values: string[]): string {
 }
 
 /** XML axis order of a GML `srsName`. */
-export type GmlAxisOrder = 'lat-lon' | 'lon-lat';
+type GmlAxisOrder = 'lat-lon' | 'lon-lat';
 
 /**
  * Determine the axis order of a GML posList from its `srsName`.

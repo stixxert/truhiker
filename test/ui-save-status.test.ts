@@ -46,6 +46,17 @@ describe('save status text', () => {
     expect(quota).toContain('nettleserlagringen er full');
     expect(quota).not.toContain('quota-exceeded');
 
+    // D6: a quota failure names the size that failed, in the user's locale.
+    const sized = saveStatusText(
+      status({ kind: 'error', code: 'quota-exceeded', bytes: 8_400_000 }),
+      no,
+    );
+    expect(sized).toContain('8,4 MB');
+    expect(sized).toContain('turen er');
+    expect(storeErrorText(new StoreError('quota-exceeded', 'too big', 8_400_000), no)).toContain(
+      '8,4 MB',
+    );
+
     const other = saveStatusText(
       status({ kind: 'error', message: 'first line\nsecond line' }),
       en,

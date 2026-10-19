@@ -20,7 +20,7 @@ import { RADIUS_OPTIONS_M } from './resupply-view';
 
 export type SupplyTab = 'resupply' | 'energy';
 
-export interface SupplyPanelHandlers {
+interface SupplyPanelHandlers {
   onClose: () => void;
   onRefresh: () => void;
   onSettings: () => void;
@@ -396,7 +396,8 @@ export class SupplyPanel {
       const button = doc.createElement('button');
       button.type = 'button';
       button.className = 'supply-point-main';
-      button.setAttribute('aria-label', row.ariaLabel);
+      // No aria-label: the row's visible text *is* its accessible name, so the
+      // announced label always matches what is on screen (WCAG 2.5.3).
       button.addEventListener('click', () => this.handlers.onSelectPoint(row));
 
       const head = doc.createElement('span');

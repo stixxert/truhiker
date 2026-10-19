@@ -1,7 +1,7 @@
 /**
  * The weather timeline, as data.
  *
- * The honesty rules from `docs/09-phase3-spec.md` §1 are enforced here, once:
+ * The honesty rules from `docs/DECISIONS.md` (D4, D7, D12) are enforced here, once:
  *
  *  - a day marked `beyond-horizon` gets a badge and **no numeric fields at all**
  *    (not `0 °C`, not an em dash next to a unit — nothing to misread);
@@ -26,9 +26,9 @@ export type WeatherPanelState =
   | { kind: 'error'; message: string }
   | { kind: 'ready'; plan: WeatherPlan };
 
-export type WeatherPanelAction = 'none' | 'settings' | 'refresh' | 'open-route';
+type WeatherPanelAction = 'none' | 'settings' | 'refresh' | 'open-route';
 
-export type WeatherRowStatus = 'forecast' | 'beyond-horizon' | 'unavailable' | 'loading';
+type WeatherRowStatus = 'forecast' | 'beyond-horizon' | 'unavailable' | 'loading';
 
 export interface WeatherRowView {
   readonly dayIndex: number;
@@ -50,7 +50,7 @@ export interface WeatherRowView {
   readonly ariaLabel: string;
 }
 
-export interface WeatherWarningView {
+interface WeatherWarningView {
   readonly id: string;
   readonly title: string;
   readonly severityLabel: string;
@@ -70,6 +70,11 @@ export interface WeatherViewModel {
   readonly action: WeatherPanelAction;
   /** Always shown: what the horizon covers and what the table cannot promise. */
   readonly note: string;
+  /**
+   * Always shown (D12): hazard alerts are not implemented in this version, and
+   * silence must never read as safety. It is not conditional on the table.
+   */
+  readonly alertsNote: string;
   readonly rows: readonly WeatherRowView[];
   readonly warnings: readonly WeatherWarningView[];
   readonly fetchedLabel: string | null;
@@ -122,6 +127,20 @@ export function timeLabel(iso: string | undefined, locale: string): string {
   return formatClock(iso, locale);
 }
 
+/**
+ * A failed day carries the engine's reason. Browser network errors arrive as
+ * English ("Failed to fetch") and mean nothing to a user, so they are replaced
+ * with a statement in the user's language; `HTTP 404` and similar stay as-is,
+ * because they are the actionable part.
+ */
+function reasonLabel(reason: string | undefined, i18n: WeatherI18n): string | null {
+  if (!reason) return null;
+  if (/failed to fetch|networkerror|load failed|network request failed/i.test(reason)) {
+    return i18n.t('weather.networkError');
+  }
+  return reason;
+}
+
 function temperatureLabel(tempC: number | undefined, i18n: WeatherI18n): string | null {
   if (tempC === undefined || !Number.isFinite(tempC)) return null;
   return `${i18n.format.number(tempC, { maximumFractionDigits: 0 })} °C`;
@@ -172,7 +191,7 @@ function buildRow(
         : status === 'loading'
           ? i18n.t('weather.loadingDay')
           : i18n.t('weather.dayUnavailable');
-    const detail = status === 'unavailable' ? (sample.reason ?? null) : null;
+    const detail = status === 'unavailable' ? reasonLabel(sample.reason, i18n) : null;
     return {
       ...base,
       symbolFamily: 'unknown',
@@ -243,6 +262,9 @@ export function buildWeatherView(
   i18n: WeatherI18n,
 ): WeatherViewModel {
   const note = i18n.t('weather.horizonNote', { days: horizonDays });
+  // D12: "state the unknown". Alerts are unsupported by design, so the panel says
+  // so on every render — an empty warning list is not a clearance.
+  const alertsNote = i18n.t('weather.alertsUnsupported');
   const empty = (message: string, action: WeatherPanelAction, detail: string | null = null): WeatherViewModel => ({
     state: 'message',
     statusLine: '',
@@ -250,6 +272,7 @@ export function buildWeatherView(
     detail,
     action,
     note,
+    alertsNote,
     rows: [],
     warnings: [],
     fetchedLabel: null,
@@ -291,35 +314,50 @@ export function buildWeatherView(
   );
   const forecastCount = rows.filter((row) => row.status === 'forecast').length;
   const beyondCount = rows.filter((row) => row.status === 'beyond-horizon').length;
-  const fetchedLabel = i18n.t('weather.fetched', {
-    time: timeLabel(plan.assembledAt, i18n.locale) || '—',
-  });
+  const failedCount = rows.filter((row) => row.status === 'unavailable').length;
+  // Saying "varsel hentet" over a table of failures is a claim the data does not
+  // support; the label is only shown when at least one day has a forecast.
+  const fetchedLabel =
+    forecastCount > 0
+      ? i18n.t('weather.fetched', { time: timeLabel(plan.assembledAt, i18n.locale) || '—' })
+      : null;
   const dayUnit = (count: number): string =>
     i18n.t(count === 1 ? 'weather.unitDayOne' : 'weather.unitDayMany');
   const forecastUnit = dayUnit(forecastCount);
   const beyondUnit = dayUnit(beyondCount);
+  // "None inside the horizon" is a statement about the horizon. When the fetch
+  // itself failed, say that instead — the two causes need different actions.
+  const noForecast = forecastCount === 0 && failedCount > 0;
   const statusLine =
     rows.length === 0
       ? i18n.t('weather.empty')
-      : forecastCount === 0
-        ? i18n.t('weather.noneInHorizon')
-        : i18n.t(
-            beyondCount === 0 ? 'weather.summaryAll' : 'weather.summary',
-            {
-              forecast: forecastCount,
-              beyond: beyondCount,
-              forecastUnit,
-              beyondUnit,
-            },
-          );
+      : noForecast
+        ? i18n.t('weather.noForecast')
+        : forecastCount === 0
+          ? i18n.t('weather.noneInHorizon')
+          : i18n.t(
+              beyondCount === 0 ? 'weather.summaryAll' : 'weather.summary',
+              {
+                forecast: forecastCount,
+                beyond: beyondCount,
+                forecastUnit,
+                beyondUnit,
+              },
+            );
 
   return {
     state: rows.length === 0 ? 'message' : 'table',
     statusLine,
-    message: rows.length === 0 ? i18n.t('weather.empty') : null,
+    message:
+      rows.length === 0
+        ? i18n.t('weather.empty')
+        : noForecast
+          ? i18n.t('weather.noForecast')
+          : null,
     detail: null,
     action: 'refresh',
     note,
+    alertsNote,
     rows,
     warnings: plan.warnings.map((warning) => buildWarning(warning, i18n)),
     fetchedLabel,

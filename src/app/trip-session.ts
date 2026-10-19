@@ -44,7 +44,7 @@ import type { EngineSurface } from './engine-types';
 /** Autosave delay after the last change, milliseconds. */
 export const AUTOSAVE_DELAY_MS = 1000;
 
-export type SaveStatusKind = 'idle' | 'dirty' | 'saving' | 'saved' | 'error' | 'unavailable';
+type SaveStatusKind = 'idle' | 'dirty' | 'saving' | 'saved' | 'error' | 'unavailable';
 
 export interface SaveStatus {
   readonly kind: SaveStatusKind;
@@ -54,11 +54,13 @@ export interface SaveStatus {
   readonly message?: string;
   /** `StoreError.code` when the store reported one. */
   readonly code?: StoreErrorCode;
+  /** Payload size in bytes, when the failure was about size (D6). */
+  readonly bytes?: number;
 }
 
-export type ScheduleFn = (callback: () => void, delayMs: number) => () => void;
+type ScheduleFn = (callback: () => void, delayMs: number) => () => void;
 
-export interface TripSessionOptions {
+interface TripSessionOptions {
   engines: EngineSurface;
   /** Storage to persist into; `null`/`undefined` means "use the default". */
   storage?: Storage | null;
@@ -89,9 +91,9 @@ function isAsyncStore(store: TripStoreLike): store is AsyncTripStore {
 }
 
 /** Turn any thrown value from the store into a renderable save status. */
-export function saveStatusForError(error: unknown): SaveStatus {
+function saveStatusForError(error: unknown): SaveStatus {
   if (error instanceof StoreError) {
-    return { kind: 'error', code: error.code, message: error.message };
+    return { kind: 'error', code: error.code, message: error.message, bytes: error.bytes };
   }
   return { kind: 'error', message: messageOf(error) };
 }
@@ -353,7 +355,7 @@ export class TripSession {
   /**
    * Flush a pending autosave. Called on `pagehide`/`visibilitychange`: the
    * browser may not give an async write time to finish, which is why
-   * `docs/12-storage.md` still lists "an edit in the last second" as a loss.
+   * `docs/ARCHITECTURE.md` still lists "an edit in the last second" as a loss.
    */
   async flush(): Promise<void> {
     await this.ready;

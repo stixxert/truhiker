@@ -6,15 +6,15 @@
  * that swallows a fetch error and leaves the screen unchanged.
  */
 
-export type BannerKind = 'info' | 'warning' | 'error';
+type BannerKind = 'info' | 'warning' | 'error';
 
-export interface BannerAction {
+interface BannerAction {
   label: string;
   onClick: () => void;
 }
 
 /** The same banner's words, produced again in whatever language is current. */
-export interface BannerText {
+interface BannerText {
   message: string;
   /** Full technical detail, shown as a tooltip rather than in the banner. */
   detail?: string | null;
@@ -22,7 +22,7 @@ export interface BannerText {
   actionLabel?: string | null;
 }
 
-export interface BannerSpec {
+interface BannerSpec {
   id: string;
   kind: BannerKind;
   message: string;

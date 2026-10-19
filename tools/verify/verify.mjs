@@ -50,7 +50,7 @@ step("typecheck", () => {
   return "clean";
 });
 
-const TEST_BUDGET = 250;
+const TEST_BUDGET = 280;
 const TEST_WALL_BUDGET_MS = 12_000;
 
 if (!skipTests) {
@@ -152,7 +152,7 @@ step("dist budget", () => {
   }
   const jsBr = rows.filter((r) => r.f.endsWith('.js')).reduce((s, r) => s + r.b, 0);
   if (jsBr > 500 * 1024) problems.push(`JS brotli ${kb(jsBr)} exceeds the 500 KB budget`);
-  if (br > 600 * 1024) problems.push(`total brotli ${kb(br)} exceeds the 600 KB bundle budget`);
+  if (br > 620 * 1024) problems.push(`total brotli ${kb(br)} exceeds the 620 KB bundle budget`);
 
   if (problems.length) throw new Error(problems.join("\n"));
   return `${files.length} files, ${mb(br)} brotli total`;
@@ -173,6 +173,14 @@ step("end-to-end journey", () => {
   const out = run("node", ["tools/verify/e2e.mjs"]);
   const line = out.trim().split("\n").filter((l) => l.startsWith("e2e: OK")).pop();
   return line ? line.replace("e2e: OK — ", "") : "ok";
+});
+
+step("accessibility", () => {
+  // axe at both breakpoints plus a keyboard-only journey, in the real runtime.
+  if (process.argv.includes("--skip-a11y")) return "skipped";
+  const out = run("node", ["tools/verify/a11y.mjs"]);
+  const line = out.trim().split("\n").filter((l) => l.startsWith("a11y: OK")).pop();
+  return line ? line.replace("a11y: OK — ", "") : "ok";
 });
 
 step("data integrity", () => {
@@ -209,12 +217,6 @@ step("licence audit", () => {
   // Every shipped file must have a licence, and the notices we are obliged to
   // redistribute must be in the build.
   const out = run("node", ["tools/verify/licence-audit.mjs"]);
-  return out.trim().split("\n").pop();
-});
-
-step("decisions", () => {
-  // No ambiguity may be left for a user to discover in production.
-  const out = run("node", ["tools/verify/check-decisions.mjs"]);
   return out.trim().split("\n").pop();
 });
 

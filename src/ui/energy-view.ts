@@ -29,7 +29,7 @@ import {
 /** The documented default food energy density (`docs/DECISIONS.md` D10). */
 export const DEFAULT_FOOD_KCAL_PER_G = 4.4;
 /** Energy in one kilogram of body fat: the usual planning constant. */
-export const KCAL_PER_KG_FAT = 7700;
+const KCAL_PER_KG_FAT = 7700;
 
 export interface EnergyAssumptions {
   /** kcal per gram of carried food. Editable; 4.4 is the documented default. */
@@ -62,7 +62,7 @@ export interface MassPoint {
 }
 
 /** The numbers the panel renders. Every one of them comes from the model. */
-export interface EnergyModel {
+interface EnergyModel {
   readonly day: EnergyDay;
   readonly deficit: DeficitPlan;
   readonly days: number;
@@ -129,7 +129,7 @@ export interface EnergyViewModel {
 type ViewI18n = Pick<I18n, 't' | 'locale' | 'format'>;
 
 /** Extra inputs the panel needs to describe the inputs it was given. */
-export interface EnergyViewOptions {
+interface EnergyViewOptions {
   /** The profile the numbers were computed from (the trip's own profile). */
   readonly profile?: UserProfile | null;
   /** `defaultProfile()` for this build; equality means the body was never entered. */

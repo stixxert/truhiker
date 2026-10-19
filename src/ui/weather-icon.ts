@@ -97,7 +97,3 @@ export function createWeatherIcon(
   return svg;
 }
 
-/** All families, in a stable order (used by tests and the styles). */
-export function symbolFamilies(): WeatherSymbolFamily[] {
-  return Object.keys(SHAPES) as WeatherSymbolFamily[];
-}

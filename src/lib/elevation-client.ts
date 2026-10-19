@@ -20,7 +20,7 @@ export interface ElevationJob {
   cancel(): void;
 }
 
-export interface ElevationOptions {
+interface ElevationOptions {
   onProgress?: (progress: ElevationProgress) => void;
 }
 

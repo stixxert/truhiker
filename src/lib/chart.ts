@@ -15,7 +15,7 @@ export interface ProfilePoint {
   ele: number;
 }
 
-export interface ValueDomain {
+interface ValueDomain {
   min: number;
   max: number;
 }

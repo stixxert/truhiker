@@ -25,7 +25,7 @@ export const CURRENT_SCHEMA_VERSION = 1;
  * redesign. Add `1: (raw) => ({ ...raw, schemaVersion: 2, /* new field *\/ })`
  * here and bump `CURRENT_SCHEMA_VERSION`.
  */
-export type Migration = (raw: Record<string, unknown>) => Record<string, unknown>;
+type Migration = (raw: Record<string, unknown>) => Record<string, unknown>;
 
 export const MIGRATIONS: Readonly<Record<number, Migration>> = Object.freeze({});
 

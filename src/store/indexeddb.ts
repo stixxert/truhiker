@@ -241,6 +241,7 @@ function ceilingError(trip: Trip, bytes: number, limit: number): StoreError {
     `Trip "${trip.name}" is ${formatBytes(bytes)} (${(bytes / 1_000_000).toFixed(2)} MB), over the ` +
       `${formatBytes(limit)} per-trip storage limit. Nothing was saved. ` +
       `Download it as GPX instead — the round trip is lossless.`,
+    bytes,
   );
 }
 
@@ -251,6 +252,7 @@ function writeError(error: unknown, trip: Trip, bytes: number): unknown {
       `Could not save "${trip.name}": the browser refused ${formatBytes(bytes)} ` +
         `(${(bytes / 1_000_000).toFixed(2)} MB) because storage is full. Nothing was saved. ` +
         `Download the trip as GPX, or delete an old trip, then try again.`,
+      bytes,
     );
   }
   return error;

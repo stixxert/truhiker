@@ -119,8 +119,8 @@ describe('resupply view — honesty', () => {
     // only whether OSM had the tag is known.
     const withHours = view.rows.find((row) => row.name === 'Joker Dalsbygda')!;
     const withoutHours = view.rows.find((row) => row.name === 'Coop Uten Åpningstider')!;
-    expect(withHours.badges).toContain('åpningstid ikke lest');
-    expect(withoutHours.badges).toContain('åpningstid ukjent');
+    expect(withHours.badges).toContain('åpningstider ikke lagret');
+    expect(withoutHours.badges).toContain('åpningstider ukjent');
     for (const row of view.rows) {
       expect(row.badges.join(' ')).not.toMatch(/åpen/i);
     }

@@ -27,7 +27,7 @@ export interface BBox25833 {
 }
 
 /** A decoded DEM window with georeferencing. */
-export interface DemRaster extends Raster {
+interface DemRaster extends Raster {
   readonly bbox: BBox25833;
   /**
    * Bilinearly interpolated elevation at an EPSG:25833 coordinate (metres).
@@ -45,12 +45,12 @@ export interface ElevationSource {
 }
 
 /** Pixel dimensions for a DEM window. */
-export interface RasterSize {
+interface RasterSize {
   width: number;
   height: number;
 }
 
-export interface FetchDemOptions {
+interface FetchDemOptions {
   /** Per-attempt timeout. Default 30 s. */
   timeoutMs?: number;
   /** Total attempts (1 = no retry). Default 3. */
@@ -64,7 +64,7 @@ export interface FetchDemOptions {
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_ATTEMPTS = 3;
 
-export const DEM_EXPORT_URL =
+const DEM_EXPORT_URL =
   'https://hoydedata.no/arcgis/rest/services/DTM/ImageServer/exportImage';
 
 /** Build the ArcGIS exportImage URL (exported for logging and tests). */
@@ -276,7 +276,7 @@ function createDemRaster(raw: Raster, bbox: BBox25833): DemRaster {
 // Window grouping, caching, concurrency
 // ---------------------------------------------------------------------------
 
-export interface SampleOptions extends FetchDemOptions {
+interface SampleOptions extends FetchDemOptions {
   /** Side length of a sampling cell, metres. Default 5000. */
   cellSizeM?: number;
   /** Requested DEM resolution, metres per pixel. Default 10. */
@@ -430,7 +430,7 @@ export class HoydedataDem implements ElevationSource {
 let defaultSource: HoydedataDem | undefined;
 
 /** The process-wide default source (shares its window cache). */
-export function getDefaultDemSource(): HoydedataDem {
+function getDefaultDemSource(): HoydedataDem {
   defaultSource ??= new HoydedataDem();
   return defaultSource;
 }

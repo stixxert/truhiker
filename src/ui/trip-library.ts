@@ -14,7 +14,7 @@
 import type { I18n } from '../i18n';
 import type { TripLibraryView, TripRowView } from './trip-library-view';
 
-export interface TripLibraryHandlers {
+interface TripLibraryHandlers {
   onOpen: (id: string) => void;
   onRename: (id: string, name: string) => void;
   onDuplicate: (id: string) => void;

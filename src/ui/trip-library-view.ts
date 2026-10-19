@@ -40,7 +40,7 @@ export interface TripLibraryView {
  * What the library should say about storage. Gathered from the session, which
  * asks the backend itself — the view only formats it.
  */
-export interface TripLibraryStorage {
+interface TripLibraryStorage {
   readonly backend: 'indexeddb' | 'localstorage';
   readonly persistent: boolean;
   readonly usedBytes: number | null;
@@ -62,7 +62,7 @@ export function formatTripDate(iso: string, locale: string): string {
   return formatDay(iso, locale, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-export interface TripLibraryInput {
+interface TripLibraryInput {
   summaries: readonly TripSummary[];
   currentId: string | null;
   problem: SaveStatus | null;

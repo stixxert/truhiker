@@ -8,6 +8,7 @@
 
 import { StoreError, type StoreErrorCode } from '../contracts';
 import type { I18n, MessageKey } from '../i18n';
+import { formatSize } from './format-size';
 
 const CODE_KEYS: Record<StoreErrorCode, MessageKey> = {
   'quota-exceeded': 'store.quota',
@@ -23,8 +24,11 @@ export function storeErrorKey(error: unknown): MessageKey | null {
 }
 
 /** Translated, user-facing text for any thrown store/import error. */
-export function storeErrorText(error: unknown, i18n: Pick<I18n, 't'>): string {
+export function storeErrorText(error: unknown, i18n: Pick<I18n, 't' | 'format'>): string {
   const key = storeErrorKey(error);
+  if (key === 'store.quota' && error instanceof StoreError && error.bytes !== undefined) {
+    return i18n.t('store.quotaSize', { size: formatSize(error.bytes, i18n) });
+  }
   if (key) return i18n.t(key);
   const message = error instanceof Error ? error.message : String(error);
   return i18n.t('store.generic', { message: message.split('\n')[0] });

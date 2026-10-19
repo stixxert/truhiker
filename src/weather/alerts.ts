@@ -3,8 +3,8 @@
  *
  * This module returns `[]` and makes no network call. Why:
  *
- * 1. `docs/08-corrections.md` rule 1: read the primary terms before asserting a
- *    requirement. This environment has no web access, so the MetAlerts endpoint
+ * 1. Read the primary terms before asserting a requirement (`docs/DECISIONS.md`
+ *    D12). This environment has no web access, so the MetAlerts endpoint
  *    path, its CAP-derived JSON shape and its CORS behaviour are **unverified**.
  *    Writing a parser against a guessed shape would produce either silent
  *    `undefined`s or a plausible-looking warning list that was never checked

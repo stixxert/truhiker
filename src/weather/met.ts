@@ -18,8 +18,8 @@
  *
  * Coordinates are **truncated to 4 decimals** before the URL is built. That
  * maximises cache and dedupe hits (one request per rounded point) and follows
- * the rule recorded in `docs/09-phase3-spec.md`. The "5+ decimals returns 403"
- * claim in that document is **unverified from this environment**; truncation is
+ * the coordinate rule in `docs/DECISIONS.md` (D4). The "5+ decimals returns 403"
+ * claim in an earlier draft is **unverified from this environment**; truncation is
  * harmless either way.
  *
  * Nothing here interpolates, extrapolates or invents. A number is either in
@@ -88,7 +88,7 @@ function assertCoordinate(value: number, limit: number, label: string): void {
 }
 
 /** Truncate toward zero and normalise `-0` to `0`. */
-export function truncateCoordinate(value: number): number {
+function truncateCoordinate(value: number): number {
   const factor = 10 ** COORDINATE_DECIMALS;
   // The epsilon-free truncation can land one ulp low (e.g. 0.29 * 100 = 28.99…),
   // which only ever moves a point by ≤ 1e-4° (~11 m) and can never exceed four

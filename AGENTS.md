@@ -25,9 +25,10 @@ npm run visual-check   # headless Chromium at 1440 and 390 under the real CSP
 npx wrangler deploy    # static deploy (no Worker script)
 ```
 
-`npm run verify` runs: typecheck, hermetic tests (budget: 250 cases, 12 s — currently ~2.5 s), build,
-bundle budget, licence audit, decisions check and the hosting contract. A change
-that breaks it is not done.
+`npm run verify` runs: typecheck, hermetic tests (budget: 280 cases, 12 s — currently ~2.5 s), build,
+bundle budget, a headless render and the e2e journey under workerd, the axe and
+keyboard accessibility gate, the blocked-network failure paths, i18n parity,
+licence audit and the hosting contract. A change that breaks it is not done.
 
 ## Hard rules
 
@@ -37,8 +38,7 @@ that breaks it is not done.
    assert key-level absence — keep them that way.
 2. **Licences.** Every shipped file needs a rule in
    `tools/verify/licence-audit.mjs` and an entry in `docs/LICENSES.md`. Never merge
-   ODbL data with non-ODbL data in one file. UT.no, Wikiloc, AllTrails and
-   Outdooractive content is never used or redistributed.
+   ODbL data with non-ODbL data in one file.
 3. **One data artefact, deliberately.** The OSM resupply extract
    (`data/shops.osm.bin`, 175 KB, ODbL) is a committed build input served by the
    app — the repo is the build input for a static deploy. Regenerate it with
@@ -47,7 +47,7 @@ that breaks it is not done.
    their sources. Only data with no usable live source is bundled.
 5. **No new dependencies without a reason.** The app has one runtime dependency
    (MapLibre) plus `@xmldom/xmldom`. Prefer a few lines of code.
-6. **Test budget.** 250 cases. Consolidate related assertions into one test (a
+6. **Test budget.** 280 cases. Consolidate related assertions into one test (a
    loop inside `it`); `it.each` rows count separately. Prefer an acceptance test
    over three unit tests.
 7. **Conventional commits**, and never commit a tree that fails `npm run verify`,
@@ -75,11 +75,12 @@ docs/         DECISIONS.md, LICENSES.md, ARCHITECTURE.md, notes/
 
 ## Ambiguity
 
-Every ambiguous behaviour has a documented default in `docs/DECISIONS.md`, enforced
-by `tools/verify/check-decisions.mjs`. If you add a behaviour that a user could
-reasonably expect to differ, add a decision rather than leaving it implicit.
+Every ambiguous behaviour has a documented default in `docs/DECISIONS.md`. If you
+add a behaviour that a user could reasonably expect to differ, add a decision
+rather than leaving it implicit.
 
 The reasoning behind the architecture lives in the commit history, not in shipped
 documentation. What a maintainer needs is in `docs/ARCHITECTURE.md`,
-`docs/DECISIONS.md` and `docs/LICENSES.md`; everything else was a working note and
+`docs/DECISIONS.md` and `docs/LICENSES.md`; `docs/notes/` holds review records kept
+on purpose (currently the copy review), and everything else was a working note and
 was removed.

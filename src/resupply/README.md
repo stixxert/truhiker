@@ -132,7 +132,7 @@ not OSM), and **no `openingHours`** — the service carries none, and an unknown
 is not "always open". `app:opphav` is the name; `app:vedlikeholdsansvarlig`
 (maintainer) and `app:tilrettelegging` (facility code, e.g. `42` at Fondsbu) are
 parsed by `parseHutGml` and kept **opaque**. The codelist was never decoded
-(`docs/08-corrections.md` §1), so the code is never interpreted as
+(`docs/DECISIONS.md` D1), so the code is never interpreted as
 betjent/selvbetjent/ubetjent.
 
 **The evidence rule.** A hut is a *location*, not a *shop*. No food is asserted,

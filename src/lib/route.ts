@@ -16,7 +16,7 @@ export const SAMPLE_SPACING_M = 25;
 /** Hard cap on resampled points (a 3,000 km route lands at ~60k at 50 m). */
 export const MAX_SAMPLES = 60_000;
 /** Cap on points sent to the map as GeoJSON, to keep GL buffers modest. */
-export const MAX_DISPLAY_POINTS = 25_000;
+const MAX_DISPLAY_POINTS = 25_000;
 
 export type RouteOrigin = 'demo' | 'file' | 'link';
 
@@ -36,14 +36,14 @@ export interface Route {
  * real coverage. Outside this box the app still draws the route but refuses to
  * invent elevation numbers.
  */
-export const SUPPORTED_BOUNDS = {
+const SUPPORTED_BOUNDS = {
   minLon: 2,
   minLat: 57,
   maxLon: 32,
   maxLat: 72.5,
 } as const;
 
-export interface RouteInput {
+interface RouteInput {
   name?: string;
   coords: readonly LonLat[];
   origin: RouteOrigin;
@@ -131,7 +131,7 @@ export function routeBounds(points: readonly LonLat[]): Bounds | null {
   return { minLon, minLat, maxLon, maxLat };
 }
 
-export interface SupportCheck {
+interface SupportCheck {
   ok: boolean;
   /** Number of points outside the supported area; 0 when ok. */
   outsidePoints: number;

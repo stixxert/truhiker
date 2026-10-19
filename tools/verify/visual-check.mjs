@@ -23,20 +23,16 @@
  * 127.0.0.1:4191, which Chromium reaches directly.
  */
 
-import { spawn } from 'node:child_process';
 import {
-  cpSync,
   createReadStream,
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
-  rmSync,
   statSync,
 } from 'node:fs';
 import { createServer } from 'node:http';
-import { tmpdir } from 'node:os';
 import { extname, join, resolve, sep } from 'node:path';
+import { startRuntime } from './runtime.mjs';
 
 const ROOT = process.cwd();
 const DIST = join(ROOT, 'dist');
@@ -55,7 +51,6 @@ let ORIGIN = `http://${HOST}:${PORT}`;
  */
 const RUNTIME = process.argv.includes('--runtime');
 const RUNTIME_PORT = 4192;
-const WRANGLER = join(ROOT, 'node_modules', '.bin', 'wrangler');
 
 /** Live sources that may be slow or unreachable; they must not fail the gate. */
 const ALLOWED_HOSTS = [
@@ -626,56 +621,15 @@ async function checkViewport(browser, viewport, expectedHeaders) {
 // Main
 // ---------------------------------------------------------------------------
 
-/** Wait until the origin answers, or throw with the child's output. */
-async function waitForOrigin(origin, child, timeoutMs = 40_000) {
-  const started = Date.now();
-  let output = '';
-  child.stdout?.on('data', (chunk) => { output += chunk.toString(); });
-  child.stderr?.on('data', (chunk) => { output += chunk.toString(); });
-  while (Date.now() - started < timeoutMs) {
-    if (child.exitCode !== null) {
-      throw new Error(`wrangler dev exited with ${child.exitCode}\n${output.slice(-1500)}`);
-    }
-    try {
-      const response = await fetch(`${origin}/`, { redirect: 'manual' });
-      if (response.ok) return;
-    } catch {
-      // not listening yet
-    }
-    await new Promise((done) => setTimeout(done, 250));
-  }
-  throw new Error(`wrangler dev did not answer within ${timeoutMs} ms\n${output.slice(-1500)}`);
-}
-
-/** Copy the build to a real temp directory and run it under workerd. */
-async function startRuntime() {
-  if (!existsSync(WRANGLER)) {
-    fail('wrangler is not installed (npm install) but --runtime was requested');
-  }
-  const directory = mkdtempSync(join(tmpdir(), 'truhiker-runtime-'));
-  cpSync(DIST, join(directory, 'dist'), { recursive: true });
-  for (const file of ['wrangler.jsonc', 'package.json']) {
-    cpSync(join(ROOT, file), join(directory, file));
-  }
-  const child = spawn(WRANGLER, ['dev', '--port', String(RUNTIME_PORT), '--ip', HOST], {
-    cwd: directory,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  ORIGIN = `http://${HOST}:${RUNTIME_PORT}`;
+/** Serve the build from a real temp directory under workerd (shared helper). */
+async function startWorkerd() {
   try {
-    await waitForOrigin(ORIGIN, child);
+    const runtime = await startRuntime({ port: RUNTIME_PORT, label: 'visual' });
+    ORIGIN = runtime.origin;
+    return runtime;
   } catch (error) {
-    child.kill('SIGKILL');
-    rmSync(directory, { recursive: true, force: true });
     fail(error instanceof Error ? error.message : String(error));
   }
-  return {
-    origin: ORIGIN,
-    stop: () => {
-      child.kill('SIGKILL');
-      rmSync(directory, { recursive: true, force: true });
-    },
-  };
 }
 
 async function main() {
@@ -710,7 +664,7 @@ async function main() {
 
   let stopServer;
   if (RUNTIME) {
-    const runtime = await startRuntime();
+    const runtime = await startWorkerd();
     stopServer = runtime.stop;
     process.stdout.write(`visual-check: runtime ${runtime.origin} (wrangler dev)\n`);
   } else {

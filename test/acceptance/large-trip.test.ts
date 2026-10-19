@@ -11,7 +11,7 @@
  *    **deep-equal**, not simplified, not rounded;
  *  - listing it does not require reading the body.
  *
- * No wall-clock assertion: the timings are logged for `docs/12-storage.md` only,
+ * No wall-clock assertion: the timings are logged for `docs/ARCHITECTURE.md` only,
  * because a time budget in a test is a flake with a delay (docs/11 §2.3).
  */
 import { IDBFactory } from 'fake-indexeddb';
@@ -110,7 +110,7 @@ describe('acceptance: a 3,000 km trip on IndexedDB', () => {
     const loaded = await store.load(trip.id);
     const loadMs = performance.now() - loadStart;
 
-    // Timings, not assertions: they are quoted in docs/12-storage.md.
+    // Timings, not assertions: they are quoted in docs/ARCHITECTURE.md.
     console.log(
       `large trip: ${(bytes / 1_000_000).toFixed(2)} MB, ${POINTS} points — ` +
         `save ${saveMs.toFixed(0)} ms, load ${loadMs.toFixed(0)} ms`,

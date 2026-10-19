@@ -13,7 +13,7 @@
  *
  * Both round-trip through GPX 1.1 and GeoJSON without losing geometry,
  * elevation provenance or licence metadata. See `README.md` next to this file
- * and `docs/12-storage.md`.
+ * and `docs/ARCHITECTURE.md` (Storage).
  */
 
 export {

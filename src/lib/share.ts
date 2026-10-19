@@ -9,7 +9,7 @@
  * producing a link that silently loses half a route.
  */
 
-export const HASH_PREFIX = '#r=';
+const HASH_PREFIX = '#r=';
 export const MAX_HASH_CHARS = 12_000;
 
 const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';

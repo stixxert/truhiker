@@ -4,8 +4,8 @@ Pure functions. No DOM, no network, no dependencies. The planner turns a route
 and a body into the two numbers that actually decide a long walk: **how much
 you burn** and **whether you can carry (or buy) enough to eat**.
 
-The research behind it is `docs/01-options-and-decisions.md` §D8 (calorie model)
-and `docs/06-bundle-manifest.md` (why shops are bundled and huts are not).
+The model is `docs/DECISIONS.md` D10 (calorie model); why shops are bundled and
+huts are not is D1 and `docs/ARCHITECTURE.md`.
 
 ```
 src/plan/

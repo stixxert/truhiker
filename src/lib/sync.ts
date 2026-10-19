@@ -23,7 +23,7 @@ export interface RouteGeometry {
   readonly distances: readonly number[];
 }
 
-export interface NearestRoutePoint {
+interface NearestRoutePoint {
   index: number;
   distanceM: number;
   /** Distance from the query point in screen pixels at the supplied zoom. */

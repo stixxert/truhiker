@@ -58,7 +58,7 @@ export type Sex = 'male' | 'female';
 export type BmrEquation = 'mifflin-st-jeor' | 'cunningham';
 
 /** Terrain classes with the multiplicative cost factor η applied to Minetti. */
-export type TerrainClass = 'asphalt' | 'gravel' | 'trail' | 'rough' | 'bog';
+type TerrainClass = 'asphalt' | 'gravel' | 'trail' | 'rough' | 'bog';
 
 /**
  * Terrain factor η (dimensionless, multiplies Minetti's net cost).
@@ -77,7 +77,7 @@ export const TERRAIN_FACTORS: Readonly<Record<TerrainClass, number>> = {
 };
 
 /** Resolve a terrain class or a numeric η. Throws on a non-positive factor. */
-export function terrainFactor(terrain: TerrainClass | number = 'trail'): number {
+function terrainFactor(terrain: TerrainClass | number = 'trail'): number {
   const eta = typeof terrain === 'number' ? terrain : TERRAIN_FACTORS[terrain];
   if (!Number.isFinite(eta) || eta <= 0) {
     throw new Error(`invalid terrain factor: ${String(terrain)}`);
@@ -97,7 +97,7 @@ export interface BodyProfile {
   readonly bodyFatPercent?: number;
 }
 
-export interface EnergyInput {
+interface EnergyInput {
   readonly body: BodyProfile;
   /** Pack + worn kit, kg. Added to body mass for locomotion. */
   readonly packMassKg?: number;
@@ -122,7 +122,7 @@ export interface EnergyInput {
   readonly bmrEquation?: BmrEquation;
 }
 
-export interface EnergyBreakdown {
+interface EnergyBreakdown {
   /** BMR × weighted hours (sleep 0.95, camp 1.5, walking 1.0). */
   readonly resting: number;
   /** Net Minetti locomotion above rest, including pack and terrain factor. */
@@ -135,7 +135,7 @@ export interface EnergyBreakdown {
   readonly tef: number;
 }
 
-export interface DayHours {
+interface DayHours {
   readonly walking: number;
   readonly camp: number;
   readonly sleep: number;
@@ -160,7 +160,7 @@ export interface EnergyDay {
   readonly intakeCeilingKcal: number;
 }
 
-export interface DeficitInput {
+interface DeficitInput {
   readonly day: EnergyDay;
   readonly body: BodyProfile;
   /** Explicit fat mass, kg. If absent, derived from body-fat percentage. */
@@ -195,7 +195,7 @@ export interface DeficitPlan {
   readonly unavoidableDeficitKcalPerDay: number;
 }
 
-export interface CrossCheckInput {
+interface CrossCheckInput {
   readonly bodyMassKg: number;
   readonly packMassKg?: number;
   /** Walking speed in metres/second. Default 1.33 m/s (4.8 km/h). */
@@ -206,7 +206,7 @@ export interface CrossCheckInput {
   readonly restingKcalPerHour?: number;
 }
 
-export interface CrossCheckResult {
+interface CrossCheckResult {
   /** Minetti net cost + resting, kcal/h. */
   readonly minettiKcalPerHour: number;
   /** Santee/USARIEM walking equation, kcal/h. */
@@ -223,52 +223,52 @@ export interface CrossCheckResult {
 // Constants
 // ---------------------------------------------------------------------------
 
-export const J_PER_KCAL = 4184;
-export const GRAVITY = 9.81;
+const J_PER_KCAL = 4184;
+const GRAVITY = 9.81;
 
 /** Minetti 2002 is only fitted within ±45 %. Outside it we clamp. */
-export const MINETTI_GRADE_LIMIT = 0.45;
+const MINETTI_GRADE_LIMIT = 0.45;
 
 /** BMR multipliers for the three day states. */
-export const SLEEP_BMR_FACTOR = 0.95;
-export const CAMP_BMR_FACTOR = 1.5;
-export const WALK_BMR_FACTOR = 1.0;
+const SLEEP_BMR_FACTOR = 0.95;
+const CAMP_BMR_FACTOR = 1.5;
+const WALK_BMR_FACTOR = 1.0;
 
-export const DEFAULT_SPEED_KMH = 3.5;
+const DEFAULT_SPEED_KMH = 3.5;
 /** Naismith climb penalty: one hour per 600 m of ascent. */
-export const ASCENT_HOURS_PER_M = 1 / 600;
+const ASCENT_HOURS_PER_M = 1 / 600;
 /** Descent penalty: one hour per 1000 m of descent (quadriceps braking). */
-export const DESCENT_HOURS_PER_M = 1 / 1000;
-export const DEFAULT_CAMP_HOURS = 3.5;
+const DESCENT_HOURS_PER_M = 1 / 1000;
+const DEFAULT_CAMP_HOURS = 3.5;
 /** Label this as an estimate: it is a placeholder for real weather. */
-export const DEFAULT_THERMOREGULATION_KCAL = 150;
-export const DEFAULT_NEAT_FACTOR = 0.08;
+const DEFAULT_THERMOREGULATION_KCAL = 150;
+const DEFAULT_NEAT_FACTOR = 0.08;
 /** TEF is ~10 % of intake; at energy balance intake == TDEE. */
-export const TEF_FRACTION = 0.1;
+const TEF_FRACTION = 0.1;
 
 /** Max sustainable intake, multiple of BMR (Thurber et al. 2019). */
-export const INTAKE_CEILING_BMR_MULTIPLE = 2.5;
+const INTAKE_CEILING_BMR_MULTIPLE = 2.5;
 /** Fat oxidation ceiling, kcal/day per kg of fat mass. */
-export const FAT_KCAL_PER_KG_DAY = 69;
+const FAT_KCAL_PER_KG_DAY = 69;
 /** Largest deficit taken from TDEE at maintenance. */
-export const SUSTAINABLE_DEFICIT_FRACTION = 0.12;
+const SUSTAINABLE_DEFICIT_FRACTION = 0.12;
 /** Largest fraction of the fat-oxidation ceiling a plan may use. */
-export const FAT_DEFICIT_FRACTION = 0.75;
+const FAT_DEFICIT_FRACTION = 0.75;
 
 /** Range multipliers. Not ±20 %: asymmetric on purpose. */
-export const RANGE_LOW_FACTOR = 0.75;
-export const RANGE_HIGH_FACTOR = 1.3;
+const RANGE_LOW_FACTOR = 0.75;
+const RANGE_HIGH_FACTOR = 1.3;
 
 /** Sex-typical body-fat defaults, used only when nothing better is supplied. */
-export const DEFAULT_BODY_FAT_PERCENT: Readonly<Record<Sex, number>> = {
+const DEFAULT_BODY_FAT_PERCENT: Readonly<Record<Sex, number>> = {
   male: 18,
   female: 28,
 };
 
 /** Reputable equations spread 28–37 %. Beyond 35 % something is wrong. */
-export const CROSS_CHECK_TOLERANCE = 0.35;
+const CROSS_CHECK_TOLERANCE = 0.35;
 /** Level band within which a cross-check disagreement is treated as a bug. */
-export const CROSS_CHECK_LEVEL_BAND = 0.02;
+const CROSS_CHECK_LEVEL_BAND = 0.02;
 
 /** 1 W = 1 J/s = 3600 J/h = 3600/4184 kcal/h. */
 const KCAL_PER_HOUR_PER_WATT = 3600 / J_PER_KCAL;
@@ -282,7 +282,7 @@ const KCAL_PER_HOUR_PER_WATT = 3600 / J_PER_KCAL;
  * The default: it needs only mass, height, age and sex, and is the best-validated
  * general-population equation.
  */
-export function mifflinStJeor(body: BodyProfile): number {
+function mifflinStJeor(body: BodyProfile): number {
   const sign = body.sex === 'male' ? 5 : -161;
   return 10 * body.massKg + 6.25 * body.heightCm - 5 * body.ageYears + sign;
 }
@@ -510,7 +510,7 @@ export function estimateDay(input: EnergyInput): EnergyDay {
 // ---------------------------------------------------------------------------
 
 /** Fat-oxidation supply ceiling, kcal/day (69 × fat mass). */
-export function fatSupplyCeilingKcal(fatMassKg: number): number {
+function fatSupplyCeilingKcal(fatMassKg: number): number {
   if (!Number.isFinite(fatMassKg) || fatMassKg < 0) {
     throw new Error(`invalid fat mass: ${fatMassKg}`);
   }

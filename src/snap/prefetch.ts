@@ -34,19 +34,19 @@ import {
 export type { LonLat, LonLatBBox, TurruteLine };
 
 /** Default grid cell size in degrees (~2 km at 61°N). */
-export const DEFAULT_PREFETCH_CELL_DEG = 0.02;
+const DEFAULT_PREFETCH_CELL_DEG = 0.02;
 /** Default maximum number of WFS boxes per prefetch run. */
-export const DEFAULT_MAX_REQUESTS = 6;
+const DEFAULT_MAX_REQUESTS = 6;
 /** WFS concurrency cap. A 10 km urban box takes ~6.6 s server-side. */
-export const DEFAULT_PREFETCH_CONCURRENCY = 2;
+const DEFAULT_PREFETCH_CONCURRENCY = 2;
 /** Default debounce for viewport pan/zoom bursts, ms. */
-export const DEFAULT_DEBOUNCE_MS = 200;
+const DEFAULT_DEBOUNCE_MS = 200;
 
 /** Upper bound on cells enumerated for a viewport before coarsening. */
 const MAX_VIEWPORT_CELLS = 400;
 
 /** One grid cell, with its stable cache id and geographic bbox. */
-export interface GridCell {
+interface GridCell {
   ix: number;
   iy: number;
   id: string;
@@ -54,7 +54,7 @@ export interface GridCell {
 }
 
 /** One bbox to request: either a single cell or a merged rectangle of cells. */
-export interface PlannedBox {
+interface PlannedBox {
   id: string;
   bbox: LonLatBBox;
   cells: Array<{ ix: number; iy: number }>;
@@ -82,14 +82,14 @@ export interface PrefetchReport {
   failures: Array<{ boxId: string; error: string }>;
 }
 
-export interface PrefetchPlanOptions {
+interface PrefetchPlanOptions {
   /** Grid cell size in degrees. Default 0.02. */
   cellDeg?: number;
   /** Hard cap on the number of boxes. Default 6. */
   maxRequests?: number;
 }
 
-export interface PrefetchRunOptions extends PrefetchPlanOptions {
+interface PrefetchRunOptions extends PrefetchPlanOptions {
   /** Debounce before starting, ms. Default 200; 0 disables. */
   debounceMs?: number;
   /** Concurrency cap. Default 2. */
@@ -98,7 +98,7 @@ export interface PrefetchRunOptions extends PrefetchPlanOptions {
   signal?: AbortSignal;
 }
 
-export interface PrefetcherOptions {
+interface PrefetcherOptions {
   /** Dataset version used as the cache partition. */
   dataVersion?: string;
   /** Cache instance; otherwise one is created from `backend`. */

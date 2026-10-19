@@ -1,7 +1,7 @@
 /**
  * The resupply panel, as data.
  *
- * The honesty rules of `docs/13-phase4-resupply-ui.md` §2 are applied here, once,
+ * The honesty rules of `docs/DECISIONS.md` (D1–D3, D13) are applied here, once,
  * so the DOM layer cannot implement them differently:
  *
  *  - a **hut** never counts as a food source and is labelled "ikke bekreftet";
@@ -22,7 +22,7 @@ import { formatClock, formatDay, type I18n, type MessageKey } from '../i18n';
 import type { ResupplyCandidate, ResupplyLeg, ResupplyPlan } from '../resupply';
 
 /** Everything a successful corridor query produced, plus its provenance. */
-export interface ResupplyData {
+interface ResupplyData {
   readonly candidates: readonly ResupplyCandidate[];
   readonly plan: ResupplyPlan;
   /** ISO timestamp the binary is labelled with (`data/MEASUREMENTS.md`). */
@@ -45,7 +45,7 @@ export type ResupplyPanelState =
   | { kind: 'plan-failed'; message: string }
   | { kind: 'ready'; data: ResupplyData };
 
-export type ResupplyAction = 'none' | 'settings' | 'open-route' | 'retry';
+type ResupplyAction = 'none' | 'settings' | 'open-route' | 'retry';
 
 export interface ResupplyRowView {
   readonly id: string;
@@ -75,10 +75,9 @@ export interface ResupplyRowView {
   readonly countsAsFood: boolean;
   /** "OSM/ODbL" or "Turrutebasen (CC BY 4.0)". */
   readonly provenanceLabel: string;
-  readonly ariaLabel: string;
 }
 
-export interface ResupplyLegView {
+interface ResupplyLegView {
   readonly id: string;
   readonly title: string;
   readonly distanceLabel: string;
@@ -89,7 +88,7 @@ export interface ResupplyLegView {
   readonly engineWarnings: readonly string[];
 }
 
-export interface ResupplyWarningView {
+interface ResupplyWarningView {
   readonly severity: 'info' | 'warning' | 'critical';
   readonly text: string;
 }
@@ -325,9 +324,10 @@ function buildReady(
         severity: 'info' as const,
         text: i18n.t('supply.mailDrop', {
           name: drop.name,
-          arrival: drop.arrival ?? '—',
-          shipBy: drop.shipBy ?? '—',
-          notBefore: drop.notBefore ?? '—',
+          // ISO days are for the plan engine; the user reads `1. juli 2026` (D8).
+          arrival: drop.arrival ? formatDay(drop.arrival, i18n.locale) : '—',
+          shipBy: drop.shipBy ? formatDay(drop.shipBy, i18n.locale) : '—',
+          notBefore: drop.notBefore ? formatDay(drop.notBefore, i18n.locale) : '—',
           window: String(drop.windowDays),
         }),
       })),
@@ -404,13 +404,6 @@ function buildRow(
     checkLabel: checkUrl === null ? null : i18n.t('supply.checkDnt'),
     countsAsFood,
     provenanceLabel: provenanceOf(candidate, i18n),
-    ariaLabel: i18n.t('supply.rowAria', {
-      name: candidate.name,
-      kind: kindLabel,
-      distance: distanceLabel,
-      detour: detourLabel,
-      gap: gapLabel ?? i18n.t('supply.gapNone'),
-    }),
   };
 }
 
@@ -452,13 +445,83 @@ function buildLeg(leg: ResupplyLeg, maxCarryDays: number, i18n: ViewI18n): Resup
 }
 
 /**
- * The four things this plan refuses to let a user assume, said in the user's
+ * The things this plan refuses to let a user assume, said in the user's
  * language. Counts come from the candidates and the plan's own flags; no
  * arithmetic here is re-derived.
+ *
+ * Four of them (`supply.warnDailyKmFallback`, `supply.warnBridged`,
+ * `supply.warnStaffedFuel`, `supply.warnClosedOnArrival`) are contractual: they
+ * qualify every number below them, so they may not exist only as an English
+ * sentence inside the collapsed engine block. The plan adapter exposes no
+ * warning codes, so each one is recognised from the engine's own sentence (and
+ * from the plan data the sentence is about) — the text is never re-measured and
+ * a warning is never shown without the sentence that produced it.
  */
 function buildWarnings(data: ResupplyData, i18n: ViewI18n): ResupplyWarningView[] {
   const { plan, candidates } = data;
+  const engine = plan.warnings;
   const out: ResupplyWarningView[] = [];
+
+  // D14: with no daily distance the engine assumes one for every day count.
+  if (engine.some((text) => /no daily distance is set/i.test(text))) {
+    out.push({
+      severity: 'warning',
+      text: i18n.t('supply.warnDailyKmFallback', {
+        km: i18n.format.number(plan.dailyDistanceKm, { maximumFractionDigits: 1 }),
+      }),
+    });
+  }
+
+  // Bridged legs: the distance is the engine's own number, taken from its
+  // sentence — the view does not re-walk the polyline.
+  const bridged = engine.find((text) => /bridged|do not meet/i.test(text));
+  const bridgedKm = bridged ? /([\d]+(?:[.,]\d+)?)\s*km/i.exec(bridged) : null;
+  if (bridgedKm) {
+    out.push({
+      severity: 'warning',
+      text: i18n.t('supply.warnBridged', {
+        km: i18n.format.number(Number(bridgedKm[1].replace(',', '.')), {
+          maximumFractionDigits: 1,
+        }),
+      }),
+    });
+  }
+
+  // D13: an unflagged station is assumed staffed, and the assumption is named.
+  if (engine.some((text) => /assumed staffed/i.test(text))) {
+    const staffed = candidates
+      .filter((candidate) => candidate.kind === 'fuel' && candidate.unmanned !== true)
+      .sort((a, b) => a.alongRouteM - b.alongRouteM);
+    if (staffed.length > 0) {
+      out.push({
+        severity: 'warning',
+        text: i18n.t('supply.warnStaffedFuel', {
+          names: listOf(staffed.map((candidate) => candidate.name), i18n),
+          count: i18n.format.number(staffed.length, { maximumFractionDigits: 0 }),
+        }),
+      });
+    }
+  }
+
+  // A shop closed on the estimated arrival date: the engine's own date, and the
+  // anchor of the leg whose warning names it.
+  const closed = new Set<string>();
+  for (const leg of plan.legs) {
+    for (const text of leg.warnings) {
+      const match = /closed on the estimated arrival date (\d{4}-\d{2}-\d{2})/i.exec(text);
+      if (!match) continue;
+      const key = `${leg.to.name}@${match[1]}`;
+      if (closed.has(key)) continue;
+      closed.add(key);
+      out.push({
+        severity: 'warning',
+        text: i18n.t('supply.warnClosedOnArrival', {
+          name: leg.to.name,
+          date: formatDay(match[1], i18n.locale),
+        }),
+      });
+    }
+  }
 
   const huts = candidates.filter((candidate) => candidate.kind === 'hut');
   if (huts.length > 0) {

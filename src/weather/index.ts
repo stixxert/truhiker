@@ -29,7 +29,7 @@
  *
  * ## Contract extension
  *
- * `docs/09-phase3-spec.md` §7 fixes `WeatherPlan`. A plan also needs to say
+ * `src/contracts` fixes `WeatherPlan`. A plan also needs to say
  * *why* it is empty or sparser than the trip, so the returned object is a
  * `WeatherPlanDetail` — the same shape plus `notes`, `sampledEveryNDays` and
  * `daysTotal`. It is assignable to `WeatherPlan`, and the additions are
@@ -78,7 +78,7 @@ export type { WeatherDay, WeatherPlan, WeatherSample, WeatherWarning } from '../
 // Dependencies
 // ---------------------------------------------------------------------------
 
-export interface WeatherDeps {
+interface WeatherDeps {
   /** Injected so tests never touch the network. Defaults to `globalThis.fetch`. */
   fetch: typeof fetch;
   /** Cache keyed by `met:<lat4>:<lon4>`; TTL enforced from `expiresAt`. */

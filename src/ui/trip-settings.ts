@@ -16,7 +16,7 @@ import {
   type SettingsFormValues,
 } from './settings-view';
 
-export interface TripSettingsHandlers {
+interface TripSettingsHandlers {
   onSave: (profile: UserProfile) => void;
 }
 

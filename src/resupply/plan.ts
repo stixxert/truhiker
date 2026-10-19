@@ -79,7 +79,7 @@ export interface ResupplyLeg {
 
 /** The worst continuous stretch between usable resupply points. */
 /** A parcel or poste-restante drop, with its pickup window (D3). */
-export interface MailDropView {
+interface MailDropView {
   readonly pointId: string;
   readonly name: string;
   readonly kind: 'post' | 'parcel' | 'poste-restante';

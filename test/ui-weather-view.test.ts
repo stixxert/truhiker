@@ -217,6 +217,30 @@ describe('buildWeatherView — honesty rules', () => {
     expect(none.withoutForecast).toBe(true);
     expect(none.statusLine).toContain('Ingen dager ligger innenfor');
 
+    // A failed fetch is not an empty horizon: the panel must say which one it is,
+    // must not claim a forecast was fetched, and must not print "Failed to fetch".
+    const failedOnly: WeatherPlan = {
+      ...plan(),
+      days: plan().days.map((day) => ({
+        dayIndex: day.dayIndex,
+        date: day.date,
+        distanceM: day.distanceM,
+        point: day.point,
+        sample: {
+          when: day.sample.when,
+          point: day.sample.point,
+          status: 'unavailable' as const,
+          reason: 'Failed to fetch',
+        },
+      })),
+      hasForecast: false,
+    };
+    const failed = buildWeatherView({ kind: 'ready', plan: failedOnly }, PROFILE, 9, createI18n('no'));
+    expect(failed.statusLine).toContain('ikke tilgjengelig');
+    expect(failed.statusLine).not.toContain('horisonten');
+    expect(failed.fetchedLabel).toBeNull();
+    expect(failed.rows[0].detail).toBe('nettverket svarte ikke');
+
     // Dates carry no timezone shift and times are Oslo times (D8); junk is
     // refused rather than rendered as "Invalid Date".
     // Midnight UTC must stay on the same calendar day in every UI timezone.

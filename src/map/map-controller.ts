@@ -35,7 +35,7 @@ const WMS_URL =
   '&width=256&height=256&bbox={bbox-epsg-3857}';
 const MAPTERHORN_TILEJSON = 'https://tiles.mapterhorn.com/tilejson.json';
 
-export type BasemapKind = 'topo' | 'grey' | 'wms';
+type BasemapKind = 'topo' | 'grey' | 'wms';
 
 export type BasemapState =
   | { status: 'ok' }
@@ -52,7 +52,7 @@ export interface CameraInfo {
   zoom: number;
 }
 
-export interface MapCallbacks {
+interface MapCallbacks {
   onBasemapState(state: BasemapState): void;
   onTerrainState(state: TerrainState): void;
   onCamera(info: CameraInfo): void;
@@ -64,7 +64,7 @@ export interface MapCallbacks {
  * a flag for whether it counts as food. The map never decides *what* the point
  * means — that is `src/resupply`'s job.
  */
-export interface ResupplyMapPoint {
+interface ResupplyMapPoint {
   readonly id: string;
   readonly kind: string;
   readonly position: LonLat;
@@ -72,7 +72,7 @@ export interface ResupplyMapPoint {
   readonly usable: boolean;
 }
 
-export interface ResupplyMapHandlers {
+interface ResupplyMapHandlers {
   /** A marker was clicked. The app moves the profile cursor to its distance. */
   onSelect?: (id: string) => void;
   /** Hover in/out; `null` when the pointer left every marker. */
@@ -81,7 +81,7 @@ export interface ResupplyMapHandlers {
   cardFor?: (id: string) => Node | null;
 }
 
-export interface MapControllerOptions {
+interface MapControllerOptions {
   reducedMotion?: boolean;
   /** Initial map sky/atmosphere, on by default. */
   sky?: boolean;

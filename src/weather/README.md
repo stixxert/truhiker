@@ -28,7 +28,7 @@ https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=61.6363&lon=8.312
   The browser sets `Origin`, which is what MET asks for.
 - Coordinates are **truncated to four decimals** before the URL is built, both
   to follow the recorded rule and to make dedupe/cache hits as likely as
-  possible. The "5+ decimals returns 403" claim in `docs/09-phase3-spec.md` is
+  possible. The "5+ decimals returns 403" claim in an earlier draft is
   **unverified from this environment**; truncation is harmless either way.
 - **One request per unique rounded point**, keyed `met:<lat4>:<lon4>`. A trip
   that stays in one valley for three days makes one request, not three.
@@ -64,8 +64,7 @@ decides a day's status: an 8-day-out target against a 5-day response is
 Why 10 and not 9: a browser-shaped request
 (`Origin`, no `User-Agent`) to the Galdhøpiggen point returned HTTP 200,
 `access-control-allow-origin: *`, and 85 entries from `2026-10-19T13:00:00Z` to
-`2026-10-29T12:00:00Z` — **10.0 days**. `docs/09-phase3-spec.md` said ~9; the
-measurement wins. Those measurement numbers were supplied for this
+`2026-10-29T12:00:00Z` — **10.0 days**. An earlier draft said ~9; the measurement wins. Those measurement numbers were supplied for this
 implementation and are not re-run by the test suite; the live test re-checks the
 shape and the temperature band only.
 
@@ -88,7 +87,7 @@ shape and the temperature band only.
 ## MET's terms we are honouring
 
 Quoted from MET's terms of service as reproduced in
-[`docs/08-corrections.md`](../../docs/08-corrections.md) (the terms page itself
+this project's notes (the terms page itself
 is not reachable from this environment, so the quotes are second-hand and the
 first-hand evidence we have is the measured response above):
 
@@ -161,7 +160,7 @@ There are **no retries and no backoff**. Hammering MET to turn an honest
 
 ## Plan shape extension
 
-`docs/09-phase3-spec.md` §7 fixes `WeatherPlan`. `src/contracts` is owned by the
+`src/contracts` fixes `WeatherPlan`. `src/contracts` is owned by the
 orchestrator, so the additions are made in `src/weather/index.ts` as
 `WeatherPlanDetail extends WeatherPlan`:
 

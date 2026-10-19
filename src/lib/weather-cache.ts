@@ -10,7 +10,7 @@
  * explicit `expiresAt`, and are evicted oldest-first when the cap is reached.
  */
 
-export interface WeatherCacheStats {
+interface WeatherCacheStats {
   readonly size: number;
   readonly hits: number;
   readonly misses: number;

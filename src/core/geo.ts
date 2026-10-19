@@ -27,7 +27,7 @@ export interface LonLat {
 }
 
 /** Projected coordinate in EPSG:25833 (metres). */
-export interface Utm33 {
+interface Utm33 {
   x: number;
   y: number;
 }

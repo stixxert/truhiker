@@ -40,7 +40,7 @@ import {
 // ---------------------------------------------------------------------------
 
 /** WGS84 longitude/latitude in decimal degrees. Structurally a `LonLat`. */
-export interface PlanPosition {
+interface PlanPosition {
   readonly lon: number;
   readonly lat: number;
 }
@@ -63,7 +63,7 @@ export function distanceM(a: PlanPosition, b: PlanPosition): number {
  * A route, minimally: geometry and/or a length, plus optional cumulative
  * distances. Accepts `Route` from `src/lib/route` structurally.
  */
-export interface ResupplyRoute {
+interface ResupplyRoute {
   readonly points?: readonly PlanPosition[];
   readonly distances?: readonly number[];
   readonly distanceM?: number;
@@ -144,14 +144,14 @@ export type ResupplyKind =
   | 'hut'
   | 'cache';
 
-export type Confidence = 'osm' | 'chain-verified' | 'curated';
-export type HutKind = 'betjent' | 'selvbetjent' | 'ubetjent';
-export type PostKind = 'parcel' | 'poste-restante';
+type Confidence = 'osm' | 'chain-verified' | 'curated';
+type HutKind = 'betjent' | 'selvbetjent' | 'ubetjent';
+type PostKind = 'parcel' | 'poste-restante';
 // Single source of truth: the contract. Imported for local use, re-exported so
 // existing imports keep working.
 import type { SupportModel } from '../contracts';
 export type { SupportModel };
-export type OpenState = 'unknown' | 'open' | 'closed';
+type OpenState = 'unknown' | 'open' | 'closed';
 
 export interface ResupplyPoint {
   readonly id: string;
@@ -367,9 +367,9 @@ export function openAt(
 // Plan model
 // ---------------------------------------------------------------------------
 
-export type WarningSeverity = 'info' | 'warning' | 'critical';
+type WarningSeverity = 'info' | 'warning' | 'critical';
 
-export type ResupplyWarningCode =
+type ResupplyWarningCode =
   | 'no-resupply'
   | 'gap-exceeds-max-carry'
   | 'verify-hours'
@@ -396,9 +396,9 @@ export interface ResupplyWarning {
   readonly legId?: string;
 }
 
-export type StopKind = ResupplyKind | 'start' | 'end';
+type StopKind = ResupplyKind | 'start' | 'end';
 
-export interface ResupplyStop {
+interface ResupplyStop {
   readonly id: string;
   readonly kind: StopKind;
   readonly label: string;
@@ -425,7 +425,7 @@ export interface ResupplyLeg {
   readonly warnings: readonly ResupplyWarning[];
 }
 
-export interface GapReport {
+interface GapReport {
   readonly maxDays: number;
   readonly distanceM: number;
   readonly foodKg: number;
@@ -437,7 +437,7 @@ export interface GapReport {
   readonly exceedsMaxCarry: boolean;
 }
 
-export interface MailDropSchedule {
+interface MailDropSchedule {
   readonly pointId: string;
   readonly kind: PostKind;
   /** Days from the route start to the drop. */
@@ -450,7 +450,7 @@ export interface MailDropSchedule {
   readonly warnings: readonly ResupplyWarning[];
 }
 
-export interface ResupplyTotals {
+interface ResupplyTotals {
   readonly distanceM: number;
   readonly days: number;
   readonly kcal: number;
@@ -473,7 +473,7 @@ export interface ResupplyPlan {
   readonly warnings: readonly ResupplyWarning[];
 }
 
-export interface ResupplyOptions {
+interface ResupplyOptions {
   readonly support?: SupportModel;
   readonly kcalPerDay?: number;
   /** Average walking distance per day, km. Default 25. */

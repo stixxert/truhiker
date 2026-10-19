@@ -7,6 +7,7 @@
 
 import type { SaveStatus } from '../app/trip-session';
 import { formatClockAt, type I18n } from '../i18n';
+import { formatSize } from './format-size';
 
 /**
  * `HH:MM` in Europe/Oslo (D8). The device's zone is not the trip's zone: a save
@@ -18,7 +19,10 @@ export function formatSaveTime(at: number, locale: string): string {
 }
 
 /** One line for the visible status region. Empty when there is nothing to say. */
-export function saveStatusText(status: SaveStatus, i18n: Pick<I18n, 't' | 'locale'>): string {
+export function saveStatusText(
+  status: SaveStatus,
+  i18n: Pick<I18n, 't' | 'locale' | 'format'>,
+): string {
   switch (status.kind) {
     case 'idle':
       return '';
@@ -33,7 +37,13 @@ export function saveStatusText(status: SaveStatus, i18n: Pick<I18n, 't' | 'local
     case 'unavailable':
       return i18n.t('save.unavailable');
     case 'error':
-      if (status.code === 'quota-exceeded') return i18n.t('save.quota');
+      if (status.code === 'quota-exceeded') {
+        // D6: name the size that failed. Without a size (an older store error)
+        // fall back to the generic sentence rather than inventing one.
+        return status.bytes === undefined
+          ? i18n.t('save.quota')
+          : i18n.t('save.quotaSize', { size: formatSize(status.bytes, i18n) });
+      }
       return i18n.t('save.error', { message: briefMessage(status.message) });
     default:
       return '';

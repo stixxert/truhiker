@@ -32,9 +32,9 @@ import { parseGpx, type GpxDocument, type GpxPoint, type GpxTrack } from '../cor
 import { CURRENT_SCHEMA_VERSION, defaultProfile, newId } from './trip';
 
 /** Decimal places for coordinates. 7 dp ≈ 1.1 cm; the metre guarantee needs it. */
-export const COORD_DECIMALS = 7;
+const COORD_DECIMALS = 7;
 /** Decimal places for elevation. 1 dp = 10 cm. */
-export const ELE_DECIMALS = 1;
+const ELE_DECIMALS = 1;
 
 /** Namespace for our own `<extensions>` elements. */
 const NPL_NS = 'urn:npl-map:gpx:1';
@@ -57,7 +57,7 @@ const XML_ESCAPES: Record<string, string> = {
 };
 
 /** Escape text and attribute values. Apostrophes included: we quote with `"`. */
-export function escapeXml(value: string): string {
+function escapeXml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => XML_ESCAPES[character] ?? character);
 }
 

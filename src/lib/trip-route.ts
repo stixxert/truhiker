@@ -14,7 +14,7 @@
 import { cumulativeDistances } from '../core/geo';
 import type { Leg, RoutePoint, Trip } from '../contracts';
 
-export interface TripLegSpan {
+interface TripLegSpan {
   readonly legId: string;
   readonly name?: string;
   /** First global index (inclusive). */
@@ -26,7 +26,7 @@ export interface TripLegSpan {
   readonly distanceM: number | null;
 }
 
-export interface FlatTrip {
+interface FlatTrip {
   readonly points: readonly RoutePoint[];
   /** Cumulative distance at each point, metres. */
   readonly distances: readonly number[];

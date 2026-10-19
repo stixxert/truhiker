@@ -55,7 +55,7 @@ Database `truhiker`, version 1, two object stores:
   the UI shows it rather than pretending.
 
 The full reasoning, the measured numbers and what is still not durable are in
-`docs/12-storage.md`.
+`docs/ARCHITECTURE.md` (Storage).
 
 ---
 

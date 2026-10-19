@@ -61,7 +61,7 @@ describe('trip library view', () => {
     expect(durable.storageLabel).toContain('IndexedDB');
     expect(durable.storageLabel).toContain('12.3 MB of ~8 GB used');
     expect(durable.storageLabel).toContain('persistent storage');
-    expect(durable.storageLabel).toContain('2 moved from localStorage');
+    expect(durable.storageLabel).toContain('2 trips moved from localStorage');
     expect(durable.storageNote).toBeNull();
 
     const fallback = buildTripLibraryView(
@@ -85,6 +85,10 @@ describe('trip library view', () => {
     expect(fallback.storageLabel).toContain('localStorage');
     expect(fallback.storageNote).toContain('IndexedDB er utilgjengelig');
     expect(fallback.storageNote).toContain('localStorage');
+    // The per-trip ceiling is 1.5 MB, not the origin's ~5 MB: name the one that
+    // actually refuses a trip.
+    expect(fallback.storageNote).toContain('1,5 MB');
+    expect(fallback.storageNote).not.toContain('ca. 5 MB');
     expect(fallback.storageDetail).toContain('transaction aborted');
 
     // No backend yet: say nothing rather than guess.

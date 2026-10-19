@@ -19,7 +19,7 @@
  *
  * A hut carries `app:opphav` (name), `app:vedlikeholdsansvarlig` (maintainer)
  * and `app:tilrettelegging` (a facility code). The code's codelist was never
- * decoded (see `docs/08-corrections.md` §1), so the
+ * decoded (see `docs/DECISIONS.md` D1), so the
  * betjent/selvbetjent/ubetjent classification is **not machine-readable from
  * this response**. `tilrettelegging` is therefore kept as an opaque string and
  * never interpreted. A hut has no confirmed food, no opening hours and no
@@ -302,6 +302,12 @@ export interface FetchHutsOptions {
   readonly attempts?: number;
   readonly signal?: AbortSignal;
   readonly timeoutMs?: number;
+  /**
+   * Ceiling for the whole query, across every tile and retry. Default 15 s:
+   * the panel must show the bundled shops even when Turrutebasen hangs, rather
+   * than hiding them behind a spinner (D7).
+   */
+  readonly deadlineMs?: number;
 }
 
 /** `AbortSignal.any` is not universal; fall back to a controller. */
@@ -369,9 +375,9 @@ async function fetchHutXml(url: string, options: FetchHutsOptions): Promise<stri
 }
 
 /** Largest bbox requested in one call. Turrutebasen has no radius filter. */
-export const HUT_TILE_DEG = 4;
+const HUT_TILE_DEG = 4;
 /** Hard ceiling on requests per `fetchHutsAlong` call. */
-export const MAX_HUT_REQUESTS = 24;
+const MAX_HUT_REQUESTS = 24;
 const HUT_REQUEST_CONCURRENCY = 2;
 
 /**
@@ -382,7 +388,7 @@ const HUT_REQUEST_CONCURRENCY = 2;
  * Norway in one response. Tiles keep each request bounded and the total capped;
  * the tile size grows when needed so coverage is never silently dropped.
  */
-export function hutQueryTiles(route: readonly LonLat[], radiusM: number): LonLatBBox[] {
+function hutQueryTiles(route: readonly LonLat[], radiusM: number): LonLatBBox[] {
   const bbox = hutQueryBbox(route, radiusM);
   const latSpan = bbox.maxLat - bbox.minLat;
   const lonSpan = bbox.maxLon - bbox.minLon;
@@ -456,8 +462,11 @@ export async function fetchHutsAlong(
   }
 
   const tiles = hutQueryTiles(route, radiusM);
+  // One deadline for all tiles: a hanging WFS must not hold the panel hostage.
+  // When it fires, `fetchHutXml` throws and the caller reports a partial result.
+  const signal = combineSignals(opts.signal, opts.deadlineMs ?? 15_000);
   const responses = await mapLimited(tiles, HUT_REQUEST_CONCURRENCY, (bbox) =>
-    fetchHutXml(hutGetFeatureUrl(bbox), opts),
+    fetchHutXml(hutGetFeatureUrl(bbox), { ...opts, signal }),
   );
   const huts = dedupeHuts(responses.flatMap((xml) => parseHutGml(xml)));
 

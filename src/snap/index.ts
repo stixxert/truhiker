@@ -32,7 +32,7 @@ export const DEFAULT_SNAP_RADIUS_M = 75;
 /** Default radius at which an existing snap is kept, metres (1.6 × 75). */
 export const DEFAULT_STICKY_RADIUS_M = 120;
 /** Default grid cell size in degrees (~1.1 km north–south at 61°N). */
-export const DEFAULT_GRID_CELL_DEG = 0.02;
+const DEFAULT_GRID_CELL_DEG = 0.02;
 
 // ---------------------------------------------------------------------------
 // Local metric projection
@@ -90,7 +90,7 @@ function unproject(local: LocalPoint, origin: LonLat): LonLat {
 // Snapping types
 // ---------------------------------------------------------------------------
 
-export interface SnapOptions {
+interface SnapOptions {
   /** Maximum distance to consider a hit, metres. Default 75. */
   radiusM?: number;
   /**
@@ -125,7 +125,7 @@ export interface SnapResult {
   segmentIndex: number;
 }
 
-export interface SnapIndexOptions {
+interface SnapIndexOptions {
   /** Grid cell size in degrees. Default 0.02 (~1.1 km at 61°N). */
   gridCellDeg?: number;
 }

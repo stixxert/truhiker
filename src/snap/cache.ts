@@ -121,7 +121,7 @@ export function memoryBackend(): SnapCacheBackend {
 // IndexedDB backend
 // ---------------------------------------------------------------------------
 
-export interface IndexedDbBackendOptions {
+interface IndexedDbBackendOptions {
   /** Database name. Default "npl-snap". */
   dbName?: string;
   /** Object store name. Default "boxes". */
@@ -256,7 +256,7 @@ export interface SnapCacheOptions {
   compress?: boolean;
 }
 
-export interface SnapCacheStats {
+interface SnapCacheStats {
   hits: number;
   misses: number;
   writes: number;

@@ -23,7 +23,7 @@ import {
 
 export type CursorSource = 'hover' | 'map' | 'keyboard';
 
-export interface ProfileChartCallbacks {
+interface ProfileChartCallbacks {
   /** Cursor moved, or cleared (`null`) when the pointer leaves. */
   onCursor(distance: number | null, source: CursorSource): void;
 }
@@ -326,10 +326,12 @@ export class ProfileChart {
     const elevation = elevationAtDistance(this.profile.samples, cursor);
     const grade = gradeAtDistance(this.profile.samples, cursor);
     this.host.setAttribute('aria-valuenow', String(Math.round(cursor)));
+    // `profile.ariaValue` already says "over havet" / "above sea level", so the
+    // unit is added by the template, not by the formatter (as in `stats.ts`).
     this.host.setAttribute('aria-valuetext',
       this.i18n.t('profile.ariaValue', {
         distance: this.i18n.format.distance(cursor),
-        ele: this.i18n.format.elevation(elevation),
+        ele: this.i18n.format.elevation(elevation, false),
         grade: this.i18n.format.grade(grade),
       }),
     );

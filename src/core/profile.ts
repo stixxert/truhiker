@@ -27,14 +27,14 @@
 
 import { cumulativeDistances, type LonLat } from './geo';
 
-export interface ProfileSample {
+interface ProfileSample {
   /** Distance along the route from the start, metres. */
   d: number;
   /** Elevation after gap-filling and median filtering, metres. */
   ele: number;
 }
 
-export interface ProfileOptions {
+interface ProfileOptions {
   /** Median filter width; odd, >= 1. Default 3. Use 1 to disable. */
   medianWindow?: number;
   /** Hysteresis threshold in metres. Default 5. */

@@ -24,7 +24,7 @@ import {
   type ShopIndex,
 } from '../resupply';
 
-export interface SupplyResult {
+interface SupplyResult {
   /** Shops, fuel, post and huts, sorted by distance along the route. */
   readonly candidates: readonly ResupplyCandidate[];
   /** ISO label of the bundled extract (the binary carries no timestamp). */
@@ -37,7 +37,7 @@ export interface SupplyResult {
   readonly fetchedAt: string;
 }
 
-export interface SupplyDeps {
+interface SupplyDeps {
   readonly fetchImpl: typeof fetch;
   /** Injectable for tests and for a different data file. */
   readonly loadIndex?: (fetchImpl: typeof fetch) => Promise<ShopIndex>;

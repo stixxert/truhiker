@@ -31,7 +31,7 @@ export const OFF_TRAIL_LABEL = 'off-trail';
 export const OFF_TRAIL_GAP_LABEL = 'off-trail gap';
 
 /** Stable key for structural comparison of two provenance entries. */
-export function provenanceKey(entry: Provenance): string {
+function provenanceKey(entry: Provenance): string {
   return [
     entry.kind,
     entry.label ?? '',

@@ -1,7 +1,7 @@
 /**
  * The engine surface the UI is allowed to call.
  *
- * These are the exact names from `docs/09-phase3-spec.md` §7, restated as a
+ * These are the exact names from `src/contracts`, restated as a
  * structural interface so that:
  *
  *  - UI modules and their tests can depend on the *shape* without importing the
@@ -35,7 +35,7 @@ export interface WeatherDepsLike {
   concurrency?: number;
 }
 
-export interface RerouteOptionsLike {
+interface RerouteOptionsLike {
   radiusM?: number;
   snapIndex: SnapIndex;
 }

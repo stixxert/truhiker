@@ -223,8 +223,14 @@ describe('acceptance: resupply corridor', () => {
       no,
     );
     expect(
-      mailView.warnings.some((w) => w.severity === 'info' && w.text.includes('Innlevering')),
+      mailView.warnings.some(
+        (w) => w.severity === 'info' && w.text.includes('Pakke til Post i butikk'),
+      ),
     ).toBe(true);
+    // Dates are for the reader, not for the engine: no `2026-06-…` in the panel.
+    const dropText = mailView.warnings.find((w) => w.text.includes('Pakke til'))!.text;
+    expect(dropText).toMatch(/\d{1,2}\. \w+ \d{4}/);
+    expect(dropText).not.toMatch(/\d{4}-\d{2}-\d{2}/);
     expect(start.warning).toContain(kg);
     expect(end.gapDanger).toBe(false);
     expect(end.warning).toBeNull();
@@ -234,6 +240,77 @@ describe('acceptance: resupply corridor', () => {
     // A 500 m leg is not "0 d": rounding to one decimal would print zero days.
     expect(end.gapLabel).toContain('< 0,1 d');
     expect(view.legs[0].numbersLabel).toContain('< 0,1 d');
+
+    // --- The contractual warnings are visible, in the user's language ---------
+    // D14 (no daily distance), D13 (a station assumed staffed), a bridged trip and
+    // a shop closed on the arrival date are `warning`s in the visible list, not
+    // only English sentences inside the collapsed engine block. The adapter
+    // exposes no codes, so each is recognised from the engine's own sentence and
+    // the number that sentence already carries — never re-measured here.
+    const bridgedTrip: Trip = {
+      ...trip([{ lon: 10.0, lat: 62.5 }, { lon: 10.4, lat: 62.5 }]),
+      legs: [
+        {
+          id: 'leg-1',
+          points: [{ lon: 10.0, lat: 62.5 }, { lon: 10.4, lat: 62.5 }],
+          provenance: [],
+          distanceM: null,
+          ascentM: null,
+          descentM: null,
+        },
+        {
+          id: 'leg-2',
+          points: [{ lon: 10.9, lat: 62.5 }, { lon: 11.3, lat: 62.5 }],
+          provenance: [],
+          distanceM: null,
+          ascentM: null,
+          descentM: null,
+        },
+      ],
+      profile: { ...PROFILE, dailyKm: 0 },
+    };
+    const bridgedRoute: LonLat[] = [
+      { lon: 10.0, lat: 62.5 },
+      { lon: 11.3, lat: 62.5 },
+    ];
+    const contractual = buildResupplyView(
+      readyState(bridgedTrip, [
+        candidate('supermarket', 'Joker Lesja', bridgedRoute, 15_000, {
+          hoursRecorded: true,
+          openingHours: 'Mo-Sa 09:00-17:00',
+        }),
+        candidate('fuel', 'Uno-X Dombås', bridgedRoute, 30_000),
+      ]),
+      no,
+    );
+    const texts = contractual.warnings.map((warning) => warning.text).join('\n');
+    // D14: the assumed daily distance is named, and it is the plan's own number.
+    expect(texts).toContain('planen antar 25 km per dag');
+    // The bridged length comes from the engine's sentence, not a second walk.
+    expect(texts).toMatch(/\d+,\d km av turen er rett linje/);
+    // D13: a station with no "unmanned" flag is named as an assumption.
+    expect(texts).toContain('Bensinstasjoner antatt bemannet: Uno-X Dombås (1)');
+    for (const warning of contractual.warnings) {
+      expect(warning.text).not.toMatch(/bridge|assumed|No daily distance|closed on/);
+    }
+    // ...and the English sentences are still there, for traceability.
+    expect(contractual.engineWarnings.length).toBeGreaterThanOrEqual(3);
+
+    // A shop closed on the estimated arrival date is visible too, with the date
+    // the engine computed — 6 June 2026 is a Saturday, so day 2 is a Sunday.
+    const sunday = buildResupplyView(
+      readyState({ ...bridgedTrip, profile: { ...PROFILE, startDate: '2026-06-06' } }, [
+        candidate('supermarket', 'Joker Lesja', bridgedRoute, 15_000, {
+          hoursRecorded: true,
+          openingHours: 'Mo-Sa 09:00-17:00',
+        }),
+        candidate('supermarket', 'Coop Dombås', bridgedRoute, 30_000, { hoursRecorded: true }),
+      ]),
+      no,
+    );
+    expect(sunday.warnings.map((warning) => warning.text).join('\n')).toContain(
+      'Joker Lesja: stengt på beregnet ankomstdato 7. juni 2026',
+    );
   });
 
   it('does not let a hut close the gap, and labels it "ikke bekreftet"', () => {
@@ -251,7 +328,7 @@ describe('acceptance: resupply corridor', () => {
     // Nothing usable on the route: the plan is one leg, start to end.
     expect(view.legs).toHaveLength(1);
     expect(view.legs[0].danger).toBe(true);
-    expect(view.warnings.some((warning) => warning.text.includes('ikke maskinlesbart'))).toBe(
+    expect(view.warnings.some((warning) => warning.text.includes('er ikke kjent'))).toBe(
       true,
     );
 

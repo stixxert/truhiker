@@ -128,10 +128,6 @@ export function formatGrade(percent: number, lang: Lang): string {
 }
 
 /** A plain integer with locale grouping, e.g. "12 480". */
-export function formatCount(value: number, lang: Lang): string {
-  return formatNumber(Math.round(value), lang, { maximumFractionDigits: 0 });
-}
-
 // ---------------------------------------------------------------------------
 // Naismith
 // ---------------------------------------------------------------------------

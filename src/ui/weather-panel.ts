@@ -18,7 +18,7 @@ import {
   type WeatherViewModel,
 } from './weather-view';
 
-export interface WeatherPanelHandlers {
+interface WeatherPanelHandlers {
   onRefresh: () => void;
   onSettings: () => void;
   onOpenRoute: () => void;
@@ -33,6 +33,7 @@ export class WeatherPanel {
   private readonly handlers: WeatherPanelHandlers;
   private readonly status: HTMLElement;
   private readonly note: HTMLElement;
+  private readonly alertsNote: HTMLElement;
   private readonly messageWrap: HTMLElement;
   private readonly messageText: HTMLElement;
   private readonly action: HTMLButtonElement;
@@ -54,6 +55,7 @@ export class WeatherPanel {
     this.handlers = handlers;
     this.status = required(root, 'weather-status');
     this.note = required(root, 'weather-note');
+    this.alertsNote = required(root, 'weather-alerts-note');
     this.messageWrap = required(root, 'weather-message');
     this.messageText = required(root, 'weather-message-text');
     this.action = required<HTMLButtonElement>(root, 'weather-action');
@@ -121,10 +123,10 @@ export class WeatherPanel {
     this.last = { state, profile, horizonDays };
     const view = buildWeatherView(state, profile, horizonDays, this.i18n);
     this.renderStatus(view);
-    this.note.textContent =
-      view.warnings.length > 0
-        ? `${view.note} ${this.i18n.t('weather.warningsBestEffort')}`
-        : view.note;
+    // D12: an empty warning list is not a clearance, so the panel states that
+    // hazard alerts are unsupported on every render.
+    this.alertsNote.textContent = view.alertsNote;
+    this.note.textContent = view.note;
     this.renderMessage(view);
     this.renderRows(view);
     this.renderWarnings(view);

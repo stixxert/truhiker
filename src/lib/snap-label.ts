@@ -8,7 +8,7 @@
 
 import type { TurruteAttributes } from '../snap';
 
-export interface SnapRouteLabel {
+interface SnapRouteLabel {
   /** Route number if present, e.g. "jot21". */
   readonly number: string | null;
   /** Usable name, or `null` when the source says "Ukjent"/empty. */

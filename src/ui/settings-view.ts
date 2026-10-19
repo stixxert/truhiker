@@ -30,17 +30,17 @@ export interface SettingsFieldError {
   readonly message: string;
 }
 
-export interface SettingsParseOk {
+interface SettingsParseOk {
   readonly ok: true;
   readonly profile: UserProfile;
 }
 
-export interface SettingsParseError {
+interface SettingsParseError {
   readonly ok: false;
   readonly errors: readonly SettingsFieldError[];
 }
 
-export type SettingsParseResult = SettingsParseOk | SettingsParseError;
+type SettingsParseResult = SettingsParseOk | SettingsParseError;
 
 /** Inclusive limits. They are wide on purpose; they exist to catch typos. */
 export const SETTINGS_LIMITS = {
