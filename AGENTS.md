@@ -79,5 +79,7 @@ Every ambiguous behaviour has a documented default in `docs/DECISIONS.md`, enfor
 by `tools/verify/check-decisions.mjs`. If you add a behaviour that a user could
 reasonably expect to differ, add a decision rather than leaving it implicit.
 
-The reasoning behind the architecture — including the mistakes that shaped it — is
-in `docs/notes/`, starting with `08-corrections.md`.
+The reasoning behind the architecture lives in the commit history, not in shipped
+documentation. What a maintainer needs is in `docs/ARCHITECTURE.md`,
+`docs/DECISIONS.md` and `docs/LICENSES.md`; everything else was a working note and
+was removed.

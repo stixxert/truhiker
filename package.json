@@ -23,7 +23,8 @@
     "visual-check": "node tools/verify/visual-check.mjs --runtime",
     "test:live": "NETWORK_TESTS=1 vitest run",
     "visual-check:static": "node tools/verify/visual-check.mjs",
-    "e2e": "node tools/verify/e2e.mjs"
+    "e2e": "node tools/verify/e2e.mjs",
+    "perf": "node tools/verify/perf.mjs"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.9.12",

@@ -75,7 +75,7 @@ if (!skipTests) {
     if (total > TEST_BUDGET) {
       problems.push(
         `${total} test cases exceeds the ${TEST_BUDGET} budget — group related assertions into one ` +
-          `test (it.each rows still count separately) or delete duplication; see docs/notes/11-testing-strategy.md`,
+          `test (it.each rows still count separately) or delete duplication; see the test-budget note in AGENTS.md`,
       );
     }
     if (wall > TEST_WALL_BUDGET_MS) {
