@@ -25,7 +25,9 @@
     "visual-check:static": "node tools/verify/visual-check.mjs",
     "e2e": "node tools/verify/e2e.mjs",
     "perf": "node tools/verify/perf.mjs",
-    "a11y": "node tools/verify/a11y.mjs"
+    "a11y": "node tools/verify/a11y.mjs",
+    "failure-paths": "node tools/verify/failure-paths.mjs",
+    "i18n": "tsx tools/verify/check-i18n.mjs"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.9.12",

@@ -354,10 +354,6 @@ export function minettiCost(grade: number): number {
   );
 }
 
-/** True when the grade was outside Minetti's fitted range and got clamped. */
-export function minettiClamped(grade: number): boolean {
-  return Math.abs(grade) > MINETTI_GRADE_LIMIT;
-}
 
 /**
  * Average net gradient of the uphill and downhill halves of a day.

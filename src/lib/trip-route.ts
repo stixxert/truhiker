@@ -105,16 +105,3 @@ export function isPlaceholderLeg(leg: Leg | undefined): boolean {
   return leg.points.every((point) => point.lon === first.lon && point.lat === first.lat);
 }
 
-/** Total leg count and distance for a summary line. */
-export function tripSummaryNumbers(trip: Trip | null): {
-  legCount: number;
-  pointCount: number;
-  distanceM: number;
-} {
-  const flat = flattenTrip(trip);
-  return {
-    legCount: trip?.legs.length ?? 0,
-    pointCount: flat.points.length,
-    distanceM: flat.distanceM,
-  };
-}

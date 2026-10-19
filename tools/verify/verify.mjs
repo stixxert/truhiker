@@ -194,6 +194,17 @@ step("deploy dry run", () => {
   return out.trim().split("\n").pop();
 });
 
+step("failure paths", () => {
+  // Every live source blocked: the app must degrade visibly and stay alive.
+  const out = run("node", ["tools/verify/failure-paths.mjs"]);
+  return out.trim().split("\n").pop();
+});
+
+step("i18n parity", () => {
+  const out = run("node_modules/.bin/tsx", ["tools/verify/check-i18n.mjs"]);
+  return out.trim().split("\n").pop();
+});
+
 step("licence audit", () => {
   // Every shipped file must have a licence, and the notices we are obliged to
   // redistribute must be in the build.

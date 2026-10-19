@@ -525,23 +525,6 @@ function stopLabel(point: ResupplyPoint | undefined, fallback: string): string {
   return point.name ?? point.id;
 }
 
-function kindLabel(kind: ResupplyKind): string {
-  switch (kind) {
-    case 'supermarket':
-      return 'supermarket';
-    case 'convenience':
-      return 'convenience store';
-    case 'fuel':
-      return 'fuel station';
-    case 'post':
-      return 'post point';
-    case 'hut':
-      return 'hut';
-    case 'cache':
-      return 'cache';
-  }
-}
-
 /**
  * Plan resupply for a general route.
  *
@@ -985,7 +968,3 @@ export function planResupply(
   };
 }
 
-/** Human label for a point kind, exposed for UI/i18n. */
-export function resupplyKindLabel(kind: ResupplyKind): string {
-  return kindLabel(kind);
-}
