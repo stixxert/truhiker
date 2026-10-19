@@ -41,7 +41,7 @@ storage of routes; a trip lives in IndexedDB and can be downloaded as GPX.
 
 Four data sources are called directly by the browser — Kartverket (basemap, trails,
 elevation), Mapterhorn (terrain), MET Norway (weather) — and one is bundled: an
-OpenStreetMap extract of 8,571 resupply points, built once and served as a normal
+OpenStreetMap extract of Norwegian resupply points, built once and served as a normal
 asset. Nothing else is copied or re-hosted.
 
 ## Run it
@@ -74,9 +74,6 @@ npm run build
 npx wrangler deploy
 ```
 
-Static assets only — no Worker script, no KV, no R2. The build is 19 files,
-about 0.58 MB compressed.
-
 ## Limits
 
 - Snapping, not routing: the app will not plot a path between two arbitrary points.
@@ -100,9 +97,9 @@ Attribution is shown in the application itself: the map footer reads
 with its licence. The bundled demo route is *Memurubu–Glitterheim* (`jot21`) from
 Kartverket Turrutebasen, CC BY 4.0, maintained by DNT Oslo og omegn.
 
-The resupply data is a derivative database of OpenStreetMap, published under ODbL
-1.0 and offered for download from this repository's releases. Neither UT.no,
-Wikiloc, AllTrails nor Outdooractive content is used or redistributed.
+The resupply data is a derivative database of OpenStreetMap, offered under ODbL
+1.0 and served by the app itself. Neither UT.no, Wikiloc, AllTrails nor
+Outdooractive content is used or redistributed.
 
 ## How it was built
 

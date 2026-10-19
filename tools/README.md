@@ -4,7 +4,6 @@ Build and verification tooling. None of this ships to the browser.
 
 | Path | Purpose |
 | --- | --- |
-| `fetch-data.mjs` | downloads the resupply extract (release asset) and verifies its SHA-256 |
 | `build-shops.mjs` | rebuilds that extract from the Geofabrik Norway PBF |
 | `inspect-shops.mjs` | decodes the extract: `--stats`, `--verify`, `--near LAT,LON` |
 | `verify/verify.mjs` | the gate: types, tests, build, bundle, licences, decisions, hosting |
@@ -18,6 +17,6 @@ Build and verification tooling. None of this ships to the browser.
 `npm run verify` is the only entry point that matters; the rest are called by it or
 by hand while developing.
 
-The resupply data is **not** in the repository. It is a Derivative Database of
-OpenStreetMap, published as a release asset and served by the deployed app; see
-`data/MANIFEST.json` and `docs/LICENSES.md`.
+The resupply data (`data/shops.osm.bin`, 175 KB) is a committed build input: it is
+a Derivative Database of OpenStreetMap served by the deployed app. `data/MANIFEST.json`
+records its provenance and SHA-256; `build-shops.mjs` regenerates it.

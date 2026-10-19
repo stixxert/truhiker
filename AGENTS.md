@@ -39,9 +39,10 @@ that breaks it is not done.
    `tools/verify/licence-audit.mjs` and an entry in `docs/LICENSES.md`. Never merge
    ODbL data with non-ODbL data in one file. UT.no, Wikiloc, AllTrails and
    Outdooractive content is never used or redistributed.
-3. **Derived data stays out of the repository.** The OSM resupply extract is a
-   release asset fetched by `tools/fetch-data.mjs` and verified against
-   `data/MANIFEST.json`. Do not commit `data/shops.osm.bin` or its meta file.
+3. **One data artefact, deliberately.** The OSM resupply extract
+   (`data/shops.osm.bin`, 175 KB, ODbL) is a committed build input served by the
+   app — the repo is the build input for a static deploy. Regenerate it with
+   `tools/build-shops.mjs`; do not add other generated data to the repo.
 4. **Live-first.** Basemap, terrain, elevation, trails and weather are fetched from
    their sources. Only data with no usable live source is bundled.
 5. **No new dependencies without a reason.** The app has one runtime dependency

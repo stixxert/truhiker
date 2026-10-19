@@ -23,8 +23,19 @@
  * 127.0.0.1:4191, which Chromium reaches directly.
  */
 
-import { createReadStream, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import {
+  cpSync,
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
 import { extname, join, resolve, sep } from 'node:path';
 
 const ROOT = process.cwd();
@@ -34,7 +45,17 @@ const HEADERS_FILE = join(ROOT, 'public', '_headers');
 const OUT_DIR = '/tmp/webshot';
 const PORT = 4191;
 const HOST = '127.0.0.1';
-const ORIGIN = `http://${HOST}:${PORT}`;
+let ORIGIN = `http://${HOST}:${PORT}`;
+
+/**
+ * `--runtime` serves the build through `wrangler dev` (workerd) instead of the
+ * hand-rolled static server, so the gate exercises the real runtime and the
+ * headers Cloudflare actually applies. The static server stays as the fallback
+ * for environments without wrangler.
+ */
+const RUNTIME = process.argv.includes('--runtime');
+const RUNTIME_PORT = 4192;
+const WRANGLER = join(ROOT, 'node_modules', '.bin', 'wrangler');
 
 /** Live sources that may be slow or unreachable; they must not fail the gate. */
 const ALLOWED_HOSTS = [
@@ -605,6 +626,58 @@ async function checkViewport(browser, viewport, expectedHeaders) {
 // Main
 // ---------------------------------------------------------------------------
 
+/** Wait until the origin answers, or throw with the child's output. */
+async function waitForOrigin(origin, child, timeoutMs = 40_000) {
+  const started = Date.now();
+  let output = '';
+  child.stdout?.on('data', (chunk) => { output += chunk.toString(); });
+  child.stderr?.on('data', (chunk) => { output += chunk.toString(); });
+  while (Date.now() - started < timeoutMs) {
+    if (child.exitCode !== null) {
+      throw new Error(`wrangler dev exited with ${child.exitCode}\n${output.slice(-1500)}`);
+    }
+    try {
+      const response = await fetch(`${origin}/`, { redirect: 'manual' });
+      if (response.ok) return;
+    } catch {
+      // not listening yet
+    }
+    await new Promise((done) => setTimeout(done, 250));
+  }
+  throw new Error(`wrangler dev did not answer within ${timeoutMs} ms\n${output.slice(-1500)}`);
+}
+
+/** Copy the build to a real temp directory and run it under workerd. */
+async function startRuntime() {
+  if (!existsSync(WRANGLER)) {
+    fail('wrangler is not installed (npm install) but --runtime was requested');
+  }
+  const directory = mkdtempSync(join(tmpdir(), 'truhiker-runtime-'));
+  cpSync(DIST, join(directory, 'dist'), { recursive: true });
+  for (const file of ['wrangler.jsonc', 'package.json']) {
+    cpSync(join(ROOT, file), join(directory, file));
+  }
+  const child = spawn(WRANGLER, ['dev', '--port', String(RUNTIME_PORT), '--ip', HOST], {
+    cwd: directory,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  ORIGIN = `http://${HOST}:${RUNTIME_PORT}`;
+  try {
+    await waitForOrigin(ORIGIN, child);
+  } catch (error) {
+    child.kill('SIGKILL');
+    rmSync(directory, { recursive: true, force: true });
+    fail(error instanceof Error ? error.message : String(error));
+  }
+  return {
+    origin: ORIGIN,
+    stop: () => {
+      child.kill('SIGKILL');
+      rmSync(directory, { recursive: true, force: true });
+    },
+  };
+}
+
 async function main() {
   if (!existsSync(HEADERS_FILE)) {
     fail(`public/_headers is missing — cannot exercise the production CSP`);
@@ -635,6 +708,12 @@ async function main() {
 
   mkdirSync(OUT_DIR, { recursive: true });
 
+  let stopServer;
+  if (RUNTIME) {
+    const runtime = await startRuntime();
+    stopServer = runtime.stop;
+    process.stdout.write(`visual-check: runtime ${runtime.origin} (wrangler dev)\n`);
+  } else {
   const server = createStaticServer(rules);
   try {
     await listen(server);
@@ -646,6 +725,8 @@ async function main() {
         : `could not start the static server on ${HOST}:${PORT}: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
+  stopServer = () => closeServer(server);
+  }
 
   const proxy = process.env.HTTPS_PROXY ?? process.env.https_proxy;
   const args = ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-certificate-errors'];
@@ -655,7 +736,7 @@ async function main() {
   try {
     browser = await chromium.launch({ args });
   } catch (error) {
-    await closeServer(server);
+    await stopServer?.();
     fail(`could not launch Chromium: ${error instanceof Error ? error.message : String(error)}`);
   }
 
@@ -675,7 +756,7 @@ async function main() {
     }
   } finally {
     await browser.close().catch(() => {});
-    await closeServer(server);
+    await stopServer?.();
   }
 
   if (failure !== null) {

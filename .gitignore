@@ -9,6 +9,7 @@ dist/
 .vitest-report.json
 .wrangler/
 
-# Derived data: built from OSM and published as a release asset, never committed.
-data/shops.osm.bin
-data/shops.osm.meta.json
+# Scratch files (agent probes, temp scripts) are never committed.
+audit-*.mjs
+*.tmp.mjs
+.tmp*

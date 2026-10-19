@@ -19,17 +19,12 @@ Run `npm run verify` to enforce it.
 | `data/shops.osm.LICENSE` | ODbL notice | — | must travel with the data |
 | `licences/*` | the notices themselves | — | must be present in `dist/` |
 
-The ODbL file **is** the derivative database. It is **not committed to the
-repository**: the repo holds the generator (`tools/build-shops.mjs`), the
-provenance manifest (`data/MANIFEST.json`) and this notice. The file itself is
-
-- published as a release asset on this repository, and
-- served publicly by the deployed app at `/data/shops.osm.bin`.
-
-Either is a public offer of the derivative database, which satisfies the ODbL
-share-alike and access obligations. The build fetches it with
-`tools/fetch-data.mjs` and verifies its SHA-256 against the manifest before use.
-It is never merged with non-ODbL data in one file.
+The ODbL file **is** the derivative database. It is committed as a build input
+(175 KB) and served publicly by the app at `/data/shops.osm.bin`, which is the
+public offer that satisfies the share-alike and access obligations. Its provenance
+— source, extract date, point count and SHA-256 — is in `data/MANIFEST.json`, and
+the generator is `tools/build-shops.mjs`. It is never merged with non-ODbL data in
+one file.
 
 ## Fetched live (never redistributed)
 

@@ -157,6 +157,15 @@ step("dist budget", () => {
   return `${files.length} files, ${mb(br)} brotli total`;
 });
 
+step("runtime render", () => {
+  // The real workerd runtime (wrangler dev) with the production headers, at both
+  // breakpoints. This is what caught the duplicated CSP definitions.
+  if (process.argv.includes("--skip-visual")) return "skipped";
+  const out = run("node", ["tools/verify/visual-check.mjs", "--runtime"]);
+  const line = out.trim().split("\n").filter((l) => l.startsWith("visual-check: OK")).pop();
+  return line ? line.replace("visual-check: OK — ", "") : "ok";
+});
+
 step("licence audit", () => {
   // Every shipped file must have a licence, and the notices we are obliged to
   // redistribute must be in the build.

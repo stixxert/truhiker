@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "node tools/fetch-data.mjs && tsc --noEmit && vite build && node tools/verify/copy-data.mjs",
+    "build": "tsc --noEmit && vite build && node tools/verify/copy-data.mjs",
     "preview": "vite preview",
     "verify": "node tools/verify/verify.mjs",
     "cf:dev": "npm run build && npx wrangler dev",
@@ -20,9 +20,9 @@
     "typecheck": "tsc --noEmit",
     "profile": "tsx src/cli/profile.ts",
     "size": "node tools/verify/bundle-size.mjs",
-    "visual-check": "node tools/verify/visual-check.mjs",
+    "visual-check": "node tools/verify/visual-check.mjs --runtime",
     "test:live": "NETWORK_TESTS=1 vitest run",
-    "data:fetch": "node tools/fetch-data.mjs --force"
+    "visual-check:static": "node tools/verify/visual-check.mjs"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.9.12",
