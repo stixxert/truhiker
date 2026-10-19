@@ -10,10 +10,10 @@
   // enabled and fetched directly by the browser, which also keeps the browser
   // out of the 100,000 dynamic-requests/day budget entirely.
   //
-  // Re-add a Worker ONLY when one of these becomes true:
-  //   1. MET Norway weather — their terms require an identifying User-Agent and
-  //      a server-side cache, neither of which a browser can provide.
-  //   2. Anything that needs a secret (today: nothing).
+  // Re-add a Worker ONLY when something genuinely needs server-side execution:
+  // a secret we cannot ship to the browser, or traffic high enough that MET asks
+  // us to proxy (their terms permit low-volume browser requests identified by
+  // Origin — see docs/notes/08-corrections.md). Neither applies today.
   // The previous Worker entry point is preserved in git history and is roughly
   // 80 lines; the trigger above is the reason to bring it back.
   "assets": {

@@ -1,3 +1,13 @@
+# The root path is what browsers actually request. Without this block the CSP
+# applied to /index.html but not to /, which would leave the app unprotected.
+/
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: geolocation=(self), camera=(), microphone=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cache.kartverket.no https://wms.geonorge.no https://tiles.mapterhorn.com; connect-src 'self' https://cache.kartverket.no https://wms.geonorge.no https://tiles.mapterhorn.com https://hoydedata.no https://wfs.geonorge.no https://api.met.no; worker-src 'self' blob:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+
 # Cloudflare Workers Static Assets headers.
 #
 # Security headers are repeated in every block on purpose: header merge semantics
@@ -26,6 +36,15 @@
 /*.mjs
 /*.css
   Cache-Control: public, max-age=31536000, immutable
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: geolocation=(self), camera=(), microphone=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cache.kartverket.no https://wms.geonorge.no https://tiles.mapterhorn.com; connect-src 'self' https://cache.kartverket.no https://wms.geonorge.no https://tiles.mapterhorn.com https://hoydedata.no https://wfs.geonorge.no https://api.met.no; worker-src 'self' blob:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+
+# Anything not matched above still gets the security headers (no cache rule,
+# so nothing unexpected is cached for a year).
+/*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
