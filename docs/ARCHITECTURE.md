@@ -28,8 +28,10 @@ Live sources, all CORS-enabled and called directly by the browser:
 | `tiles.mapterhorn.com` | 3D terrain | terrarium raster-dem |
 | `api.met.no` | weather | 4-decimal coordinates, `Origin` identifies us |
 
-One bundled data set: `data/shops.osm.bin` (8,571 resupply points, ODbL), because
-every live alternative measured 40 s+ or was prohibited.
+One bundled data set: an 8,571-point OpenStreetMap extract (ODbL), because every
+live alternative measured 40 s+ or was prohibited. It is **not committed**: it is
+published as a release asset, fetched at build time by `tools/fetch-data.mjs` and
+verified against `data/MANIFEST.json` before use.
 
 ## Modules
 
