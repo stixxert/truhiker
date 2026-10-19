@@ -26,10 +26,10 @@ support, in the same voice in both languages, without softening it?
 - `about.disclaimer` — "må alltid verifiseres" / "must always be verified" →
   "Sjekk forholdene" / "Check conditions". The instruction is the same; the
   nominalisation is gone.
-- `about.disclaimerTitle` — "Ikke et navigasjonsverktøy" / "Not a navigation
-  device" → "Planleggingsverktøy – ikke navigasjon" / "Planning tool – not
-  navigation", matching the notice in the map footer (`about.shortDisclaimer`,
-  which previously said only "Planleggingsverktøy" / "Planning tool").
+- `about.disclaimerTitle` / `about.disclaimer` — "Ikke et navigasjonsverktøy" /
+  "Not a navigation device" became a slogan, so it is gone: the dialog is titled
+  "Estimater" / "Estimates" and asks the reader to check conditions on the
+  ground. The map footer carries data credits only.
 
 ## Claims corrected to what the app actually does
 
