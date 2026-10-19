@@ -9,7 +9,7 @@ weather the walk will face.
 
 ## What it does
 
-- **Routes.** Import GPX, KML or GeoJSON, or draw on the map. Move, insert, split,
+- **Routes.** Import GPX or GeoJSON, or draw on the map. Move, insert, split,
   reverse, trim, merge and undo. Snapping follows mapped trails; where no trail is
   near, the line is dashed and marked off-trail.
 - **Elevation.** From Kartverket's national 1 m terrain model, sampled live:
@@ -39,10 +39,10 @@ flowchart LR
 Everything runs in the browser. There is no account, no database and no server-side
 storage of routes; a trip lives in IndexedDB and can be downloaded as GPX.
 
-Four data sources are called directly by the browser — Kartverket (basemap, trails,
-elevation), Mapterhorn (terrain), MET Norway (weather) — and one is bundled: an
-OpenStreetMap extract of Norwegian resupply points, built once and served as a normal
-asset. Nothing else is copied or re-hosted.
+Five services are called directly by the browser — Kartverket's basemap and
+elevation, Turrutebasen's trails and huts, Mapterhorn's terrain, and MET Norway's
+weather. One data set is bundled: an OpenStreetMap extract of Norwegian resupply
+points. Nothing else is copied or re-hosted.
 
 ## Run it
 

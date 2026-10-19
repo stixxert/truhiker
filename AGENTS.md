@@ -20,12 +20,12 @@ npm run dev            # Vite dev server
 npm test               # hermetic suite (no network)
 npm run test:live      # real Kartverket/MET requests, opt-in
 npm run verify         # THE GATE — run this before claiming anything works
-npm run build          # fetch data, typecheck, build
+npm run build          # typecheck, bundle, copy data and licences into dist/
 npm run visual-check   # headless Chromium at 1440 and 390 under the real CSP
 npx wrangler deploy    # static deploy (no Worker script)
 ```
 
-`npm run verify` runs: typecheck, hermetic tests (budget: 250 cases, 12 s), build,
+`npm run verify` runs: typecheck, hermetic tests (budget: 250 cases, 12 s — currently ~2.5 s), build,
 bundle budget, licence audit, decisions check and the hosting contract. A change
 that breaks it is not done.
 

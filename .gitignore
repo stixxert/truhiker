@@ -10,6 +10,6 @@ dist/
 .wrangler/
 
 # Scratch files (agent probes, temp scripts) are never committed.
-audit-*.mjs
+/audit*-tmp.mjs
 *.tmp.mjs
 .tmp*

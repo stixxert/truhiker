@@ -60,14 +60,14 @@ Not assertions — measurements, recorded in [`notes/`](notes/):
 | We do not hammer public services | a 78-day trip made **6 requests**, not 39, once the horizon is known |
 | The trail data is real | a bundled route from Kartverket Turrutebasen, 1,164 points, attributed |
 | Licences are respected | an audit maps all **19 shipped files** to a licence and fails the build otherwise |
-| It is tested | **246 hermetic cases**, five acceptance journeys, two rendered breakpoints |
+| It is tested | **250 hermetic cases**, five acceptance journeys, two rendered breakpoints |
 
 ## What it demonstrates
 
 - Data engineering: raster DEM sampling, binary formats, GML/WFS, honest geometry.
 - Product judgement: deciding what **not** to show, and enforcing it in tests.
 - Front-end craft: MapLibre terrain, synchronised profile, accessible dialogs,
-  responsive layout, no framework bloat (the app is ~60 KB brotli; MapLibre is the rest).
+  responsive layout, no framework bloat (the app is ~120 KB brotli; MapLibre is the rest).
 - Operating under constraints: static-only hosting, a 250-case test budget, a
   licence obligation per asset, and public services that must not be abused.
 

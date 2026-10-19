@@ -4,7 +4,8 @@
  *   node tools/verify/bundle-size.mjs [distDir] [budgetKiB]
  *
  * Reports both gzip and brotli sizes for every emitted JS file and enforces the
- * product budget on the total JS payload (default 500 KiB). CSS is reported for
+ * product budget on the total JS payload, measured in brotli (default 500 KiB) —
+ * the same metric `verify.mjs` gates on, so the two cannot disagree. CSS is reported for
  * context but is not part of the JS budget.
  */
 
@@ -61,7 +62,7 @@ for (const path of files('.css')) {
 }
 row('CSS total', cssTotals);
 
-const status = jsTotals.gzip <= budget ? 'PASS' : 'FAIL';
+const status = jsTotals.brotli <= budget ? 'PASS' : 'FAIL';
 console.log(
   `\nJS budget: ${status} — ${(jsTotals.gzip / 1024).toFixed(1)} KiB gzip ` +
     `/ ${(jsTotals.brotli / 1024).toFixed(1)} KiB brotli of ${(budget / 1024).toFixed(0)} KiB`,

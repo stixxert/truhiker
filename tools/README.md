@@ -7,7 +7,8 @@ Build and verification tooling. None of this ships to the browser.
 | `build-shops.mjs` | rebuilds that extract from the Geofabrik Norway PBF |
 | `inspect-shops.mjs` | decodes the extract: `--stats`, `--verify`, `--near LAT,LON` |
 | `verify/verify.mjs` | the gate: types, tests, build, bundle, licences, decisions, hosting |
-| `verify/visual-check.mjs` | headless Chromium check of both breakpoints under the real CSP |
+| `verify/visual-check.mjs [--runtime]` | headless Chromium check of both breakpoints under the real CSP; `--runtime` serves through `wrangler dev` (the default via `npm run visual-check`), the bare form uses the static server (`npm run visual-check:static`) |
+| `verify/e2e.mjs` | the scripted journey: load → resupply → energy → weather → save → reload, in workerd |
 | `verify/licence-audit.mjs` | every shipped file maps to a licence; notices present |
 | `verify/check-decisions.mjs` | the documented defaults still exist; no TODOs in `src/` |
 | `verify/verify-deploy.mjs` | `wrangler deploy --dry-run` against a clean copy of the build |

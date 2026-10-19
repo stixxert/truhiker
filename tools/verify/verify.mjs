@@ -14,6 +14,7 @@ import { execFileSync } from "node:child_process";
 import { readdirSync, statSync, readFileSync } from "node:fs";
 import { join, extname } from "node:path";
 import { gzipSync, brotliCompressSync, constants } from "node:zlib";
+import { createHash } from "node:crypto";
 
 const ROOT = process.cwd();
 const DIST = join(ROOT, "dist");
@@ -74,7 +75,7 @@ if (!skipTests) {
     if (total > TEST_BUDGET) {
       problems.push(
         `${total} test cases exceeds the ${TEST_BUDGET} budget — group related assertions into one ` +
-          `test (it.each rows still count separately) or delete duplication; see docs/11-testing-strategy.md`,
+          `test (it.each rows still count separately) or delete duplication; see docs/notes/11-testing-strategy.md`,
       );
     }
     if (wall > TEST_WALL_BUDGET_MS) {
@@ -172,6 +173,25 @@ step("end-to-end journey", () => {
   const out = run("node", ["tools/verify/e2e.mjs"]);
   const line = out.trim().split("\n").filter((l) => l.startsWith("e2e: OK")).pop();
   return line ? line.replace("e2e: OK — ", "") : "ok";
+});
+
+step("data integrity", () => {
+  // The provenance file records the checksum; a hand-edited binary must not ship.
+  const provenance = JSON.parse(readFileSync(join(ROOT, "data/shops.osm.json"), "utf8"));
+  const binary = readFileSync(join(ROOT, "data", provenance.file));
+  const digest = createHash("sha256").update(binary).digest("hex");
+  if (digest !== provenance.checksum.sha256) {
+    throw new Error(`data/${provenance.file} does not match its recorded SHA-256`);
+  }
+  if (binary.length !== provenance.sizes.withNames.raw) {
+    throw new Error(`data/${provenance.file} is ${binary.length} bytes, provenance says ${provenance.sizes.withNames.raw}`);
+  }
+  return `${provenance.counts.total} points, sha256 verified`;
+});
+
+step("deploy dry run", () => {
+  const out = run("node", ["tools/verify/verify-deploy.mjs"]);
+  return out.trim().split("\n").pop();
 });
 
 step("licence audit", () => {
