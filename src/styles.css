@@ -2637,6 +2637,13 @@ input {
     padding: 0;
   }
 
+  /* Below 760 px the two disclosure bodies are the popovers and nothing else;
+     the base rule's `display: contents` is desktop-only. */
+  .topbar-more-body,
+  .editor-more-body {
+    display: none;
+  }
+
   .topbar-more-toggle:focus-visible ~ .topbar-actions .topbar-more-label {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
@@ -3340,5 +3347,60 @@ input {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Right edge layout -------------------------------------------------------- *
+ * The panels dock flush to the right and stop above the map chrome: the zoom
+ * stack sits underneath them and the attribution stays at the bottom. Previously
+ * the panel was inset 58px to dodge the controls and ran to the bottom edge,
+ * covering the attribution.
+ */
+@media (min-width: 761px) {
+  .weather-panel,
+  .side-panel {
+    right: 12px;
+    /* Clears the four-button zoom stack (138 px) sitting at bottom: 44px, plus
+       the attribution underneath it. Fixed because the stack is a fixed set of
+       buttons; if a control is added, raise this. */
+    bottom: 196px;
+    max-height: none;
+  }
+
+  .map-controls {
+    top: auto;
+    right: 12px;
+    bottom: 44px;
+  }
+}
+
+/* Phone: a panel is a bottom sheet, so the two pieces of map chrome it would
+ * otherwise cover move out of its way. The attribution goes to the top-right,
+ * clear of both the sheet and the editor bar; the sheet is capped so it starts
+ * below the zoom stack (which ends ~230px into a 390px map area). */
+@media (max-width: 760px) {
+  .map-wrap:has(.side-panel:not([hidden])) .map-attrib,
+  .map-wrap:has(.weather-panel:not([hidden])) .map-attrib {
+    top: 8px;
+    right: 8px;
+    bottom: auto;
+    left: auto;
+  }
+
+  .map-wrap:has(.side-panel:not([hidden])) .side-panel,
+  .map-wrap:has(.weather-panel:not([hidden])) .weather-panel {
+    max-height: calc(100% - 240px);
+  }
+}
+
+/* 320-class phones: the demo popover is anchored to a flex row that is narrower
+ * than the viewport, so pin it to the viewport instead of chasing ancestors. */
+@media (max-width: 360px) {
+  .route-popover {
+    position: fixed;
+    top: 64px;
+    left: 8px;
+    right: 8px;
+    width: auto;
   }
 }
