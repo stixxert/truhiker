@@ -311,3 +311,24 @@ describe('GPX import', () => {
     }
   });
 });
+
+describe('leg metrics honesty', () => {
+  it('reports no ascent when only part of the leg has elevation', () => {
+    // Regression from the engine review: a partial sum used to be presented as
+    // the leg's ascent, which reads as a complete measurement of a smaller climb.
+    const points = [
+      { lon: 8.3, lat: 61.5, ele: 1000, eleSource: 'dem' as const },
+      { lon: 8.31, lat: 61.5, ele: 1100, eleSource: 'dem' as const },
+      { lon: 8.32, lat: 61.5 },
+      { lon: 8.33, lat: 61.5, ele: 1400, eleSource: 'dem' as const },
+    ];
+    const trip = store.fromFile(
+      `<?xml version="1.0" encoding="UTF-8"?><gpx version="1.1" creator="t" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>${points
+        .map((p) => `<trkpt lat="${p.lat}" lon="${p.lon}">${p.ele !== undefined ? `<ele>${p.ele}</ele>` : ''}</trkpt>`)
+        .join('')}</trkseg></trk></gpx>`,
+      'partial.gpx',
+    );
+    expect(trip.legs[0]!.ascentM).toBeNull();
+    expect(trip.legs[0]!.descentM).toBeNull();
+  });
+});
