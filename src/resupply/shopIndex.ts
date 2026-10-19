@@ -37,7 +37,7 @@ export const SHOP_INDEX_MAGIC = 'NPLSHP01';
 export const SHOP_INDEX_PATH = '/data/shops.osm.bin';
 /**
  * Build date of the committed extract (`data/MEASUREMENTS.md`,
- * `data/shops.osm.meta.json`). The binary itself carries no date, so a *different*
+ * `data/shops.osm.json`). The binary itself carries no date, so a *different*
  * file must be labelled by its caller through `parseShopIndex(buffer, { builtAt })`.
  */
 export const COMMITTED_INDEX_BUILT_AT = '2026-10-19T13:41:49.167Z';

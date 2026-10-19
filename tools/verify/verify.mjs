@@ -166,6 +166,14 @@ step("runtime render", () => {
   return line ? line.replace("visual-check: OK — ", "") : "ok";
 });
 
+step("end-to-end journey", () => {
+  // Load -> resupply -> energy -> weather -> save -> reload, in the real runtime.
+  if (process.argv.includes("--skip-e2e")) return "skipped";
+  const out = run("node", ["tools/verify/e2e.mjs"]);
+  const line = out.trim().split("\n").filter((l) => l.startsWith("e2e: OK")).pop();
+  return line ? line.replace("e2e: OK — ", "") : "ok";
+});
+
 step("licence audit", () => {
   // Every shipped file must have a licence, and the notices we are obliged to
   // redistribute must be in the build.
@@ -183,7 +191,7 @@ step("hosting contract", () => {
   const problems = [];
 
   // 1. The licence-bearing data file and its notices must actually ship.
-  const required = ["data/shops.osm.bin", "data/shops.osm.meta.json", "data/shops.osm.LICENSE", "404.html"];
+  const required = ["data/shops.osm.bin", "data/shops.osm.json", "data/ODbL-1.0.txt", "404.html"];
   const missing = required.filter((f) => {
     try {
       return statSync(join(DIST, f)).size === 0;

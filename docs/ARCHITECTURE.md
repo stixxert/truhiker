@@ -30,7 +30,7 @@ Live sources, all CORS-enabled and called directly by the browser:
 
 One bundled data set: an OpenStreetMap extract of resupply points (ODbL), because every
 live alternative measured 40 s+ or was prohibited. It is committed as a build
-input and served by the app; `data/MANIFEST.json` records its SHA-256 and
+input and served by the app; `data/shops.osm.json` records its SHA-256 and
 `tools/build-shops.mjs` regenerates it from the OSM extract.
 
 ## Modules

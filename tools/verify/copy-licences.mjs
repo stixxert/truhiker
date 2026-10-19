@@ -15,8 +15,7 @@ const OUT = join(DIST, 'licences');
 
 const COPIES = [
   ['node_modules/maplibre-gl/LICENSE.txt', 'maplibre-gl-BSD-3-Clause.txt'],
-  ['LICENSES/ODbL-1.0.txt', 'ODbL-1.0.txt'],
-  ['data/shops.osm.LICENSE', 'shops.osm.ODbL-notice.txt'],
+  ['data/ODbL-1.0.txt', 'ODbL-1.0.txt'],
 ];
 
 if (!existsSync(DIST)) {
@@ -44,6 +43,28 @@ if (missing.length > 0) {
   );
   process.exit(1);
 }
+
+// The ODbL notice is generated from the data's own provenance file, so the
+// notice, the checksum and the served file cannot drift apart.
+const provenance = JSON.parse(readFileSync(join('data', 'shops.osm.json'), 'utf8'));
+writeFileSync(
+  join(OUT, 'shops.osm.ODbL-notice.txt'),
+  `Contains information from OpenStreetMap, which is made available here under
+the Open Database License (ODbL 1.0).
+
+  ${provenance.attribution}
+  Licence:  ${provenance.licence} — https://opendatacommons.org/licenses/odbl/1-0/
+  Source:   ${provenance.source.url}
+  Extract:  ${provenance.source.extractDate}
+  Points:   ${provenance.counts.total}
+  File:     ${provenance.file} (${provenance.sizes.withNames.raw} bytes)
+  SHA-256:  ${provenance.checksum.sha256}
+
+This file is a Derivative Database of OpenStreetMap, served publicly at
+${provenance.servedAt}. Tools used: ${provenance.builtBy}.
+`,
+  'utf8',
+);
 
 // The app's own notice, plus a pointer to the full inventory in the repository.
 writeFileSync(

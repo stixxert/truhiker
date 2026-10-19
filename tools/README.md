@@ -18,5 +18,5 @@ Build and verification tooling. None of this ships to the browser.
 by hand while developing.
 
 The resupply data (`data/shops.osm.bin`, 175 KB) is a committed build input: it is
-a Derivative Database of OpenStreetMap served by the deployed app. `data/MANIFEST.json`
+a Derivative Database of OpenStreetMap served by the deployed app. `data/shops.osm.json`
 records its provenance and SHA-256; `build-shops.mjs` regenerates it.

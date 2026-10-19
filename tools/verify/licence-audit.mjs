@@ -28,10 +28,10 @@ const RULES = [
   { pattern: /^_headers$/, licence: 'proprietary', holder: 'Sivert Asakskogen' },
   { pattern: /^demo\/.*\.gpx$/, licence: 'CC-BY-4.0', holder: 'Kartverket (Turrutebasen)' },
   { pattern: /^data\/shops\.osm\.bin$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },
-  { pattern: /^data\/shops\.osm\.meta\.json$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },
-  { pattern: /^data\/shops\.osm\.LICENSE$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },
-  // Provenance for the data artefact: our own metadata about the ODbL file.
-  { pattern: /^data\/MANIFEST\.json$/, licence: 'proprietary', holder: 'Sivert Asakskogen' },
+  // Provenance and checksum for the data artefact.
+  { pattern: /^data\/shops\.osm\.json$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },
+  // The licence text itself, served beside the data.
+  { pattern: /^data\/ODbL-1\.0\.txt$/, licence: 'ODbL-1.0', holder: 'Open Data Commons' },
 ];
 
 /** Notice texts that must be present because we redistribute the work. */

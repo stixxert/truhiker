@@ -22,7 +22,7 @@ Run `npm run verify` to enforce it.
 The ODbL file **is** the derivative database. It is committed as a build input
 (175 KB) and served publicly by the app at `/data/shops.osm.bin`, which is the
 public offer that satisfies the share-alike and access obligations. Its provenance
-— source, extract date, point count and SHA-256 — is in `data/MANIFEST.json`, and
+— source, extract date, point count and SHA-256 — is in `data/shops.osm.json`, and
 the generator is `tools/build-shops.mjs`. It is never merged with non-ODbL data in
 one file.
 

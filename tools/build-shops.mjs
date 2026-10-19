@@ -9,8 +9,7 @@
  *
  * Outputs (default dir `data/`):
  *   shops.osm.bin         compact binary, see tools/README.md for the byte layout
- *   shops.osm.meta.json   counts, filter, source, attribution, sizes
- *   MEASUREMENTS.md       measured sizes and sanity checks
+ *   shops.osm.json        provenance: counts, source, attribution, sizes, sha256
  *
  * Optional: --dump <path> writes every extracted POI as JSONL for inspection.
  *
@@ -1202,7 +1201,8 @@ function main() {
       pass2Ms,
     },
   };
-  fs.writeFileSync(path.join(outDir, 'shops.osm.meta.json'), JSON.stringify(meta, null, 2) + '\n');
+  const provenance = { ...meta, file: 'shops.osm.bin', servedAt: '/data/shops.osm.bin', builtBy: 'tools/build-shops.mjs' };
+  fs.writeFileSync(path.join(outDir, 'shops.osm.json'), JSON.stringify(provenance, null, 2) + '\n');
 
   // ---- MEASUREMENTS.md ----------------------------------------------------
   const taginfoRows = taginfo
@@ -1428,11 +1428,10 @@ pass 2 ${(pass2Ms / 1000).toFixed(1)} s).
 ## 10. Licence
 
 The binary is a Derivative Database of OpenStreetMap data, offered under ODbL 1.0.
-${ATTRIBUTION}. \`data/shops.osm.LICENSE\` carries the notice; the canonical
-licence text is in \`LICENSES/ODbL-1.0.txt\`.
+${ATTRIBUTION}. The notice and provenance are in \`shops.osm.json\`; the licence
+text is \`data/ODbL-1.0.txt\`.
 `;
 
-  fs.writeFileSync(path.join(outDir, 'MEASUREMENTS.md'), md);
 
   console.log(`wrote ${binPath} (${fmt(fullSizes.raw)} B raw, ${fmt(fullSizes.brotli)} B brotli)`);
   console.log(`POIs: ${fmt(records.length)}`, byType);

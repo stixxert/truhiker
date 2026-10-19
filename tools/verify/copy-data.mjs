@@ -18,7 +18,7 @@ const SRC = 'data';
 const DEST = join('dist', 'data');
 
 // Files that must never be served: build inputs and large intermediates.
-const SKIP = new Set(['MEASUREMENTS.md']);
+const SKIP = new Set();
 
 if (!existsSync('dist')) {
   console.error('copy-data: dist/ does not exist — run the build first');
@@ -43,7 +43,7 @@ for (const name of readdirSync(SRC)) {
 }
 
 // The licence file is not optional: the POI file is an ODbL Derivative Database.
-const required = ['shops.osm.bin', 'shops.osm.meta.json', 'shops.osm.LICENSE'];
+const required = ['shops.osm.bin', 'shops.osm.json', 'ODbL-1.0.txt'];
 const missing = required.filter((f) => !existsSync(join(DEST, f)));
 if (missing.length > 0) {
   console.error(
