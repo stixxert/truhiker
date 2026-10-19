@@ -384,7 +384,7 @@ export const en: Record<MessageKey, string> = {
     'The resupply points are an OSM extract of shops, fuel stations and post points. Opening hours are not stored in the file — only whether OSM had them.',
   'about.privacyTitle': 'Storage and privacy',
   'about.privacy':
-    'The trip and its route are stored only in this browser (IndexedDB, with localStorage as a fallback). Nothing is uploaded and there is no account. To fetch trails, shops, elevation and weather the app sends positions from the route to Kartverket (Turrutebasen and the basemap), MET and hoydedata.no. No tracking and no analytics; map tiles load from the source you choose.',
+    'The trip and its route are stored only in this browser (IndexedDB, with localStorage as a fallback). There is no account, and the trip itself is not uploaded. To fetch trails, shops, elevation and weather the app sends positions from the route to Kartverket (Turrutebasen and the basemap), MET and hoydedata.no. No tracking and no analytics; map tiles load from the source you choose.',
 
   'supply.open': 'Resupply',
   'supply.title': 'Resupply and energy',

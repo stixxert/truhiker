@@ -2,7 +2,7 @@
 
 *Nothing here should be discovered by a user in the field. Each entry states the
 default, the behaviour it produces, and why. If a decision is changed, change it
-here first; `scripts/check-decisions.mjs` requires every section below to exist.*
+here first; `tools/verify/check-decisions.mjs` requires every section below to exist.*
 
 ---
 

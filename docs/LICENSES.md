@@ -1,7 +1,7 @@
 # Licences and attribution
 
 Everything TruHiker ships, and everything it fetches, with the right to use it
-and the attribution it requires. `scripts/licence-audit.mjs` fails the build if a
+and the attribution it requires. `tools/verify/licence-audit.mjs` fails the build if a
 shipped file is not listed here or a required notice is missing.
 
 Run `npm run verify` to enforce it.
@@ -19,8 +19,16 @@ Run `npm run verify` to enforce it.
 | `data/shops.osm.LICENSE` | ODbL notice | — | must travel with the data |
 | `licences/*` | the notices themselves | — | must be present in `dist/` |
 
-The ODbL file **is** the derivative database, and it is served publicly at
-`/data/shops.osm.bin` — which satisfies the share-alike and access obligations.
+The ODbL file **is** the derivative database. It is **not committed to the
+repository**: the repo holds the generator (`tools/build-shops.mjs`), the
+provenance manifest (`data/MANIFEST.json`) and this notice. The file itself is
+
+- published as a release asset on this repository, and
+- served publicly by the deployed app at `/data/shops.osm.bin`.
+
+Either is a public offer of the derivative database, which satisfies the ODbL
+share-alike and access obligations. The build fetches it with
+`tools/fetch-data.mjs` and verifies its SHA-256 against the manifest before use.
 It is never merged with non-ODbL data in one file.
 
 ## Fetched live (never redistributed)
@@ -53,7 +61,7 @@ to a shared corpus, or re-served.
 
 ## What the audit checks
 
-`scripts/licence-audit.mjs`:
+`tools/verify/licence-audit.mjs`:
 
 1. every file in `dist/` matches a licence rule (an unknown asset fails the build);
 2. `licences/maplibre-gl-BSD-3-Clause.txt`, `licences/ODbL-1.0.txt`,

@@ -385,7 +385,7 @@ export const no = {
     'Forsyningspunktene er et OSM-uttrekk av butikker, bensinstasjoner og postpunkt. Åpningstider er ikke lagret i filen, bare hvorvidt OSM hadde dem.',
   'about.privacyTitle': 'Lagring og personvern',
   'about.privacy':
-    'Tur og rute lagres bare i denne nettleseren (IndexedDB, med localStorage som reserve). Ingenting lastes opp og det finnes ingen konto. For å hente stier, butikker, høydedata og vær sender appen posisjoner fra ruten til Kartverket (Turrutebasen og bakgrunnskart), MET og hoydedata.no. Ingen sporing og ingen analyseverktøy; kartflisene lastes fra den kilden du velger.',
+    'Tur og rute lagres bare i denne nettleseren (IndexedDB, med localStorage som reserve). Det finnes ingen konto, og turen lastes ikke opp. For å hente stier, butikker, høydedata og vær sender appen posisjoner fra ruten til Kartverket (Turrutebasen og bakgrunnskart), MET og hoydedata.no. Ingen sporing og ingen analyseverktøy; kartflisene lastes fra den kilden du velger.',
 
   // --- Resupply and energy (docs/13) --------------------------------------
   'supply.open': 'Forsyning',

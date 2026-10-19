@@ -30,6 +30,8 @@ const RULES = [
   { pattern: /^data\/shops\.osm\.bin$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },
   { pattern: /^data\/shops\.osm\.meta\.json$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },
   { pattern: /^data\/shops\.osm\.LICENSE$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },
+  // Provenance for the data artefact: our own metadata about the ODbL file.
+  { pattern: /^data\/MANIFEST\.json$/, licence: 'proprietary', holder: 'Sivert Asakskogen' },
 ];
 
 /** Notice texts that must be present because we redistribute the work. */

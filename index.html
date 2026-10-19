@@ -21,6 +21,10 @@
     <div class="app">
       <header class="topbar">
         <div class="topbar-row">
+          <!-- Mobile-only "more" disclosure. It is display:none above 760 px, so the
+               desktop row keeps every action in place; below 760 px it toggles
+               .topbar-more-body into a popover. CSS-only so no state lives in JS. -->
+          <input type="checkbox" id="topbar-more" class="topbar-more-toggle" aria-label="Mer" />
           <div class="brand">
             <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
               <path d="M3 26L12 9l5.5 9L21 12l8 14H3z" fill="currentColor" opacity="0.9" />
@@ -76,109 +80,140 @@
           </button>
 
           <div class="topbar-actions">
-            <div class="seg" role="group" data-i18n-aria-label="layers.label">
-              <button class="seg-btn" type="button" data-basemap="topo" aria-pressed="true" data-i18n="layers.topo">
-                Topo
-              </button>
-              <button class="seg-btn" type="button" data-basemap="grey" aria-pressed="false" data-i18n="layers.grey">
-                Grå
-              </button>
-              <button class="seg-btn" type="button" data-basemap="wms" aria-pressed="false" data-i18n="layers.wms">
-                WMS
-              </button>
-            </div>
-
-            <button
-              class="btn btn-toggle"
-              id="btn-terrain"
-              type="button"
-              aria-pressed="false"
-              data-i18n-aria-label="terrain.enable"
-              data-i18n-title="terrain.enable"
-            >
+            <label class="topbar-more-label btn btn-icon" for="topbar-more" aria-hidden="true">
               <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
-                <path d="M2 15l5-9 3.4 5.6L13 8l5 7H2z" fill="currentColor" />
+                <circle cx="5" cy="10" r="1.6" fill="currentColor" />
+                <circle cx="10" cy="10" r="1.6" fill="currentColor" />
+                <circle cx="15" cy="10" r="1.6" fill="currentColor" />
               </svg>
-              3D
-            </button>
+            </label>
 
-            <div class="seg seg-lang" role="group" data-i18n-aria-label="lang.label">
+            <div class="topbar-more-body">
+              <div class="seg" role="group" data-i18n-aria-label="layers.label">
+                <button class="seg-btn" type="button" data-basemap="topo" aria-pressed="true" data-i18n="layers.topo">
+                  Topo
+                </button>
+                <button class="seg-btn" type="button" data-basemap="grey" aria-pressed="false" data-i18n="layers.grey">
+                  Grå
+                </button>
+                <button class="seg-btn" type="button" data-basemap="wms" aria-pressed="false" data-i18n="layers.wms">
+                  WMS
+                </button>
+              </div>
+
               <button
-                class="seg-btn"
+                class="btn btn-toggle"
+                id="btn-terrain"
                 type="button"
-                data-lang="no"
-                aria-pressed="true"
-                data-i18n-aria-label="lang.no"
-              >
-                NO
-              </button>
-              <button
-                class="seg-btn"
-                type="button"
-                data-lang="en"
                 aria-pressed="false"
-                data-i18n-aria-label="lang.en"
+                data-i18n-aria-label="terrain.enable"
+                data-i18n-title="terrain.enable"
               >
-                EN
+                <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
+                  <path d="M2 15l5-9 3.4 5.6L13 8l5 7H2z" fill="currentColor" />
+                </svg>
+                3D
+              </button>
+
+              <div class="seg seg-lang" role="group" data-i18n-aria-label="lang.label">
+                <button
+                  class="seg-btn"
+                  type="button"
+                  data-lang="no"
+                  aria-pressed="true"
+                  data-i18n-aria-label="lang.no"
+                >
+                  NO
+                </button>
+                <button
+                  class="seg-btn"
+                  type="button"
+                  data-lang="en"
+                  aria-pressed="false"
+                  data-i18n-aria-label="lang.en"
+                >
+                  EN
+                </button>
+              </div>
+
+              <button
+                class="btn btn-icon"
+                id="btn-share"
+                type="button"
+                data-i18n-aria-label="action.share"
+                data-i18n-title="action.share"
+              >
+                <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
+                  <path
+                    d="M7.5 11.5l5-3M7.5 8.5l5 3"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    fill="none"
+                    stroke-linecap="round"
+                  />
+                  <rect x="2.5" y="6.5" width="5" height="5" rx="2.5" fill="currentColor" opacity="0.85" />
+                  <rect x="12.5" y="2.5" width="5" height="5" rx="2.5" fill="currentColor" opacity="0.85" />
+                  <rect x="12.5" y="12.5" width="5" height="5" rx="2.5" fill="currentColor" opacity="0.85" />
+                </svg>
+              </button>
+
+              <button class="btn btn-ghost" id="btn-about" type="button" data-i18n="action.about">Om data</button>
+
+              <button
+                class="btn btn-ghost"
+                id="btn-trips"
+                type="button"
+                data-i18n="trips.open"
+                data-i18n-title="trips.title"
+              >
+                Turer
+              </button>
+
+              <button
+                class="btn btn-ghost"
+                id="btn-supply"
+                type="button"
+                aria-expanded="false"
+                aria-controls="supply-panel"
+                data-i18n="supply.open"
+                data-i18n-title="supply.title"
+              >
+                Forsyning
+              </button>
+
+              <button
+                class="btn btn-ghost"
+                id="btn-weather"
+                type="button"
+                aria-expanded="false"
+                aria-controls="weather-panel"
+                data-i18n="weather.open"
+                data-i18n-title="weather.title"
+              >
+                Vær
+              </button>
+
+              <button
+                class="btn btn-icon"
+                id="btn-settings"
+                type="button"
+                data-i18n-aria-label="trips.settings"
+                data-i18n-title="trips.settings"
+              >
+                <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
+                  <path
+                    d="M3 6h14M3 10h14M3 14h14"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                  />
+                  <circle cx="7" cy="6" r="1.8" fill="currentColor" />
+                  <circle cx="13" cy="10" r="1.8" fill="currentColor" />
+                  <circle cx="6" cy="14" r="1.8" fill="currentColor" />
+                </svg>
               </button>
             </div>
-
-            <button
-              class="btn btn-icon"
-              id="btn-share"
-              type="button"
-              data-i18n-aria-label="action.share"
-              data-i18n-title="action.share"
-            >
-              <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
-                <path
-                  d="M7.5 11.5l5-3M7.5 8.5l5 3"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  fill="none"
-                  stroke-linecap="round"
-                />
-                <rect x="2.5" y="6.5" width="5" height="5" rx="2.5" fill="currentColor" opacity="0.85" />
-                <rect x="12.5" y="2.5" width="5" height="5" rx="2.5" fill="currentColor" opacity="0.85" />
-                <rect x="12.5" y="12.5" width="5" height="5" rx="2.5" fill="currentColor" opacity="0.85" />
-              </svg>
-            </button>
-
-            <button class="btn btn-ghost" id="btn-about" type="button" data-i18n="action.about">Om data</button>
-
-            <button
-              class="btn btn-ghost"
-              id="btn-trips"
-              type="button"
-              data-i18n="trips.open"
-              data-i18n-title="trips.title"
-            >
-              Turer
-            </button>
-
-            <button
-              class="btn btn-ghost"
-              id="btn-supply"
-              type="button"
-              aria-expanded="false"
-              aria-controls="supply-panel"
-              data-i18n="supply.open"
-              data-i18n-title="supply.title"
-            >
-              Forsyning
-            </button>
-
-            <button
-              class="btn btn-ghost"
-              id="btn-weather"
-              type="button"
-              aria-expanded="false"
-              aria-controls="weather-panel"
-              data-i18n="weather.open"
-              data-i18n-title="weather.title"
-            >
-              Vær
-            </button>
 
             <span class="save-group">
               <button
@@ -186,33 +221,13 @@
                 id="btn-save"
                 type="button"
                 data-i18n="action.save"
+                data-i18n-aria-label="action.save"
                 data-i18n-title="save.hint"
               >
                 Lagre
               </button>
               <span class="save-status" id="save-status" role="status" aria-live="polite"></span>
             </span>
-
-            <button
-              class="btn btn-icon"
-              id="btn-settings"
-              type="button"
-              data-i18n-aria-label="trips.settings"
-              data-i18n-title="trips.settings"
-            >
-              <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
-                <path
-                  d="M3 6h14M3 10h14M3 14h14"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                />
-                <circle cx="7" cy="6" r="1.8" fill="currentColor" />
-                <circle cx="13" cy="10" r="1.8" fill="currentColor" />
-                <circle cx="6" cy="14" r="1.8" fill="currentColor" />
-              </svg>
-            </button>
           </div>
         </div>
 
@@ -304,15 +319,27 @@
                 ↷
               </button>
               <label class="snap-toggle">
-                <input type="checkbox" id="snap-enabled" checked />
+                <input type="checkbox" id="snap-enabled" checked data-i18n-aria-label="editor.snap" />
                 <span data-i18n="editor.snap">Snapp</span>
               </label>
-              <label class="snap-radius">
-                <span data-i18n="editor.radius">Radius</span>
-                <input id="snap-radius" type="number" min="20" max="300" step="5" value="75" inputmode="numeric" />
-                <span class="unit">m</span>
+              <!-- Mobile-only disclosure: radius and the point count stay reachable
+                   without spending a second row of map. CSS-only, as in the header. -->
+              <input type="checkbox" id="editor-more" class="editor-more-toggle" aria-label="Mer" />
+              <label class="editor-more-label btn btn-small" for="editor-more">
+                <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
+                  <circle cx="5" cy="10" r="1.5" fill="currentColor" />
+                  <circle cx="10" cy="10" r="1.5" fill="currentColor" />
+                  <circle cx="15" cy="10" r="1.5" fill="currentColor" />
+                </svg>
               </label>
-              <span class="editor-count" id="editor-count"></span>
+              <div class="editor-more-body">
+                <label class="snap-radius">
+                  <span data-i18n="editor.radius">Radius</span>
+                  <input id="snap-radius" type="number" min="20" max="300" step="5" value="75" inputmode="numeric" />
+                  <span class="unit">m</span>
+                </label>
+                <span class="editor-count" id="editor-count"></span>
+              </div>
             </div>
 
             <div class="editor-row editor-row--actions" id="editor-actions" hidden>

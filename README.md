@@ -86,5 +86,20 @@ about 0.58 MB compressed.
 - Weather outside the forecast horizon is shown as unknown, not estimated.
 - All figures are estimates.
 
-Data sources, licences and the exact attribution shown in the app are listed
-under **Om data** in the application.
+## Data and attribution
+
+| Source | Used for | Licence |
+| --- | --- | --- |
+| **Kartverket** — topo, DTM, Turrutebasen | basemap, elevation, trails and huts | CC BY 4.0 · ©Kartverket |
+| **MET Norway** | weather forecasts | NLOD / CC BY 4.0 |
+| **Mapterhorn** | 3D terrain (derived from Kartverket) | see its attribution |
+| **OpenStreetMap contributors** | resupply points | ODbL 1.0 · © OpenStreetMap contributors |
+
+Attribution is shown in the application itself: the map footer reads
+`©Kartverket · Mapterhorn · Planleggingsverktøy`, and **Om data** lists every source
+with its licence. The bundled demo route is *Memurubu–Glitterheim* (`jot21`) from
+Kartverket Turrutebasen, CC BY 4.0, maintained by DNT Oslo og omegn.
+
+The resupply data is a derivative database of OpenStreetMap, published under ODbL
+1.0 and offered for download from this repository's releases. Neither UT.no,
+Wikiloc, AllTrails nor Outdooractive content is used or redistributed.

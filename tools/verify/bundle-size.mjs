@@ -1,7 +1,7 @@
 /**
  * Bundle budget check.
  *
- *   node scripts/bundle-size.mjs [distDir] [budgetKiB]
+ *   node tools/verify/bundle-size.mjs [distDir] [budgetKiB]
  *
  * Reports both gzip and brotli sizes for every emitted JS file and enforces the
  * product budget on the total JS payload (default 500 KiB). CSS is reported for

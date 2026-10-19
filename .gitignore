@@ -8,3 +8,7 @@ dist/
 .pi/sessions/
 .vitest-report.json
 .wrangler/
+
+# Derived data: built from OSM and published as a release asset, never committed.
+data/shops.osm.bin
+data/shops.osm.meta.json

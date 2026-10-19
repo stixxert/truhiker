@@ -255,6 +255,27 @@ input {
   justify-content: flex-end;
 }
 
+/* Mobile-only disclosure (the ⋯ control in the header and in the editor bar).
+   Above 760 px both toggles are gone and their bodies are `display: contents`,
+   so the desktop row is laid out exactly as if the wrappers were not there. */
+.topbar-more-toggle,
+.topbar-more-label,
+.editor-more-toggle,
+.editor-more-label {
+  display: none;
+}
+
+.topbar-more-body,
+.editor-more-body {
+  display: contents;
+}
+
+/* Settings sits inside .topbar-more-body in the markup (it has to be in the
+   mobile popover) but stays to the right of the save group on desktop. */
+#btn-settings {
+  order: 1;
+}
+
 /* Buttons ------------------------------------------------------------------ */
 
 .btn {
@@ -2522,59 +2543,185 @@ input {
 }
 
 @media (max-width: 760px) {
+  /* -- Header: brand, route, save state and one menu — a single row -------- */
+
   .topbar-row {
-    flex-wrap: wrap;
-    gap: 8px 10px;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
     padding: 8px 10px;
+    min-height: 56px;
   }
 
   .brand {
     order: 1;
+    gap: 0;
+  }
+
+  /* The mark carries the brand on a phone; the wordmark is the first thing
+     that goes when the row has to hold a route name and a save state. */
+  .brand-name {
+    display: none;
+  }
+
+  .brand-mark {
+    width: 20px;
+    height: 20px;
   }
 
   .route-meta {
     order: 2;
-    flex: 1;
+    flex: 1 1 auto;
+    gap: 6px;
     padding-left: 8px;
+    overflow: hidden;
   }
 
   .route-name {
-    max-width: 34vw;
-    font-size: 12px;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: none;
+    font-size: 12.5px;
   }
 
-  #btn-open {
-    order: 3;
-    flex: none;
+  .route-tag {
+    flex: 0 1 auto;
+    max-width: 30vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 9.5px;
+    padding: 1px 6px;
   }
 
   .topbar-actions {
-    order: 4;
-    width: 100%;
-    justify-content: flex-start;
+    order: 3;
+    flex: none;
+    width: auto;
+    margin-left: 0;
+    flex-wrap: nowrap;
     gap: 6px;
   }
 
-  /* Filters and actions are the things a finger has to hit; 30 px was below
-     every touch-target guideline (S7). */
+  /* "Åpne GPX" keeps its own 40 px row inside the ⋯ popover: the map still
+     gets a full-width primary action, one tap away, without eating the row. */
+  #btn-open {
+    display: none;
+  }
+
+  .topbar-more-toggle:checked ~ #btn-open {
+    display: inline-flex;
+    position: absolute;
+    top: calc(100% + 14px);
+    left: 16px;
+    right: 16px;
+    z-index: 31;
+    height: 40px;
+    justify-content: center;
+  }
+
+  .topbar-more-toggle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+    clip-path: inset(50%);
+  }
+
+  .topbar-more-label {
+    display: inline-flex;
+    order: 2;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+  }
+
+  .topbar-more-toggle:focus-visible ~ .topbar-actions .topbar-more-label {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-label {
+    background: rgba(58, 217, 196, 0.16);
+    border-color: rgba(58, 217, 196, 0.5);
+    color: var(--accent-strong);
+  }
+
+  .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    gap: 6px;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 8px;
+    left: 8px;
+    z-index: 30;
+    /* The top padding reserves the pinned "Åpne GPX" row (see #btn-open). */
+    padding: 56px 8px 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    background: rgba(11, 18, 20, 0.98);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(12px);
+  }
+
+  .topbar-more-body > .seg {
+    width: 100%;
+  }
+
+  .topbar-more-body > .seg:not(.seg-lang) {
+    grid-column: 1 / -1;
+  }
+
+  .topbar-more-body > .seg .seg-btn {
+    flex: 1 1 0;
+  }
+
+  .topbar-more-body > .btn {
+    width: 100%;
+  }
+
+  .save-group {
+    order: 1;
+    gap: 5px;
+  }
+
+  .save-status {
+    max-width: 13ch;
+    font-size: 11px;
+  }
+
+  .save-status[data-kind='error'] {
+    max-width: 18ch;
+  }
+
+  /* -- Touch targets: 40 px or nothing ------------------------------------ */
+
   .btn {
-    height: 38px;
+    height: 40px;
     padding: 0 11px;
     font-size: 12.5px;
   }
 
   .btn-icon {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
   }
 
   .seg {
-    height: 30px;
+    height: 40px;
   }
 
   .seg-btn {
-    padding: 0 7px;
-    font-size: 11.5px;
+    padding: 0 9px;
+    font-size: 12px;
+  }
+
+  .icon-btn {
+    width: 40px;
+    height: 40px;
   }
 
   .banners {
@@ -2582,26 +2729,60 @@ input {
     max-height: 26vh;
   }
 
+  .banner-action,
+  .banner-close {
+    min-height: 40px;
+  }
+
+  /* -- Save control: an icon plus the state, never a headline button ------ */
+  /* The word "Lagre" stays in the DOM (and in the accessible name) but is
+     drawn as the icon: `font-size: 0` hides the text without hiding it from
+     assistive technology, and data-i18n-aria-label pins the name. */
+
+  .btn-save {
+    width: 40px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .btn-save::before {
+    content: '';
+    width: 16px;
+    height: 16px;
+    background-color: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4.5 3.5h8.4l2.6 2.6v10.4h-11z' fill='none' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M7.4 3.5v3.9h4.6V3.5M7 16.5v-4h6v4' fill='none' stroke='%23000' stroke-width='1.6'/%3E%3C/svg%3E")
+      center / 16px 16px no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4.5 3.5h8.4l2.6 2.6v10.4h-11z' fill='none' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M7.4 3.5v3.9h4.6V3.5M7 16.5v-4h6v4' fill='none' stroke='%23000' stroke-width='1.6'/%3E%3C/svg%3E")
+      center / 16px 16px no-repeat;
+  }
+
+  /* -- Profile strip and stats ------------------------------------------- */
+
   .profile {
-    height: 168px;
+    height: 176px;
   }
 
   .profile.is-collapsed {
-    height: 36px;
+    height: 44px;
   }
 
   .profile-head {
-    height: 36px;
+    height: 44px;
     gap: 8px;
     padding: 0 10px 0 4px;
   }
 
+  .profile-toggle {
+    min-height: 40px;
+    font-size: 12.5px;
+  }
+
   .profile-readout {
-    font-size: 11.5px;
+    font-size: 12px;
   }
 
   .profile-status {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .map-controls {
@@ -2610,21 +2791,32 @@ input {
   }
 
   .map-btn {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
+  }
+
+  /* The editor bar is one row of controls; the zoom stack steps below it
+     instead of competing for the same corner. */
+  .map-wrap:has(.editor-toolbar:not([hidden])) .map-controls {
+    top: 68px;
+  }
+
+  .map-wrap:has(.editor-toolbar[data-mode='draw']:not([hidden])) .map-controls,
+  .map-wrap:has(.editor-toolbar[data-mode='edit']:not([hidden])) .map-controls {
+    top: 96px;
   }
 
   .map-attrib {
     max-width: calc(100% - 76px);
-    font-size: 10px;
+    font-size: 11px;
     line-height: 1.35;
     padding: 3px 7px;
   }
 
   .stats {
-    padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+    padding: 7px 10px calc(7px + env(safe-area-inset-bottom));
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 5px 10px;
+    gap: 6px 10px;
   }
 
   .stat {
@@ -2632,101 +2824,133 @@ input {
   }
 
   .stat-value {
-    font-size: 12.5px;
+    font-size: 14px;
   }
 
   .stat-label {
-    font-size: 8.5px;
+    font-size: 9.5px;
     letter-spacing: 0.08em;
   }
 
   .source-badge {
-    font-size: 10.5px;
-    padding: 1px 6px;
-  }
-
-  /* "ikke bekreftet", "ubemannet", "åpningstid ukjent" and the gap distance are
-     the strings that decide whether you carry food. 9.5 px is not readable at
-     arm's length in daylight, so they get a floor on small screens (S7). */
-  .supply-badge,
-  .supply-flag,
-  .supply-point-gap,
-  .supply-warning,
-  .supply-point-meta,
-  .map-card-badges,
-  .map-card-line,
-  .energy-notice,
-  .stat-notice {
     font-size: 12px;
+    padding: 2px 7px;
   }
 
-  .supply-check {
-    font-size: 12px;
-  }
-
-  .route-popover {
-    right: auto;
-    left: 10px;
-    width: calc(100vw - 20px);
-  }
-
-  .empty-card {
-    padding: 20px 18px;
-  }
-
-  .empty-card h2 {
-    font-size: 16px;
-  }
-
-  .dialog {
-    width: calc(100vw - 20px);
-    max-height: 88vh;
-  }
-
-  .toast {
-    bottom: calc(10px + env(safe-area-inset-bottom));
-  }
-
-  .save-status {
-    max-width: 13ch;
-    font-size: 10px;
-  }
-
-  .save-status[data-kind='error'] {
-    max-width: 16ch;
-  }
+  /* -- Editor toolbar: one row of controls, radius/count behind ⋯ --------- */
 
   .editor-toolbar {
     top: 8px;
     left: 8px;
     width: auto;
-    max-width: calc(100% - 58px);
+    max-width: calc(100% - 16px);
     padding: 6px;
-    max-height: 46vh;
-    overflow: auto;
+    max-height: none;
+    overflow: visible;
+    z-index: 12;
   }
 
   .editor-toolbar[data-mode='view'] {
-    max-width: calc(100% - 58px);
+    max-width: calc(100% - 16px);
   }
 
   .editor-row {
     gap: 5px;
   }
 
+  .editor-row--main {
+    flex-wrap: nowrap;
+  }
+
   .editor-toolbar .btn,
   .seg-mode .seg-btn {
-    height: 25px;
-    font-size: 11px;
+    height: 40px;
+    font-size: 12px;
     padding: 0 7px;
+  }
+
+  .seg-mode .seg-btn {
+    padding: 0 8px;
+  }
+
+  #btn-undo,
+  #btn-redo {
+    min-width: 40px;
+  }
+
+  .snap-toggle {
+    min-height: 40px;
+    padding: 0 2px;
+    gap: 5px;
+    font-size: 12px;
+  }
+
+  .snap-toggle input {
+    width: 18px;
+    height: 18px;
+  }
+
+  .editor-more-toggle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+    clip-path: inset(50%);
+  }
+
+  .editor-more-label {
+    display: inline-flex;
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .editor-more-toggle:focus-visible ~ .editor-more-label {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .editor-more-toggle:checked ~ .editor-more-label {
+    background: rgba(58, 217, 196, 0.16);
+    border-color: rgba(58, 217, 196, 0.5);
+    color: var(--accent-strong);
+  }
+
+  .editor-more-toggle:checked ~ .editor-more-body {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 12;
+    padding: 8px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: rgba(11, 18, 20, 0.98);
+    box-shadow: var(--shadow);
+  }
+
+  .snap-radius {
+    min-height: 40px;
+  }
+
+  .snap-radius input {
+    width: 64px;
+    height: 32px;
+  }
+
+  .editor-count {
+    font-size: 12px;
   }
 
   .leg-name input {
     width: 112px;
-  }
-
-  .snap-radius input {
-    width: 48px;
+    height: 32px;
   }
 
   .snap-indicator {
@@ -2740,9 +2964,23 @@ input {
     display: none;
   }
 
-  .editor-hint {
-    flex-basis: 100%;
+  .editor-row--hints {
+    flex-wrap: nowrap;
+    overflow: hidden;
+    gap: 6px;
+    font-size: 11.5px;
   }
+
+  /* The instruction line repeats what the map and the mode say. */
+  .editor-hint {
+    display: none;
+  }
+
+  .offtrail-chip {
+    font-size: 11px;
+  }
+
+  /* -- Panels: a bottom sheet with a fixed head -------------------------- */
 
   .weather-panel,
   .side-panel {
@@ -2751,21 +2989,192 @@ input {
     right: 0;
     bottom: 0;
     width: auto;
-    max-height: 64%;
-    border-radius: 14px 14px 0 0;
+    /* Cap the sheet below the phone's 62vh and always leave a strip of live
+       map (plus the editor bar) visible above it. */
+    max-height: min(62vh, calc(100% - 144px));
+    border-radius: 16px 16px 0 0;
     border-left: 0;
     border-right: 0;
     border-bottom: 0;
-    padding: 10px 11px calc(10px + env(safe-area-inset-bottom));
+    padding: 0 12px calc(12px + env(safe-area-inset-bottom));
+    box-shadow: 0 -14px 34px rgba(0, 0, 0, 0.52);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .panel-head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    margin: 0 -12px;
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid var(--line);
+    border-radius: 16px 16px 0 0;
+    background: rgba(13, 22, 24, 0.98);
+    backdrop-filter: blur(10px);
+  }
+
+  .panel-head h2 {
+    font-size: 14px;
+  }
+
+  .seg-tabs .seg-btn {
+    height: 40px;
+    font-size: 12.5px;
+  }
+
+  .panel-status {
+    font-size: 12px;
+  }
+
+  .field-hint {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .panel-note {
+    font-size: 12px;
+  }
+
+  .engine-notes {
+    font-size: 12px;
+  }
+
+  .engine-notes summary {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* -- Resupply: readable body copy, safety strings at 12 px or more ------ */
+
+  .supply-controls {
+    font-size: 14px;
+  }
+
+  .supply-controls select {
+    height: 40px;
+    font-size: 14px;
+  }
+
+  .supply-huts-error {
+    font-size: 14px;
+  }
+
+  .supply-chip {
+    min-height: 40px;
+    padding: 0 13px;
+    font-size: 13px;
+  }
+
+  .supply-empty {
+    font-size: 14px;
+  }
+
+  .supply-point-main {
+    padding: 10px 11px;
+  }
+
+  .supply-point-name {
+    font-size: 14px;
+  }
+
+  .supply-point-meta,
+  .supply-point-gap {
+    font-size: 12.5px;
+  }
+
+  .supply-provenance {
+    font-size: 12px;
+  }
+
+  .supply-badge,
+  .supply-flag {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .supply-check {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 11px 0 9px;
+    font-size: 13px;
+  }
+
+  .supply-warning {
+    font-size: 14px;
+  }
+
+  .supply-h3 {
+    font-size: 11px;
+  }
+
+  .supply-leg-title {
+    font-size: 14px;
+  }
+
+  .supply-leg-numbers {
+    font-size: 13px;
+  }
+
+  .supply-warning-item {
+    font-size: 13px;
+  }
+
+  .supply-line {
+    font-size: 14px;
+  }
+
+  .energy-headline {
+    font-size: 15px;
+  }
+
+  .energy-body {
+    font-size: 14px;
+  }
+
+  .energy-value {
+    font-size: 14px;
+  }
+
+  .energy-detail {
+    font-size: 13px;
+  }
+
+  .energy-food-mass {
+    font-size: 14px;
+  }
+
+  .energy-field label {
+    font-size: 14px;
+  }
+
+  .energy-field input {
+    height: 40px;
+    font-size: 14px;
+  }
+
+  .energy-assumptions legend {
+    font-size: 11px;
+  }
+
+  .weather-message p {
+    font-size: 14px;
   }
 
   .weather-table {
-    font-size: 11px;
+    font-size: 14px;
   }
 
   .weather-table th,
   .weather-table td {
-    padding: 4px 6px 4px 0;
+    padding: 6px 6px 6px 0;
+  }
+
+  .weather-table thead th {
+    font-size: 10px;
   }
 
   .wx-date,
@@ -2777,44 +3186,143 @@ input {
     min-width: 110px;
   }
 
+  .wx-sub {
+    font-size: 12px;
+  }
+
+  .wx-badge {
+    font-size: 12px;
+  }
+
+  .wx-warning {
+    font-size: 13px;
+  }
+
+  .wx-warning a {
+    font-size: 13px;
+  }
+
+  .route-popover {
+    right: auto;
+    left: 10px;
+    width: calc(100vw - 20px);
+  }
+
+  .weather-warnings {
+    font-size: 13px;
+  }
+
+  /* -- Dialogs ------------------------------------------------------------ */
+
+  .dialog {
+    width: calc(100vw - 20px);
+    max-height: 88vh;
+  }
+
+  .dialog-body p,
+  .dialog-body li {
+    font-size: 14px;
+  }
+
+  .field-row label {
+    font-size: 14px;
+  }
+
+  .field-row input {
+    height: 40px;
+    font-size: 14px;
+  }
+
+  .dialog-actions .btn {
+    min-height: 40px;
+  }
+
+  .empty-card {
+    padding: 20px 18px;
+  }
+
+  .empty-card h2 {
+    font-size: 16px;
+  }
+
+  .empty-card p {
+    font-size: 14px;
+  }
+
+  .toast {
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    font-size: 14px;
+  }
+
   .settings-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .settings-field label {
+    font-size: 14px;
+  }
+
   .settings-field input,
   .settings-field select {
-    height: 34px;
+    height: 40px;
+    font-size: 14px;
+  }
+
+  .trip-name {
+    font-size: 14px;
+  }
+
+  .trip-meta,
+  .trip-badge {
+    font-size: 12px;
+  }
+
+  .trip-actions .btn-small {
+    min-height: 40px;
+  }
+
+  .trips-empty,
+  .trips-problem {
+    font-size: 14px;
   }
 
   .dialog--wide {
     width: calc(100vw - 20px);
   }
-
-  .trip-actions .btn-small {
-    flex: 1 1 auto;
-  }
 }
 
 @media (max-width: 430px) {
+  .route-tag {
+    max-width: 24vw;
+  }
+
   .brand-name {
     font-size: 12.5px;
   }
 
-  .btn-ghost#btn-about {
-    padding: 0 7px;
-  }
-
-  .route-tag {
-    font-size: 9px;
-    padding: 1px 6px;
-  }
-
   .profile-readout {
-    font-size: 11px;
+    font-size: 11.5px;
   }
 
   .profile-status {
     display: none;
+  }
+
+  #btn-about {
+    padding: 0 7px;
+  }
+}
+
+/* The narrowest phones: the editor row has to shed the snap *word* (the
+   checkbox keeps its accessible name) and tighten the mode switch. */
+@media (max-width: 360px) {
+  .snap-toggle span {
+    display: none;
+  }
+
+  .seg-mode .seg-btn {
+    padding: 0 5px;
+    font-size: 11px;
   }
 }
 

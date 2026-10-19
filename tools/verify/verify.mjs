@@ -8,7 +8,7 @@
  *   - largest single asset (Pages caps at 25 MiB)
  *   - any bundled data asset that is large enough to question
  *
- * Usage: node scripts/verify.mjs [--skip-tests]
+ * Usage: node tools/verify/verify.mjs [--skip-tests]
  */
 import { execFileSync } from "node:child_process";
 import { readdirSync, statSync, readFileSync } from "node:fs";
@@ -88,7 +88,7 @@ if (!skipTests) {
 step("build", () => {
   run("npx", ["vite", "build"]);
   // Mirror `npm run build`: the data files and their licence must land in dist.
-  run("node", ["scripts/copy-data.mjs"]);
+  run("node", ["tools/verify/copy-data.mjs"]);
   return "ok";
 });
 
@@ -160,13 +160,13 @@ step("dist budget", () => {
 step("licence audit", () => {
   // Every shipped file must have a licence, and the notices we are obliged to
   // redistribute must be in the build.
-  const out = run("node", ["scripts/licence-audit.mjs"]);
+  const out = run("node", ["tools/verify/licence-audit.mjs"]);
   return out.trim().split("\n").pop();
 });
 
 step("decisions", () => {
   // No ambiguity may be left for a user to discover in production.
-  const out = run("node", ["scripts/check-decisions.mjs"]);
+  const out = run("node", ["tools/verify/check-decisions.mjs"]);
   return out.trim().split("\n").pop();
 });
 

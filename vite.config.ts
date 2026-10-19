@@ -19,9 +19,9 @@ const nodeModulesRealPath = (() => {
 /**
  * Ship the licence notices the build is obliged to carry.
  *
- * `scripts/copy-licences.mjs` exists for exactly this, but `npm run build` does
+ * `tools/verify/copy-licences.mjs` exists for exactly this, but `npm run build` does
  * not call it (package.json is owned elsewhere), and `vite build` empties
- * `dist/` — so `node scripts/licence-audit.mjs` failed on a clean build even
+ * `dist/` — so `node tools/verify/licence-audit.mjs` failed on a clean build even
  * though the notices were all present in the repository. Running the script at
  * the end of the bundle keeps one definition of what must ship, and makes the
  * audit reproducible from `npm run build`.
@@ -30,7 +30,7 @@ const copyLicences = {
   name: 'copy-licences',
   apply: 'build' as const,
   closeBundle() {
-    execFileSync(process.execPath, ['scripts/copy-licences.mjs'], { stdio: 'inherit' });
+    execFileSync(process.execPath, ['tools/verify/copy-licences.mjs'], { stdio: 'inherit' });
   },
 };
 
