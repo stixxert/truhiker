@@ -40,6 +40,8 @@ export class TripSettingsDialog {
   private readonly form: HTMLFormElement;
   private readonly errors: HTMLElement;
   private readonly unavailable: HTMLElement;
+  /** D3's parcel windows, shown only when mail drops are chosen. */
+  private readonly supportHint: HTMLElement;
   private readonly fields: {
     massKg: HTMLInputElement;
     heightCm: HTMLInputElement;
@@ -61,6 +63,7 @@ export class TripSettingsDialog {
     this.form = required<HTMLFormElement>(root, 'settings-form');
     this.errors = required(root, 'settings-errors');
     this.unavailable = required(root, 'settings-unavailable');
+    this.supportHint = required(root, 'settings-support-hint');
     this.fields = {
       massKg: required<HTMLInputElement>(root, 'settings-mass'),
       heightCm: required<HTMLInputElement>(root, 'settings-height'),
@@ -77,6 +80,7 @@ export class TripSettingsDialog {
       event.preventDefault();
       this.submit();
     });
+    this.fields.support.addEventListener('change', () => this.renderSupportHint());
   }
 
   get isOpen(): boolean {
@@ -121,6 +125,20 @@ export class TripSettingsDialog {
     this.fields.dailyHours.value = values.dailyHours;
     this.fields.startDate.value = values.startDate;
     this.fields.support.value = values.support;
+    this.renderSupportHint();
+  }
+
+  /**
+   * The support model is a promise about where food comes from, so the parcel
+   * windows of D3 are stated whenever mail drops are chosen — and the carry-all
+   * default is stated just as plainly.
+   */
+  private renderSupportHint(): void {
+    this.supportHint.textContent =
+      this.fields.support.value === 'mail-drops'
+        ? this.i18n.t('settings.mailDropsHint')
+        : this.i18n.t('settings.carryAllHint');
+    this.supportHint.dataset.support = this.fields.support.value;
   }
 
   private readValues(): SettingsFormValues {

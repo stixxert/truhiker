@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { defineConfig } from 'vite';
 
@@ -15,7 +16,26 @@ const nodeModulesRealPath = (() => {
   }
 })();
 
+/**
+ * Ship the licence notices the build is obliged to carry.
+ *
+ * `scripts/copy-licences.mjs` exists for exactly this, but `npm run build` does
+ * not call it (package.json is owned elsewhere), and `vite build` empties
+ * `dist/` — so `node scripts/licence-audit.mjs` failed on a clean build even
+ * though the notices were all present in the repository. Running the script at
+ * the end of the bundle keeps one definition of what must ship, and makes the
+ * audit reproducible from `npm run build`.
+ */
+const copyLicences = {
+  name: 'copy-licences',
+  apply: 'build' as const,
+  closeBundle() {
+    execFileSync(process.execPath, ['scripts/copy-licences.mjs'], { stdio: 'inherit' });
+  },
+};
+
 export default defineConfig({
+  plugins: [copyLicences],
   // Relative asset paths: the build is a static SPA that can live on any path.
   base: './',
   worker: {

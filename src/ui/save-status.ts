@@ -21,6 +21,8 @@ export function saveStatusText(status: SaveStatus, i18n: Pick<I18n, 't' | 'local
       return '';
     case 'dirty':
       return i18n.t('save.dirty');
+    case 'saving':
+      return i18n.t('save.saving');
     case 'saved':
       return i18n.t('save.saved', {
         time: formatSaveTime(status.at ?? Date.now(), i18n.locale),
@@ -39,6 +41,11 @@ export function saveStatusText(status: SaveStatus, i18n: Pick<I18n, 't' | 'local
 export function saveStatusDetail(status: SaveStatus): string | null {
   if (status.kind === 'error' || status.kind === 'unavailable') return status.message ?? null;
   return null;
+}
+
+/** True while a write has been requested but has not committed yet. */
+export function isPendingSave(status: SaveStatus): boolean {
+  return status.kind === 'saving';
 }
 
 /** Browsers sometimes return multi-line quota messages; one line is enough. */

@@ -112,6 +112,7 @@ export const en: Record<MessageKey, string> = {
   'pace.saved': 'Pace saved: {speed} km/h and {ascent} m/h.',
 
   'save.dirty': 'not saved',
+  'save.saving': 'saving …',
   'save.saved': 'saved {time}',
   'save.quota': 'Saving failed: browser storage is full. Download the trip as GPX instead.',
   'save.error': 'Saving failed: {message}',
@@ -158,6 +159,17 @@ export const en: Record<MessageKey, string> = {
   'trips.settings': 'Trip settings',
   'trips.engineMissing': 'The trip library is unavailable in this build.',
   'trips.actionsFor': 'Actions for {name}',
+
+  'storage.indexeddb': 'IndexedDB',
+  'storage.localstorage': 'localStorage',
+  'storage.usage': '{used} of ~{quota} used',
+  'storage.persistent': 'persistent storage',
+  'storage.notPersistent': 'the browser may clear it',
+  'storage.fallback':
+    'IndexedDB is unavailable, so trips are kept in localStorage (about 5 MB). Large trips cannot be saved until this works.',
+  'storage.migrated': '{n} moved from localStorage',
+  'storage.migrationFailed':
+    'Trips in localStorage could not be moved. They are still in localStorage.',
 
   'weather.open': 'Weather',
   'weather.title': 'Weather along the route',
@@ -361,4 +373,144 @@ export const en: Record<MessageKey, string> = {
   'about.kartverketLink': 'kartverket.no',
   'about.mapterhornLink': 'mapterhorn.com',
   'about.maplibreLink': 'maplibre.org',
+  'about.osm':
+    'Resupply points (shops, fuel stations, post): © OpenStreetMap contributors, ODbL 1.0. The file is a derivative database and can be downloaded.',
+  'about.osmLink': 'openstreetmap.org/copyright',
+  'about.odblLink': 'ODbL 1.0',
+  'about.osmNote':
+    'The resupply points are an OSM extract of shops, fuel stations and post points. Opening hours are not stored in the file — only whether OSM had them.',
+
+  'supply.open': 'Resupply',
+  'supply.title': 'Resupply and energy',
+  'supply.tabResupply': 'Resupply',
+  'supply.tabEnergy': 'Energy',
+  'supply.radius': 'Corridor',
+  'supply.radiusOption': '{km} km',
+  'supply.radiusHint':
+    'Points within the corridor along the route. The default is 5 km; increase it to see what exists nearby. Huts are always fetched within 5 km. The detour is shown per point and never added to the distance.',
+  'supply.refresh': 'Refresh',
+  'supply.legsTitle': 'Legs',
+  'supply.warningsTitle': 'Caveats',
+  'supply.engineWarnings': 'Engine notes (English, verbatim)',
+  'supply.pointsTitle': 'Points along the route',
+  'supply.noTrip': 'No trip is loaded. Open a GPX file or try the demo route.',
+  'supply.noRoute': 'The trip has no route geometry, so there is no corridor to search.',
+  'supply.noProfile':
+    'The profile has no body data. Without mass, height and age, kcal per day cannot be computed — and without that, neither can the food mass for a leg.',
+  'supply.loading': 'Loading resupply points …',
+  'supply.indexFailed':
+    'The shop data could not be loaded ({message}). Nothing is shown — which does not mean there are no shops.',
+  'supply.planFailed': 'The resupply plan could not be built ({message}).',
+  'supply.countOne': '{count} point along the route',
+  'supply.countMany': '{count} points along the route',
+  'supply.fetched': 'fetched {time}',
+  'supply.indexLine': 'OpenStreetMap extract {date} · {count} points · ODbL 1.0',
+  'supply.worstGap': 'Longest stretch without resupply: {distance} · {days}',
+  'supply.hutsFailed':
+    'Huts could not be fetched ({message}). The shops below are complete, but huts are missing from the list.',
+  'supply.totals': 'Total {kg} kg of food · {cost} NOK · {days}',
+  'supply.empty':
+    'No resupply points within {radius} of the route. Increase the corridor to see what exists nearby.',
+  'supply.gapWarning': '{name}: {days} without resupply needs {kg} kg of food.',
+  'supply.detourOnRoute': 'on the route',
+  'supply.detourValue': '{distance} off the route',
+  'supply.gapValue': '{distance} · {days}',
+  'supply.gapNone': 'last point',
+  'supply.rowAria':
+    '{name}, {kind}, {distance} from the start, {detour}, next usable point {gap}',
+  'supply.legTitle': '{from} → {to}',
+  'supply.legNumbers': '{distance} · {days} · {kcal} kcal · {kg} kg food · {cost} NOK',
+  'supply.carryWarning': 'Carry {kg} kg for {days} — more than the {max} days you can carry for.',
+  'supply.warnHutsCounted':
+    '{count} huts ({names}) are counted as a food source because you asked for it. Hut food is not confirmed — carry a reserve.',
+  'supply.warnHutOne':
+    'The hut on the route ({names}) does not count as food: whether it sells food is not machine-readable. Assume you carry everything yourself.',
+  'supply.warnHutMany':
+    '{count} huts on the route ({names}) do not count as food: whether a hut sells food is not machine-readable.',
+  'supply.warnUnmannedFuel':
+    'Unmanned fuel station ({names}) does not count as food — check the station.',
+  'supply.warnHoursAll':
+    'None of the {total} points is verified open. The file records only whether OSM had opening hours, not what they are.',
+  'supply.warnHoursSome':
+    '{missing} of {total} points have no opening hours in OSM at all, and none is verified open. Check before you plan around them.',
+  'supply.warnDetour':
+    '{count} points are more than 2 km off the route ({names}); the walk in and back is extra.',
+  'supply.warnPostNotFood':
+    '{count} post or parcel points do not sell food. They can only be drop addresses: choose “food sent ahead” in trip settings.',
+  'supply.warnGap':
+    'The longest stretch without resupply is {distance} ({days}): you must carry {kg} kg of food.',
+  'supply.warnHutsFailed':
+    'Huts are not in this list because the service did not respond.',
+  'supply.listMore': '{shown} and {more} more',
+  'supply.attribution':
+    'Shops, fuel and post: © OpenStreetMap contributors (ODbL 1.0). Huts: ©Kartverket Turrutebasen (CC BY 4.0).',
+  'supply.note':
+    'No point is verified open. Check the opening hours before planning around one — Sundays and public holidays especially.',
+  'supply.provenanceOsm': 'OSM/ODbL',
+  'supply.provenanceCurated': 'Turrutebasen (CC BY 4.0)',
+  'supply.provenanceChain': 'Chain (verified)',
+  'supply.badgeUnconfirmed': 'not confirmed',
+  'supply.badgeUnmanned': 'unmanned',
+  'supply.badgeHoursUnread': 'hours not read',
+  'supply.badgeHoursMissing': 'hours unknown',
+  'supply.dayValue': '{value} d',
+  'supply.kind.supermarket': 'supermarket',
+  'supply.kind.convenience': 'convenience',
+  'supply.kind.general': 'shop',
+  'supply.kind.grocery': 'grocery',
+  'supply.kind.fuel': 'fuel station',
+  'supply.kind.post': 'post',
+  'supply.kind.parcel': 'parcel locker',
+  'supply.kind.hut': 'hut',
+  'supply.notFood': 'not food',
+  'supply.filterAll': 'All {count}',
+  'supply.filterFood': 'Food {count}',
+  'supply.filterHuts': 'Huts {count}',
+  'supply.gapToNext': 'next usable point: {gap}',
+  'supply.openSettings': 'Trip settings',
+
+  'energy.title': 'Energy and food',
+  'energy.noTrip': 'No trip is loaded, so there are no days to compute for.',
+  'energy.noRoute': 'No route is loaded, so there are no days to compute for.',
+  'energy.noProfile':
+    'The profile has no body data (mass, height, age), so BMR and energy expenditure cannot be computed.',
+  'energy.elevationMissing':
+    'Elevation data is missing: {reason}. Expenditure, intake ceiling and mass change are disabled — not set to zero.',
+  'energy.reasonDem': 'Kartverket elevation data (DTM) could not be loaded',
+  'energy.reasonScope': 'the route leaves Norway, where elevation data is unavailable',
+  'energy.reasonNoRoute': 'no route is loaded',
+  'energy.reasonLoading': 'elevation data is still loading',
+  'energy.rangeTitle': 'Daily expenditure (TDEE)',
+  'energy.rangeValue': '{low}–{high} kcal/day',
+  'energy.centreLabel': 'model midpoint {value} kcal/day',
+  'energy.ceilingLabel': 'Intake ceiling {value} kcal/day (2.5 × BMR)',
+  'energy.bmrLabel': 'BMR {value} kcal/day ({equation})',
+  'energy.equation.mifflin': 'Mifflin–St Jeor',
+  'energy.equation.cunningham': 'Cunningham',
+  'energy.unsustainableTitle': 'The deficit is structurally unavoidable',
+  'energy.unsustainableBody':
+    'You burn {tdee} kcal/day, but the intake ceiling is {ceiling} kcal/day. The {deficit} kcal/day deficit cannot be eaten away, however much you carry.',
+  'energy.sustainableTitle': 'You can eat enough',
+  'energy.sustainableBody':
+    'Expenditure ({tdee} kcal/day) is below the intake ceiling ({ceiling} kcal/day). A {deficit} kcal/day deficit is a choice, not a requirement.',
+  'energy.plannedIntake': 'Planned intake {value} kcal/day',
+  'energy.massTitle': 'Mass change over the trip',
+  'energy.massResult': '{kg} kg over {days}',
+  'energy.massNoChange': 'No mass change with these numbers.',
+  'energy.assumptions': 'Assumptions',
+  'energy.foodDensity': 'Food energy density (kcal/g)',
+  'energy.foodDensityHint':
+    'Dry food is typically 4.4 kcal/g. Change it if you carry something else — the food mass below follows.',
+  'energy.packMass': 'Pack mass (kg)',
+  'energy.packMassHint': 'Base mass before food. The food is added per leg.',
+  'energy.foodMass': 'Food for the whole trip: {kg} kg',
+  'energy.daysLabel': '{days} at {km}',
+  'energy.rangeNote': 'The band is the model’s uncertainty (×0.75–×1.30), not a measurement.',
+  'energy.fatAssumed': 'Body fat is assumed at {percent} % because you did not enter it.',
+  'energy.chartAxis': 'kcal per day',
+  'energy.massAxis': 'Days',
+  'settings.carryAllHint':
+    'You carry all the food from the start. Long stretches between shops produce a carry warning in the resupply panel.',
+  'settings.mailDropsHint':
+    'Mail drops: a parcel to a Post in Shops counter must be collected within 7 days (post it between arrival −7 and −5 days). Poste restante: 21 days (post between arrival −21 and −5). The app never schedules a drop it cannot show is collectable.',
 };

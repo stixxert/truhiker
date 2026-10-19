@@ -136,12 +136,11 @@ describe('editor state', () => {
 
     const twoLegs = trip([leg('a', 4), leg('b', 4)]);
     expect(availableCommands(middle, twoLegs).canDeleteLeg).toBe(true);
-  });
 
-  it('refuses to delete the last vertex of a two-point leg', () => {
-    const model = trip([leg('a', 2)]);
-    const state = selectVertex(initialEditorState(model), 'a', 0, false);
-    expect(availableCommands(state, model).canDeleteVertex).toBe(false);
+    // A two-point leg has no vertex to spare: the invariant is a leg with ≥2.
+    const tiny = trip([leg('a', 2)]);
+    const tinyState = selectVertex(initialEditorState(tiny), 'a', 0, false);
+    expect(availableCommands(tinyState, tiny).canDeleteVertex).toBe(false);
   });
 
   it('builds delete/split/reverse/rename/delete-leg commands', () => {
@@ -163,15 +162,14 @@ describe('editor state', () => {
     const selectB = selectLeg(state, 'b');
     expect(deleteLegCommand(selectB, model)).toEqual({ type: 'delete-leg', legId: 'b' });
     expect(reverseCommand(selectB, model)).toEqual({ type: 'reverse-leg', legId: 'b' });
-  });
 
-  it('returns no command when nothing is selected', () => {
-    const model = trip([leg('a')]);
-    const state = initialEditorState(model);
-    expect(deleteVertexCommand(state)).toBeNull();
-    expect(splitCommand(state)).toBeNull();
-    expect(trimCommand(state)).toBeNull();
-    expect(deleteLegCommand(state, model)).toEqual({ type: 'delete-leg', legId: 'a' });
+    // With nothing selected there is no vertex command — and deleting the only
+    // leg is still a command (it is the way to abandon it).
+    const blank = initialEditorState(trip([leg('a')]));
+    expect(deleteVertexCommand(blank)).toBeNull();
+    expect(splitCommand(blank)).toBeNull();
+    expect(trimCommand(blank)).toBeNull();
+    expect(deleteLegCommand(blank, trip([leg('a')]))).toEqual({ type: 'delete-leg', legId: 'a' });
   });
 
   it('inserts points at the end of a real leg when drawing', () => {

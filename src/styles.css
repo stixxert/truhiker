@@ -1278,6 +1278,12 @@ input {
   color: var(--warn);
 }
 
+/* A write that has been requested but has not committed: still not saved. */
+.save-status[data-kind='saving'] {
+  color: var(--warn);
+  opacity: 0.85;
+}
+
 .save-status[data-kind='saved'] {
   color: var(--accent-dim);
 }
@@ -1483,7 +1489,8 @@ input {
 
 /* Weather panel ------------------------------------------------------------ */
 
-.weather-panel {
+.weather-panel,
+.side-panel {
   position: absolute;
   top: 12px;
   right: 58px;
@@ -1737,6 +1744,511 @@ input {
   color: var(--muted-dim);
 }
 
+
+/* --------------------------------------------------------------------------
+   Resupply + energy panel (docs/13)
+   -------------------------------------------------------------------------- */
+
+.seg-tabs {
+  margin-right: auto;
+}
+
+.seg-tabs .seg-btn {
+  padding: 4px 10px;
+  font-size: 11.5px;
+}
+
+.supply-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.supply-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.supply-controls select {
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 11.5px;
+}
+
+.supply-huts-error {
+  margin: 0;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(227, 178, 105, 0.4);
+  background: rgba(227, 178, 105, 0.08);
+  color: var(--warn);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.supply-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.supply-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.supply-chip[aria-pressed='true'] {
+  border-color: rgba(58, 217, 196, 0.55);
+  background: rgba(58, 217, 196, 0.12);
+  color: var(--accent-strong);
+}
+
+.supply-chip:hover {
+  border-color: var(--accent-dim);
+}
+
+.supply-empty {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.supply-points,
+.supply-legs,
+.supply-warnings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.supply-point {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+
+/* A point that is not a food source is visibly secondary, not hidden. */
+.supply-point[data-usable='false'] {
+  border-style: dashed;
+  background: rgba(22, 33, 36, 0.55);
+}
+
+.supply-point-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.supply-point-main:hover {
+  background: rgba(58, 217, 196, 0.07);
+}
+
+.supply-point-head {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+
+.supply-point-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.supply-flag {
+  flex: none;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 158, 100, 0.45);
+  color: #ff9e64;
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.supply-point-meta,
+.supply-provenance {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.supply-provenance {
+  color: var(--muted-dim);
+  font-size: 9.5px;
+}
+
+.supply-point-gap {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.supply-point-gap[data-danger='true'] {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.supply-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.supply-badge {
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.supply-warning {
+  margin: 0;
+  padding: 6px 9px 7px;
+  border-top: 1px solid rgba(231, 130, 118, 0.35);
+  background: rgba(231, 130, 118, 0.08);
+  color: var(--error);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.supply-h3 {
+  margin: 6px 0 0;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-dim);
+}
+
+.supply-leg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(22, 33, 36, 0.6);
+}
+
+.supply-leg[data-danger='true'] {
+  border-color: rgba(231, 130, 118, 0.45);
+}
+
+.supply-leg-title {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.supply-leg-numbers {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.supply-leg .supply-warning {
+  border-top: 0;
+  padding: 3px 0 0;
+  background: transparent;
+}
+
+.supply-warning-item {
+  display: flex;
+  gap: 6px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.supply-warning-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--muted-dim);
+}
+
+.supply-warning-item[data-severity='warning'] .supply-warning-dot {
+  background: var(--warn);
+}
+
+.supply-warning-item[data-severity='critical'] .supply-warning-dot {
+  background: var(--error);
+}
+
+.supply-warning-item[data-severity='critical'] {
+  color: var(--text);
+}
+
+.supply-line {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.supply-line[data-danger='true'] {
+  color: var(--error);
+}
+
+.supply-totals {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.engine-notes {
+  font-size: 10px;
+  color: var(--muted-dim);
+}
+
+.engine-notes summary {
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.engine-notes ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1.45;
+}
+
+.supply-attribution {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* Energy --------------------------------------------------------------- */
+
+.energy-headline {
+  margin: 0;
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.energy-headline[data-verdict='unavoidable'] {
+  color: var(--error);
+}
+
+.energy-headline[data-verdict='ok'] {
+  color: var(--accent);
+}
+
+.energy-body {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text);
+  opacity: 0.86;
+}
+
+.energy-band,
+.energy-curve-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.energy-band .energy-axis {
+  stroke: var(--axis);
+  stroke-width: 1;
+}
+
+.energy-band .energy-range {
+  fill: rgba(58, 217, 196, 0.34);
+  stroke: rgba(58, 217, 196, 0.85);
+  stroke-width: 1;
+}
+
+.energy-band .energy-band-edge {
+  stroke: rgba(58, 217, 196, 0.85);
+  stroke-width: 1.4;
+}
+
+.energy-band .energy-centre {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+
+.energy-band .energy-ceiling {
+  stroke: var(--error);
+  stroke-width: 2;
+  stroke-dasharray: 3 2;
+}
+
+.energy-curve-svg .energy-axis {
+  stroke: var(--axis);
+  stroke-width: 1;
+}
+
+.energy-curve-svg .energy-axis-muted {
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 1;
+}
+
+.energy-curve-svg .energy-curve-dot {
+  fill: var(--error);
+}
+
+.energy-curve-svg .energy-curve {
+  fill: none;
+  stroke: var(--error);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.energy-value {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.energy-detail {
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.energy-food-mass {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.energy-assumptions {
+  margin: 4px 0 0;
+  padding: 8px 9px 4px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.energy-assumptions legend {
+  padding: 0 5px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-dim);
+}
+
+.energy-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.energy-field label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.energy-field input {
+  width: 100%;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.energy-field .field-hint {
+  grid-column: 1 / -1;
+}
+
+/* Map marker card ------------------------------------------------------ */
+
+.map-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 150px;
+  font-family: inherit;
+}
+
+.map-card-title {
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.map-card-line {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.map-card-line[data-danger='true'] {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.map-card-badges,
+.map-card-provenance {
+  font-size: 9.5px;
+  color: var(--muted-dim);
+}
+
+.maplibregl-popup-content {
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: rgba(13, 22, 24, 0.97);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.maplibregl-popup-tip {
+  border-top-color: rgba(13, 22, 24, 0.97);
+}
+
 /* Trip library ------------------------------------------------------------- */
 
 .dialog--wide {
@@ -1754,6 +2266,24 @@ input {
 
 .trips-empty {
   margin: 0 0 10px;
+}
+
+/* Where the trips live, and how full it is. Rendered by the dialog itself. */
+.trips-storage {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--muted-dim);
+}
+
+.trips-storage-note {
+  margin: 6px 0 0;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(227, 178, 105, 0.4);
+  background: rgba(227, 178, 105, 0.08);
+  color: var(--warn);
+  font-size: 11.5px;
+  line-height: 1.35;
 }
 
 .trip-list {
@@ -2156,7 +2686,8 @@ input {
     flex-basis: 100%;
   }
 
-  .weather-panel {
+  .weather-panel,
+  .side-panel {
     top: auto;
     left: 0;
     right: 0;

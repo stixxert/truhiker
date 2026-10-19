@@ -1,31 +1,65 @@
 # `src/store` — trip persistence and file interchange
 
-One engine, three jobs: keep trips in `localStorage`, write them out as GPX 1.1
-or GeoJSON, and read them back without losing the geometry.
+One engine, three jobs: keep trips (**IndexedDB**, with localStorage as the
+fallback), write them out as GPX 1.1 or GeoJSON, and read them back without
+losing the geometry.
 
 ```ts
-import { createTripStore, emptyTrip, defaultProfile } from '../store';
+import { createTripStorage, emptyTrip, defaultProfile } from '../store';
 
-const store = createTripStore();            // localStorage; memory fallback
+const store = await createTripStorage();   // IndexedDB; localStorage fallback
+console.log(store.backend);                // 'indexeddb' | 'localstorage'
 const trip = emptyTrip('Jotunheimen', defaultProfile());
-store.save(trip);
+await store.save(trip);
 store.toGpx(trip);                          // ← download this
 store.fromFile(text, 'route.gpx');          // ← upload this
 ```
+
+`createTripStore()` (synchronous, localStorage/memory) still exists: it is the
+fallback and what the tests use. `src/app/trip-session.ts` talks to `TripStoreLike`
+and awaits everything, so it works with either.
 
 Anything that goes wrong is a `StoreError` from `src/contracts`, never a bare
 `Error` and never a silent no-op:
 
 | code | when |
 | --- | --- |
-| `quota-exceeded` | over the 1.5 MB trip limit, or the browser refused the write |
+| `quota-exceeded` | over the 50 MB per-trip ceiling, over the 1.5 MB localStorage guard, or the browser refused the write |
 | `corrupt` | a stored body / uploaded file is not a readable trip (malformed XML is `corrupt`) |
-| `unsupported` | a future `schemaVersion`, or a file type we do not read |
+| `unsupported` | a future `schemaVersion`, a file type we do not read, or no IndexedDB at all |
 | `not-found` | reserved; `load()` returns `null` instead of throwing |
 
 ---
 
-## Key layout
+## IndexedDB — the durable backend
+
+Database `truhiker`, version 1, two object stores:
+
+| store | keyPath | contents |
+| --- | --- | --- |
+| `bodies` | `id` | the whole `Trip`, structured-cloned — not a JSON string |
+| `summaries` | `id` | `{ id, name, updatedAt, legCount, distanceM, byteSize }`, index `updatedAt` |
+
+- `save` and `remove` open **one** `readwrite` transaction over both stores, so a
+  body and its summary cannot disagree. `list()` opens a transaction over
+  `summaries` **only**: a 10 MB trip is never deserialised to draw a row.
+- The per-trip ceiling is `MAX_INDEXEDDB_TRIP_BYTES = 50_000_000`; the old 1.5 MB
+  guard belongs to the localStorage backend alone.
+- `usage()` reports `navigator.storage.estimate()`; `requestPersistence()` calls
+  `navigator.storage.persist()` once.
+- `migrateLegacy()` imports the `npl:trips:v1` / `npl:trip:<id>` keys in one
+  transaction and deletes them **after** it commits. Idempotent, and a failure
+  leaves the old copies untouched.
+- `createTripStorage()` falls back to `createTripStore()` when IndexedDB is
+  unavailable (private mode, blocked storage) and sets `problem` to the reason —
+  the UI shows it rather than pretending.
+
+The full reasoning, the measured numbers and what is still not durable are in
+`docs/12-storage.md`.
+
+---
+
+## localStorage key layout (fallback + migration source)
 
 | key | value |
 | --- | --- |
@@ -59,18 +93,23 @@ owns that field, so the trip you saved is the trip you read back.
 - `save()` validates and refuses: missing id, broken coordinates, non-numeric
   `ele` or a trip that is too large. Nothing is ever written partially.
 
-## Size limit: 1.5 MB
+## Size limits
 
-`MAX_TRIP_BYTES = 1_500_000` of **UTF-8 bytes** of the serialised JSON.
+**IndexedDB:** a per-trip ceiling of **50 MB**
+(`MAX_INDEXEDDB_TRIP_BYTES = 50_000_000` UTF-8 bytes of the serialised trip). That
+is a sanity bound, not the old guard: the 3,000 km / 100,000-point route measured
+in `test/acceptance/large-trip.test.ts` is **8.01 MB** and saves without
+complaint. A trip above the ceiling is refused with a message naming its size and
+the limit.
 
-localStorage holds ~5 MB per origin, and most browsers count UTF-16 code units,
-so 1.5 MB of UTF-8 is roughly 3 MB of real quota — the rest stays available for
-the app's other keys. The limit also stays well under the ~5–10 MB of JSON that a
-3,000 km trace with provenance produces, which is the case the spec cares about.
+**localStorage:** `MAX_TRIP_BYTES = 1_500_000` of **UTF-8 bytes** of the
+serialised JSON. localStorage holds ~5 MB per origin, and most browsers count
+UTF-16 code units, so 1.5 MB of UTF-8 is roughly 3 MB of real quota — the rest
+stays available for the app's other keys.
 
-A trip above the limit is **refused** with a message naming the size, the limit
-and the remedy (download the GPX) — never truncated, never partially stored, and
-never simplified behind the user's back.
+Either way a trip above the limit is **refused** with a message naming the size,
+the limit and the remedy (download the GPX) — never truncated, never partially
+stored, and never simplified behind the user's back.
 
 `QuotaExceededError` is recognised by `name` (`QuotaExceededError`,
 `NS_ERROR_DOM_QUOTA_REACHED`), by `code` (22 or 1014) or by message text, and is
@@ -149,9 +188,14 @@ a fallback.
 Measured on the 50-point synthetic route in `test/store/helpers.ts`
 (12,551.5 m, one leg, every point with a DEM elevation):
 **the export is 5,703 bytes of GPX** (≈ 88 bytes per point). GeoJSON for the same
-trip is 5,246 bytes; the stored JSON body is 4,518 bytes. A 1.5 MB trip is
-therefore on the order of 17,000 points — far beyond any walk anyone plans, and
-the size guard fires long before the quota does.
+trip is 5,246 bytes; the stored JSON body is 4,518 bytes.
+
+That extrapolates to ~90 bytes per point, and the measured 3,000 km acceptance
+trip (100,000 points, two legs, elevation and provenance on every point) is
+**8.01 MB of JSON**. The old comment here claimed a 1.5 MB trip would be "on the
+order of 17,000 points — far beyond any walk anyone plans"; that was wrong, and a
+100,000-point long-distance route is precisely the case that made localStorage
+unusable. It is also why the per-trip ceiling is now 50 MB on IndexedDB.
 
 ## Import
 
@@ -183,9 +227,9 @@ consecutive pair of points has elevation on both ends.
 - **A trip with no legs exports to a GPX that cannot be re-imported** (a GPX with
   no track is rejected as `corrupt`). An empty trip is not something to download;
   the app should disable the button rather than rely on this.
-- **`list()` reads and parses every body** to build summaries. At tens of trips
-  that is nothing; at thousands it would need a separate summary index, which
-  would be a second source of truth and is not worth it yet.
+- **`list()` on localStorage reads and parses every body** to build summaries.
+  At tens of trips that is nothing; that is one of the reasons IndexedDB — where
+  summaries are their own store — is the default backend.
 - **The metadata reader in `serialize.ts` is a small, local XML reader**, not a
   general GPX parser — `src/core/gpx.ts` does the real work. It only recovers the
   `<metadata><name>` and `<extensions>` elements this module writes, and it never

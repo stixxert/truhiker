@@ -24,6 +24,12 @@ describe('save status text', () => {
     expect(saveStatusText(status({}), no)).toBe('ikke lagret');
     expect(saveStatusText(status({}), en)).toBe('not saved');
 
+    // A write that has been requested but has not committed says so.
+    const saving = status({ kind: 'saving' });
+    expect(saveStatusText(saving, no)).toBe('lagrer …');
+    expect(saveStatusText(saving, en)).toBe('saving …');
+    expect(saveStatusDetail(saving)).toBeNull();
+
     expect(saveStatusText(status({ kind: 'saved', at: AT }), no)).toBe('lagret 14:32');
     expect(formatSaveTime(AT, 'en-GB')).toBe('14:32');
 

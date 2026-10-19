@@ -113,6 +113,7 @@ export const no = {
   'pace.saved': 'Tempo lagret: {speed} km/t og {ascent} m/t.',
 
   'save.dirty': 'ikke lagret',
+  'save.saving': 'lagrer …',
   'save.saved': 'lagret {time}',
   'save.quota': 'Lagring mislyktes: nettleserlagringen er full. Last ned turen som GPX i stedet.',
   'save.error': 'Lagring mislyktes: {message}',
@@ -159,6 +160,17 @@ export const no = {
   'trips.settings': 'Turinnstillinger',
   'trips.engineMissing': 'Turbiblioteket er utilgjengelig i denne versjonen.',
   'trips.actionsFor': 'Handlinger for {name}',
+
+  'storage.indexeddb': 'IndexedDB',
+  'storage.localstorage': 'localStorage',
+  'storage.usage': '{used} av ~{quota} brukt',
+  'storage.persistent': 'varig lagring',
+  'storage.notPersistent': 'kan ryddes av nettleseren',
+  'storage.fallback':
+    'IndexedDB er utilgjengelig, så turene lagres i localStorage (ca. 5 MB). Store turer kan ikke lagres før dette virker.',
+  'storage.migrated': '{n} flyttet fra localStorage',
+  'storage.migrationFailed':
+    'Turer fra localStorage kunne ikke flyttes. De ligger fortsatt i localStorage.',
 
   'weather.open': 'Vær',
   'weather.title': 'Vær langs ruten',
@@ -362,6 +374,147 @@ export const no = {
   'about.kartverketLink': 'kartverket.no',
   'about.mapterhornLink': 'mapterhorn.com',
   'about.maplibreLink': 'maplibre.org',
+  'about.osm':
+    'Forsyningspunkter (butikker, bensinstasjoner, post): © OpenStreetMap-bidragsyterne, ODbL 1.0. Filen er en avledet database og kan lastes ned.',
+  'about.osmLink': 'openstreetmap.org/copyright',
+  'about.odblLink': 'ODbL 1.0',
+  'about.osmNote':
+    'Forsyningspunktene er et OSM-uttrekk av butikker, bensinstasjoner og postpunkt. Åpningstider er ikke lagret i filen, bare hvorvidt OSM hadde dem.',
+
+  // --- Resupply and energy (docs/13) --------------------------------------
+  'supply.open': 'Forsyning',
+  'supply.title': 'Forsyning og energi',
+  'supply.tabResupply': 'Forsyning',
+  'supply.tabEnergy': 'Energi',
+  'supply.radius': 'Korridor',
+  'supply.radiusOption': '{km} km',
+  'supply.radiusHint':
+    'Punkter innenfor korridoren rundt ruten. Standard er 5 km; øk den for å se hva som finnes i nærheten. Hytter hentes alltid innenfor 5 km. Avstikkeren vises per punkt og legges ikke til distansen.',
+  'supply.refresh': 'Oppdater',
+  'supply.legsTitle': 'Etapper',
+  'supply.warningsTitle': 'Forbehold',
+  'supply.engineWarnings': 'Maskinelle merknader (engelsk, uendret)',
+  'supply.pointsTitle': 'Punkter langs ruten',
+  'supply.noTrip': 'Ingen tur er lastet. Åpne en GPX-fil eller prøv demoruten.',
+  'supply.noRoute': 'Turen har ingen rutegeometri, så det er ingen korridor å lete i.',
+  'supply.noProfile':
+    'Profilen mangler kroppsdata. Uten vekt, høyde og alder kan ikke kcal per dag beregnes, og da kan ikke matmengden per etappe regnes ut.',
+  'supply.loading': 'Laster forsyningspunkter …',
+  'supply.indexFailed':
+    'Butikkdataene kunne ikke lastes ({message}). Ingenting vises – det betyr ikke at det ikke finnes butikker.',
+  'supply.planFailed': 'Forsyningsplanen kunne ikke bygges ({message}).',
+  'supply.countOne': '{count} punkt langs ruten',
+  'supply.countMany': '{count} punkter langs ruten',
+  'supply.fetched': 'hentet {time}',
+  'supply.indexLine': 'OpenStreetMap-uttrekk {date} · {count} punkt · ODbL 1.0',
+  'supply.worstGap': 'Lengste strekning uten forsyning: {distance} · {days}',
+  'supply.hutsFailed':
+    'Hytter kunne ikke hentes ({message}). Butikkene under er komplette, men hytter mangler i oversikten.',
+  'supply.totals': 'Totalt {kg} kg mat · {cost} kr · {days}',
+  'supply.empty':
+    'Ingen forsyningspunkter innenfor {radius} av ruten. Øk korridoren for å se hva som finnes i nærheten.',
+  'supply.gapWarning': '{name}: {days} uten forsyning krever {kg} kg mat.',
+  'supply.detourOnRoute': 'på ruten',
+  'supply.detourValue': '{distance} fra ruten',
+  'supply.gapValue': '{distance} · {days}',
+  'supply.gapNone': 'siste punkt',
+  'supply.rowAria':
+    '{name}, {kind}, {distance} fra start, {detour}, til neste brukbare punkt {gap}',
+  'supply.legTitle': '{from} → {to}',
+  'supply.legNumbers': '{distance} · {days} · {kcal} kcal · {kg} kg mat · {cost} kr',
+  'supply.carryWarning': 'Bær {kg} kg for {days} – mer enn {max} dager du kan bære for.',
+  'supply.warnHutsCounted':
+    '{count} hytter ({names}) er tatt med som matkilde fordi du ba om det. Mat på hytte er ikke bekreftet – ha reserve.',
+  'supply.warnHutOne':
+    'Hytte på ruten ({names}) teller ikke som mat: om det selges mat på hytta er ikke maskinlesbart. Regn med å bære alt selv.',
+  'supply.warnHutMany':
+    '{count} hytter på ruten ({names}) teller ikke som mat: om det selges mat på hytta er ikke maskinlesbart.',
+  'supply.warnUnmannedFuel':
+    'Ubemannet bensinstasjon ({names}) teller ikke som mat – sjekk stasjonen.',
+  'supply.warnHoursAll':
+    'Ingen av de {total} punktene er bekreftet åpne. Filen lagrer bare om OSM hadde åpningstider, ikke hva de er.',
+  'supply.warnHoursSome':
+    '{missing} av {total} punkt har ingen åpningstider i OSM, og ingen er bekreftet åpne. Sjekk før du planlegger rundt dem.',
+  'supply.warnDetour':
+    '{count} punkt ligger mer enn 2 km fra ruten ({names}); turen inn og tilbake kommer i tillegg.',
+  'supply.warnPostNotFood':
+    '{count} post- eller pakkepunkt selger ikke mat. De kan bare brukes som mottak: velg «mat sendes i forveien» i turinnstillingene.',
+  'supply.warnGap':
+    'Lengste strekning uten forsyning er {distance} ({days}): du må bære {kg} kg mat.',
+  'supply.warnHutsFailed':
+    'Hytter er ikke med i denne oversikten fordi tjenesten ikke svarte.',
+  'supply.listMore': '{shown} og {more} flere',
+  'supply.attribution':
+    'Butikker, bensinstasjoner og post: © OpenStreetMap-bidragsyterne (ODbL 1.0). Hytter: ©Kartverket Turrutebasen (CC BY 4.0).',
+  'supply.note':
+    'Ingen punkt er bekreftet åpne. Sjekk åpningstidene før du planlegger rundt et punkt – særlig søndager og helligdager.',
+  'supply.provenanceOsm': 'OSM/ODbL',
+  'supply.provenanceCurated': 'Turrutebasen (CC BY 4.0)',
+  'supply.provenanceChain': 'Kjede (verifisert)',
+  'supply.badgeUnconfirmed': 'ikke bekreftet',
+  'supply.badgeUnmanned': 'ubemannet',
+  'supply.badgeHoursUnread': 'åpningstid ikke lest',
+  'supply.badgeHoursMissing': 'åpningstid ukjent',
+  'supply.dayValue': '{value} d',
+  'supply.kind.supermarket': 'supermarked',
+  'supply.kind.convenience': 'nærbutikk',
+  'supply.kind.general': 'butikk',
+  'supply.kind.grocery': 'dagligvare',
+  'supply.kind.fuel': 'bensinstasjon',
+  'supply.kind.post': 'post',
+  'supply.kind.parcel': 'pakkeautomat',
+  'supply.kind.hut': 'hytte',
+  'supply.notFood': 'ikke mat',
+  'supply.filterAll': 'Alle {count}',
+  'supply.filterFood': 'Mat {count}',
+  'supply.filterHuts': 'Hytter {count}',
+  'supply.gapToNext': 'til neste brukbare punkt: {gap}',
+  'supply.openSettings': 'Turinnstillinger',
+
+  'energy.title': 'Energi og mat',
+  'energy.noTrip': 'Ingen tur er lastet, så det er ingen dager å regne for.',
+  'energy.noRoute': 'Ingen rute er lastet, så det er ingen dager å regne for.',
+  'energy.noProfile':
+    'Profilen mangler kroppsdata (vekt, høyde, alder), så BMR og forbrenning kan ikke beregnes.',
+  'energy.elevationMissing':
+    'Høydedata mangler: {reason}. Forbrenning, inntakstak og vektendring er slått av – ikke satt til null.',
+  'energy.reasonDem': 'Kartverkets høydedata (DTM) kunne ikke hentes',
+  'energy.reasonScope': 'ruten går utenfor Norge, der høydedata ikke finnes',
+  'energy.reasonNoRoute': 'ingen rute er lastet',
+  'energy.reasonLoading': 'høydedata lastes fortsatt',
+  'energy.rangeTitle': 'Dagsforbrenning (TDEE)',
+  'energy.rangeValue': '{low}–{high} kcal/dag',
+  'energy.centreLabel': 'modellens midtpunkt {value} kcal/dag',
+  'energy.ceilingLabel': 'Inntakstak {value} kcal/dag (2,5 × BMR)',
+  'energy.bmrLabel': 'BMR {value} kcal/dag ({equation})',
+  'energy.equation.mifflin': 'Mifflin–St Jeor',
+  'energy.equation.cunningham': 'Cunningham',
+  'energy.unsustainableTitle': 'Underskuddet er strukturelt uunngåelig',
+  'energy.unsustainableBody':
+    'Du forbrenner {tdee} kcal/dag, men inntakstaket er {ceiling} kcal/dag. Underskuddet på {deficit} kcal/dag kan du ikke spise deg bort fra, uansett hvor mye du bærer.',
+  'energy.sustainableTitle': 'Du kan spise nok',
+  'energy.sustainableBody':
+    'Forbruket ({tdee} kcal/dag) ligger under inntakstaket ({ceiling} kcal/dag). Underskuddet på {deficit} kcal/dag er et valg, ikke et krav.',
+  'energy.plannedIntake': 'Planlagt inntak {value} kcal/dag',
+  'energy.massTitle': 'Vektendring over turen',
+  'energy.massResult': '{kg} kg over {days}',
+  'energy.massNoChange': 'Ingen vektendring med disse tallene.',
+  'energy.assumptions': 'Forutsetninger',
+  'energy.foodDensity': 'Energitetthet i mat (kcal/g)',
+  'energy.foodDensityHint':
+    'Tørrmat er typisk 4,4 kcal/g. Endre hvis du bærer noe annet – matvekten under følger.',
+  'energy.packMass': 'Sekkvekt (kg)',
+  'energy.packMassHint': 'Basisvekt før mat. Maten kommer i tillegg per etappe.',
+  'energy.foodMass': 'Mat for hele turen: {kg} kg',
+  'energy.daysLabel': '{days} à {km}',
+  'energy.rangeNote': 'Spennet er modellens usikkerhet (×0,75–×1,30), ikke en måling.',
+  'energy.fatAssumed': 'Kroppsfett er antatt {percent} % fordi du ikke oppgav det.',
+  'energy.chartAxis': 'kcal per dag',
+  'energy.massAxis': 'Dager',
+  'settings.carryAllHint':
+    'Du bærer all mat fra start. Lange strekninger mellom butikker gir et bærevarsel i forsyningspanelet.',
+  'settings.mailDropsHint':
+    'Pakkepost: en pakke til Post i butikk må hentes innen 7 dager (sendes mellom ankomst −7 og −5 dager). Poste restante: 21 dager (sendes mellom ankomst −21 og −5). Appen planlegger aldri en sending den ikke kan vise at er hentbar.',
 } as const;
 
 export type MessageKey = keyof typeof no;

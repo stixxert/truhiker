@@ -90,7 +90,10 @@ function ascentDescent(points: readonly RoutePoint[]): { ascentM: number | null;
     if (delta > 0) ascent += delta;
     else descent -= delta;
   }
-  if (known === 0) return { ascentM: null, descentM: null };
+  // A partial sum is not the leg's ascent: if any consecutive pair lacks
+  // elevation, the honest answer is "unknown" (null), never a smaller number
+  // that looks like a complete measurement.
+  if (known === 0 || known !== points.length - 1) return { ascentM: null, descentM: null };
   return { ascentM: ascent, descentM: descent };
 }
 

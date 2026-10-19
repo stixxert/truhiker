@@ -44,15 +44,13 @@ describe('GeoJSON export', () => {
     expect(feature!.properties.provenance).toEqual(trip.legs[0]!.provenance);
     expect(feature!.properties.distanceM).toBeCloseTo(trip.legs[0]!.distanceM!, 3);
     expect(feature!.properties.elevationSources).toEqual(['dem']);
-  });
 
-  it('writes a 3D ordinate only where an elevation exists, with the real value', () => {
-    const trip = otherTrip();
-    const [withElevation, without] = parse(store.toGeoJson(trip)).features;
+    // A 3D ordinate only where an elevation exists, with the real value.
+    const [withElevation, without] = parse(store.toGeoJson(otherTrip())).features;
     for (const coordinate of withElevation!.geometry.coordinates) expect(coordinate).toHaveLength(3);
     for (const coordinate of without!.geometry.coordinates) expect(coordinate).toHaveLength(2);
 
-    const source = trip.legs[0]!.points;
+    const source = otherTrip().legs[0]!.points;
     (withElevation!.geometry.coordinates as number[][]).forEach((coordinate, index) => {
       expect(coordinate[0]).toBeCloseTo(source[index]!.lon, 6);
       expect(coordinate[1]).toBeCloseTo(source[index]!.lat, 6);

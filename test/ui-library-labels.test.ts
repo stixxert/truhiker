@@ -34,6 +34,66 @@ describe('trip library view', () => {
     expect(view.rows[0].legCountLabel).toBe('3 etapper');
     expect(view.rows[0].updatedLabel).toContain('2026');
     expect(view.rows[0].isCurrent).toBe(true);
+    // A junk date is echoed, never "Invalid Date".
+    expect(formatTripDate('2026-07-01T12:00:00.000Z', 'en-GB')).toContain('2026');
+    expect(formatTripDate('not-a-date', 'en-GB')).toBe('not-a-date');
+  });
+
+  it('states where the trips live and how full it is, and warns when it fell back', () => {
+    const durable = buildTripLibraryView(
+      {
+        summaries: [summary()],
+        currentId: null,
+        problem: null,
+        importEnabled: true,
+        storage: {
+          backend: 'indexeddb',
+          persistent: true,
+          usedBytes: 12_300_000,
+          quotaBytes: 8_000_000_000,
+          problem: null,
+          migrated: 2,
+          migrationError: null,
+        },
+      },
+      createI18n('en'),
+    );
+    expect(durable.storageLabel).toContain('IndexedDB');
+    expect(durable.storageLabel).toContain('12.3 MB of ~8 GB used');
+    expect(durable.storageLabel).toContain('persistent storage');
+    expect(durable.storageLabel).toContain('2 moved from localStorage');
+    expect(durable.storageNote).toBeNull();
+
+    const fallback = buildTripLibraryView(
+      {
+        summaries: [],
+        currentId: null,
+        problem: null,
+        importEnabled: true,
+        storage: {
+          backend: 'localstorage',
+          persistent: false,
+          usedBytes: 900_000,
+          quotaBytes: null,
+          problem: 'IndexedDB is not available',
+          migrated: 0,
+          migrationError: 'transaction aborted',
+        },
+      },
+      createI18n('no'),
+    );
+    expect(fallback.storageLabel).toContain('localStorage');
+    expect(fallback.storageNote).toContain('IndexedDB er utilgjengelig');
+    expect(fallback.storageNote).toContain('localStorage');
+    expect(fallback.storageDetail).toContain('transaction aborted');
+
+    // No backend yet: say nothing rather than guess.
+    const unknown = buildTripLibraryView(
+      { summaries: [], currentId: null, problem: null, importEnabled: true, storage: null },
+      createI18n('no'),
+    );
+    expect(unknown.storageLabel).toBe('');
+    expect(unknown.storageNote).toBeNull();
   });
 
   it('shows an explicit empty state and an unknown distance honestly', () => {
@@ -67,11 +127,6 @@ describe('trip library view', () => {
     expect(view.problemDetail).toBe('index unreadable');
     expect(view.importEnabled).toBe(false);
   });
-
-  it('formats a date without throwing on junk', () => {
-    expect(formatTripDate('2026-07-01T12:00:00.000Z', 'en-GB')).toContain('2026');
-    expect(formatTripDate('not-a-date', 'en-GB')).toBe('not-a-date');
-  });
 });
 
 describe('weather symbol families', () => {
@@ -92,9 +147,7 @@ describe('weather symbol families', () => {
     expect(weatherSymbolFamily('heavysnowshowers_night')).toBe('snow');
     // Thunder wins: it is the fact that changes the plan.
     expect(weatherSymbolFamily('rainandthunder')).toBe('thunder');
-  });
-
-  it('never guesses an unknown code', () => {
+    // An unknown code is never guessed into a family.
     expect(weatherSymbolFamily(undefined)).toBe('unknown');
     expect(weatherSymbolFamily('')).toBe('unknown');
     expect(weatherSymbolFamily('meteor_shower')).toBe('unknown');
@@ -176,11 +229,9 @@ describe('flattenTrip', () => {
     expect(spanAt(flat, 3)?.legId).toBe('b');
   });
 
-  it('handles an empty trip without inventing geometry', () => {
+  it('handles an empty trip without inventing geometry, and recognises the emptyLeg placeholder', () => {
     expect(flattenTrip(null)).toEqual({ points: [], distances: [], distanceM: 0, spans: [] });
-  });
 
-  it('detects the emptyLeg placeholder shape', () => {
     const placeholder: Leg = {
       ...leg('p', 2),
       points: [

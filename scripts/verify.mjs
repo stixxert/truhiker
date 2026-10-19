@@ -157,6 +157,19 @@ step("dist budget", () => {
   return `${files.length} files, ${mb(br)} brotli total`;
 });
 
+step("licence audit", () => {
+  // Every shipped file must have a licence, and the notices we are obliged to
+  // redistribute must be in the build.
+  const out = run("node", ["scripts/licence-audit.mjs"]);
+  return out.trim().split("\n").pop();
+});
+
+step("decisions", () => {
+  // No ambiguity may be left for a user to discover in production.
+  const out = run("node", ["scripts/check-decisions.mjs"]);
+  return out.trim().split("\n").pop();
+});
+
 step("hosting contract", () => {
   const problems = [];
 

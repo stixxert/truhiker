@@ -158,6 +158,18 @@
 
             <button
               class="btn btn-ghost"
+              id="btn-supply"
+              type="button"
+              aria-expanded="false"
+              aria-controls="supply-panel"
+              data-i18n="supply.open"
+              data-i18n-title="supply.title"
+            >
+              Forsyning
+            </button>
+
+            <button
+              class="btn btn-ghost"
               id="btn-weather"
               type="button"
               aria-expanded="false"
@@ -384,6 +396,151 @@
             <p class="panel-note" id="weather-note"></p>
           </aside>
 
+          <aside class="side-panel" id="supply-panel" hidden aria-labelledby="supply-title">
+            <header class="panel-head">
+              <div class="seg seg-tabs" role="tablist" aria-labelledby="supply-title">
+                <button
+                  class="seg-btn"
+                  id="supply-tab-resupply"
+                  type="button"
+                  role="tab"
+                  aria-selected="true"
+                  aria-controls="supply-section-resupply"
+                  data-i18n="supply.tabResupply"
+                >
+                  Forsyning
+                </button>
+                <button
+                  class="seg-btn"
+                  id="supply-tab-energy"
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  aria-controls="supply-section-energy"
+                  tabindex="-1"
+                  data-i18n="supply.tabEnergy"
+                >
+                  Energi
+                </button>
+              </div>
+              <h2 class="sr-only" id="supply-title" data-i18n="supply.title">Forsyning og energi</h2>
+              <div class="panel-head-actions">
+                <button class="btn btn-small" id="supply-refresh" type="button" data-i18n="supply.refresh">
+                  Oppdater
+                </button>
+                <button
+                  class="icon-btn"
+                  id="supply-close"
+                  type="button"
+                  data-i18n-aria-label="action.close"
+                >
+                  ×
+                </button>
+              </div>
+            </header>
+            <p class="panel-status" id="supply-status" role="status" aria-live="polite"></p>
+
+            <section
+              class="supply-section"
+              id="supply-section-resupply"
+              role="tabpanel"
+              aria-labelledby="supply-tab-resupply"
+            >
+              <div class="supply-controls">
+                <label for="supply-radius" data-i18n="supply.radius">Korridor</label>
+                <select id="supply-radius"></select>
+              </div>
+              <p class="field-hint" data-i18n="supply.radiusHint"></p>
+              <p class="supply-huts-error" id="supply-huts-error" role="status" hidden></p>
+              <div class="supply-filters" role="group" id="supply-filters" hidden>
+                <button class="supply-chip" id="supply-filter-all" type="button" aria-pressed="true"></button>
+                <button class="supply-chip" id="supply-filter-food" type="button" aria-pressed="false"></button>
+                <button class="supply-chip" id="supply-filter-hut" type="button" aria-pressed="false"></button>
+              </div>
+              <div class="weather-message" id="supply-message" hidden>
+                <p id="supply-message-text"></p>
+                <button class="btn btn-primary btn-small" id="supply-action" type="button" hidden></button>
+              </div>
+              <p class="supply-empty" id="supply-empty" hidden></p>
+              <ol class="supply-points" id="supply-points"></ol>
+              <p class="supply-line" id="supply-worst-gap" hidden></p>
+              <p class="supply-line supply-totals" id="supply-totals" hidden></p>
+              <div id="supply-legs-wrap">
+                <h3 class="supply-h3" data-i18n="supply.legsTitle">Etapper</h3>
+                <ol class="supply-legs" id="supply-legs"></ol>
+              </div>
+              <div id="supply-warnings-wrap">
+                <h3 class="supply-h3" data-i18n="supply.warningsTitle">Forbehold</h3>
+                <ul class="supply-warnings" id="supply-warnings"></ul>
+              </div>
+              <details class="engine-notes" id="supply-engine" hidden>
+                <summary data-i18n="supply.engineWarnings"></summary>
+                <ul id="supply-engine-list"></ul>
+              </details>
+              <p class="panel-note" id="supply-note"></p>
+              <p class="panel-note supply-attribution" id="supply-attribution"></p>
+              <p class="panel-note supply-index" id="supply-index"></p>
+            </section>
+
+            <section
+              class="supply-section"
+              id="supply-section-energy"
+              role="tabpanel"
+              aria-labelledby="supply-tab-energy"
+              hidden
+            >
+              <div class="weather-message" id="energy-message" hidden>
+                <p id="energy-message-text"></p>
+                <button class="btn btn-primary btn-small" id="energy-action" type="button" hidden></button>
+              </div>
+              <p class="energy-headline" id="energy-headline"></p>
+              <p class="energy-body" id="energy-headline-body"></p>
+              <div id="energy-chart-wrap">
+                <h3 class="supply-h3" id="energy-range-title"></h3>
+                <svg class="energy-band" id="energy-band" viewBox="0 0 300 46"></svg>
+                <p class="energy-value" id="energy-range-value"></p>
+                <p class="energy-detail" id="energy-ceiling"></p>
+                <p class="energy-detail" id="energy-centre"></p>
+                <p class="energy-detail" id="energy-intake"></p>
+                <p class="energy-detail" id="energy-bmr"></p>
+                <p class="energy-detail" id="energy-days"></p>
+                <p class="energy-food-mass" id="energy-food-mass"></p>
+              </div>
+              <div id="energy-mass-wrap">
+                <h3 class="supply-h3" id="energy-mass-title"></h3>
+                <svg class="energy-curve-svg" id="energy-mass-curve" viewBox="0 0 300 68"></svg>
+                <p class="energy-value" id="energy-mass-label"></p>
+                <p class="energy-detail" id="energy-fat"></p>
+              </div>
+              <p class="panel-note" id="energy-note"></p>
+              <fieldset class="energy-assumptions">
+                <legend id="energy-assumptions-title" data-i18n="energy.assumptions">Forutsetninger</legend>
+                <div class="energy-field">
+                  <label for="energy-density" id="energy-density-label" data-i18n="energy.foodDensity">
+                    Energitetthet i mat (kcal/g)
+                  </label>
+                  <input
+                    id="energy-density"
+                    type="number"
+                    min="1"
+                    max="9"
+                    step="0.1"
+                    inputmode="decimal"
+                    value="4.4"
+                  />
+                  <p class="field-hint" id="energy-density-hint" data-i18n="energy.foodDensityHint"></p>
+                </div>
+                <div class="energy-field">
+                  <label for="energy-pack" id="energy-pack-label" data-i18n="energy.packMass">
+                    Sekkvekt (kg)
+                  </label>
+                  <input id="energy-pack" type="number" min="0" max="60" step="0.5" inputmode="decimal" />
+                  <p class="field-hint" id="energy-pack-hint" data-i18n="energy.packMassHint"></p>
+                </div>
+              </fieldset>
+            </section>
+          </aside>
+
           <div class="terrain-hint" id="terrain-hint" role="status"></div>
 
           <div class="map-attrib">
@@ -557,6 +714,19 @@
               <a href="https://api.met.no" target="_blank" rel="noopener" data-i18n="about.metLink">api.met.no</a>
             </li>
             <li>
+              <strong>OpenStreetMap</strong>
+              <span data-i18n="about.osm">
+                Forsyningspunkter (butikker, bensinstasjoner, post): © OpenStreetMap-bidragsyterne, ODbL 1.0. Filen er
+                en avledet database og kan lastes ned.
+              </span>
+              <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" data-i18n="about.osmLink"
+                >openstreetmap.org/copyright</a
+              >
+              <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener" data-i18n="about.odblLink"
+                >ODbL 1.0</a
+              >
+            </li>
+            <li>
               <strong>MapLibre GL JS</strong>
               <span data-i18n="about.maplibre">Kartmotoren er MapLibre GL JS (BSD-3).</span>
               <a href="https://maplibre.org" target="_blank" rel="noopener">maplibre.org</a>
@@ -684,6 +854,7 @@
               </select>
             </div>
           </div>
+          <p class="field-hint" id="settings-support-hint"></p>
           <p class="field-hint" data-i18n="settings.startDateHint"></p>
           <p class="field-hint" data-i18n="settings.bodyFatHint"></p>
           <div class="field-error" id="settings-errors" role="alert" hidden></div>

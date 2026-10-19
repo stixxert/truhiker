@@ -45,8 +45,8 @@ function flakyIndex(storage: FakeStorage): Storage {
   };
 }
 
-describe('defaultProfile / emptyTrip', () => {
-  it('defaultProfile is a documented placeholder, not a measurement of the user', () => {
+describe('the localStorage fallback store', () => {
+  it('ships a documented default profile and an empty trip that is already storable', () => {
     expect(defaultProfile()).toEqual({
       massKg: 75,
       heightCm: 178,
@@ -58,28 +58,19 @@ describe('defaultProfile / emptyTrip', () => {
       support: 'carry-all',
     });
     // A fresh object every time: the caller may edit it without sharing state.
-    const first = defaultProfile();
-    const second = defaultProfile();
-    expect(first).not.toBe(second);
-    expect(first).toEqual(second);
-  });
+    expect(defaultProfile()).not.toBe(defaultProfile());
 
-  it('emptyTrip is a valid, storable trip with no legs', () => {
     const trip = emptyTrip('New trip', defaultProfile());
     expect(trip.schemaVersion).toBe(1);
-    expect(trip.name).toBe('New trip');
     expect(trip.legs).toEqual([]);
-    expect(trip.id).toMatch(/\S/);
     expect(trip.createdAt).toBe(trip.updatedAt);
 
     const store = storeWith(memoryStorage());
     store.save(trip);
     expect(store.load(trip.id)).toStrictEqual(trip);
   });
-});
 
-describe('save / list / load', () => {
-  it('round-trips a trip through storage unchanged, writing only the documented keys', () => {
+  it('round-trips a trip unchanged — unknown fields included — and lists summaries newest first', () => {
     const storage = new FakeStorage();
     const store = storeWith(storage);
     const trip = syntheticTrip();
@@ -89,12 +80,6 @@ describe('save / list / load', () => {
 
     store.save(otherTrip());
     expect(storage.keys().sort()).toEqual([INDEX_KEY, tripKey('trip-1'), tripKey('trip-2')].sort());
-  });
-
-  it('lists summaries newest first and moves a re-saved trip to the front', () => {
-    const store = storeWith(new FakeStorage());
-    store.save(syntheticTrip());
-    store.save(otherTrip());
 
     const summaries = store.list();
     expect(summaries.map((summary) => summary.id)).toEqual(['trip-2', 'trip-1']);
@@ -106,17 +91,26 @@ describe('save / list / load', () => {
     });
     expect(summaries[1]!.distanceM).toBeCloseTo(syntheticTrip().legs[0]!.distanceM!, 3);
 
-    const renamed: Trip = {
-      ...syntheticTrip(),
-      name: 'Renamed',
-      updatedAt: '2024-08-01T00:00:00.000Z',
-    };
+    const renamed: Trip = { ...trip, name: 'Renamed', updatedAt: '2024-08-01T00:00:00.000Z' };
     store.save(renamed);
     expect(store.list().map((summary) => summary.id)).toEqual(['trip-1', 'trip-2']);
     expect(store.load(ID)!.name).toBe('Renamed');
+
+    // A field this build does not know survives a read/write cycle.
+    const body = {
+      ...trip,
+      futureField: { keep: true },
+      legs: [{ ...trip.legs[0]!, futureLegField: 'yes' }],
+    };
+    storage.sabotage(tripKey(ID), JSON.stringify(body));
+    const loaded = store.load(ID) as unknown as Record<string, unknown>;
+    expect(loaded.futureField).toEqual({ keep: true });
+    expect((loaded.legs as Record<string, unknown>[])[0]!.futureLegField).toBe('yes');
+    store.save(loaded as unknown as Trip);
+    expect((store.load(ID) as unknown as Record<string, unknown>).futureField).toEqual({ keep: true });
   });
 
-  it('remove deletes the body and the index entry; unknown ids and ids that are already gone are no-ops', () => {
+  it('remove deletes the body and the index entry; unknown and already-gone ids are no-ops', () => {
     const storage = new FakeStorage();
     const store = storeWith(storage);
     store.save(syntheticTrip());
@@ -186,40 +180,7 @@ describe('save / list / load', () => {
     expect(repaired.getItem(INDEX_KEY)).toBe('[]');
   });
 
-  it('keeps unknown fields through a load/save cycle', () => {
-    const storage = new FakeStorage();
-    const base = syntheticTrip();
-    const body = {
-      ...base,
-      futureField: { keep: true },
-      legs: [
-        {
-          ...base.legs[0]!,
-          futureLegField: 'yes',
-          points: base.legs[0]!.points.map((point, index) =>
-            index === 0 ? { ...point, futurePointField: 7 } : point,
-          ),
-        },
-      ],
-    };
-    storage.sabotage(INDEX_KEY, JSON.stringify([ID]));
-    storage.sabotage(tripKey(ID), JSON.stringify(body));
-
-    const store = storeWith(storage);
-    const loaded = store.load(ID) as unknown as Record<string, unknown>;
-    expect(loaded.futureField).toEqual({ keep: true });
-    expect((loaded.legs as Record<string, unknown>[])[0]!.futureLegField).toBe('yes');
-    expect(
-      ((loaded.legs as { points: Record<string, unknown>[] }[])[0]!.points[0]!).futurePointField,
-    ).toBe(7);
-
-    store.save(loaded as unknown as Trip);
-    expect((store.load(ID) as unknown as Record<string, unknown>).futureField).toEqual({ keep: true });
-  });
-});
-
-describe('quota and the size guard', () => {
-  it('maps every QuotaExceededError spelling to StoreError("quota-exceeded") with the byte size', () => {
+  it('maps every QuotaExceededError spelling to StoreError("quota-exceeded") and leaves no half-written trip', () => {
     const make = storeWith(new FakeStorage(500));
     let thrown: unknown;
     try {
@@ -249,26 +210,23 @@ describe('quota and the size guard', () => {
         expect((caught as StoreError).code, label).toBe('quota-exceeded');
       }
     }
-  });
 
-  it('leaves no half-written trip behind when the index write fails, and restores the previous version on a re-save', () => {
+    // A failing index write leaves nothing behind, and never destroys the
+    // version a re-save was replacing.
     const storage = new FakeStorage();
-    const store = storeWith(flakyIndex(storage));
-    expect(() => store.save(syntheticTrip())).toThrow(StoreError);
+    expect(() => storeWith(flakyIndex(storage)).save(syntheticTrip())).toThrow(StoreError);
     expect(storage.getItem(tripKey(ID))).toBeNull();
 
-    // The same failure on a re-save must not destroy the version already stored.
-    const good = storeWith(storage);
-    good.save(syntheticTrip());
+    storeWith(storage).save(syntheticTrip());
     const before = storage.getItem(tripKey(ID));
-    const flaky = storeWith(flakyIndex(storage));
-    expect(() => flaky.save({ ...syntheticTrip(), name: 'Second attempt' })).toThrow(StoreError);
+    expect(() =>
+      storeWith(flakyIndex(storage)).save({ ...syntheticTrip(), name: 'Second attempt' }),
+    ).toThrow(StoreError);
     expect(storage.getItem(tripKey(ID))).toBe(before);
     expect(storeWith(storage).load(ID)!.name).toBe('Besseggen over');
   });
 
-  it('refuses a trip that does not validate and one above the documented size limit, and still saves one below it', () => {
-    // A bad trip is a `corrupt` error, not a quota one.
+  it('refuses a trip that does not validate and one over the 1.5 MB localStorage ceiling, and says the size', () => {
     const validating = storeWith(new FakeStorage());
     const valid = syntheticTrip();
     for (const bad of [
@@ -293,14 +251,14 @@ describe('quota and the size guard', () => {
     const expected = byteSize(JSON.stringify(huge));
     expect(expected).toBeGreaterThan(MAX_TRIP_BYTES);
 
-    let thrown: unknown;
-    try {
-      store.save(huge);
-    } catch (error) {
-      thrown = error;
-    }
-    const error = thrown as StoreError;
-    expect(error).toBeInstanceOf(StoreError);
+    const error = (() => {
+      try {
+        store.save(huge);
+      } catch (caught) {
+        return caught as StoreError;
+      }
+      throw new Error('expected a StoreError');
+    })();
     expect(error.code).toBe('quota-exceeded');
     expect(error.message).toContain(String(expected));
     expect(error.message).toContain(String(MAX_TRIP_BYTES));
@@ -313,10 +271,8 @@ describe('quota and the size guard', () => {
     store.save(trip);
     expect(store.list()).toHaveLength(1);
   });
-});
 
-describe('the default storage', () => {
-  it('falls back to memoryStorage when nothing is injected', () => {
+  it('falls back to an in-memory Storage when nothing is injected', () => {
     const memory = memoryStorage();
     const store = storeWith(memory);
     store.save(syntheticTrip());

@@ -61,7 +61,10 @@ to a shared corpus, or re-served.
 3. the built app still contains the Kartverket attribution;
 4. if the ODbL data ships, the app also carries the OpenStreetMap attribution.
 
-Point 4 currently fails, by design: the shops file is built and shipped, but the
-resupply UI that surfaces it (and its attribution) is not yet wired. The audit
-will stay red until that lands — and it should, because shipping ODbL data
-without the attribution is exactly the mistake it exists to catch.
+All four pass. `npm run verify` runs the audit as a gate, so a future asset added
+without a licence entry — or ODbL data shipped without its attribution — fails the
+build rather than reaching a user.
+
+Current status of the shipped build: **19 files accounted for** — proprietary 8,
+ODbL 1.0 3, CC BY 4.0 1, licence texts 4, BSD-3-Clause 3; 4 notices present;
+attribution visible in the app.

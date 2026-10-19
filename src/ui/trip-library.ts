@@ -53,6 +53,9 @@ export class TripLibraryDialog {
   private view: TripLibraryView | null = null;
   private renamingId: string | null = null;
   private pendingDeleteId: string | null = null;
+  /** Created on first render: the dialog markup has no storage line of its own. */
+  private storageLine: HTMLElement | null = null;
+  private storageNote: HTMLElement | null = null;
 
   constructor(root: HTMLDialogElement, i18n: I18n, handlers: TripLibraryHandlers) {
     this.root = root;
@@ -125,9 +128,46 @@ export class TripLibraryDialog {
     if (view.problemDetail) this.problem.title = view.problemDetail;
     else this.problem.removeAttribute('title');
     this.importButton.disabled = !view.importEnabled;
+    this.renderStorage(view);
 
     this.list.replaceChildren();
     for (const row of view.rows) this.list.append(this.buildRow(row));
+  }
+
+  /**
+   * "IndexedDB · 12.3 MB of ~8 GB used · persistent", plus a visible warning
+   * when the browser fell back to localStorage. Built here rather than in
+   * `index.html` so an existing document keeps working.
+   */
+  private renderStorage(view: TripLibraryView): void {
+    if (!this.storageLine) {
+      const doc = this.root.ownerDocument;
+      const line = doc.createElement('p');
+      line.className = 'trips-storage';
+      line.id = 'trips-storage';
+      const note = doc.createElement('p');
+      note.className = 'trips-storage-note';
+      note.id = 'trips-storage-note';
+      note.hidden = true;
+      this.list.after(line);
+      line.after(note);
+      this.storageLine = line;
+      this.storageNote = note;
+    }
+    const line = this.storageLine;
+    line.hidden = view.storageLabel.length === 0;
+    line.textContent = view.storageLabel;
+    line.dataset.kind = view.storageNote ? 'fallback' : 'durable';
+    if (view.storageDetail) line.title = view.storageDetail;
+    else line.removeAttribute('title');
+
+    const note = this.storageNote;
+    if (!note) return;
+    note.hidden = view.storageNote === null;
+    note.textContent = view.storageNote ?? '';
+    note.dataset.kind = view.storageNote === null ? '' : 'warning';
+    if (view.storageDetail) note.title = view.storageDetail;
+    else note.removeAttribute('title');
   }
 
   /** Re-render after a language change with the last known data. */

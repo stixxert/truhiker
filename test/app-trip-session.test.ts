@@ -12,6 +12,7 @@ import type {
 import { StoreError } from '../src/contracts';
 import type { EngineSurface } from '../src/app/engine-types';
 import { AUTOSAVE_DELAY_MS, TripSession } from '../src/app/trip-session';
+import type { StorageUsage, TripStoreLike } from '../src/store/types';
 
 const PROFILE: UserProfile = {
   massKg: 75,
@@ -96,10 +97,17 @@ function createFakeEditor(start: Trip): RouteEditor {
   };
 }
 
-class FakeStore implements TripStore {
+/**
+ * A store that can be synchronous (like localStorage) or held open (like a slow
+ * IndexedDB write), so the `'saving'` state and a rejected write are observable.
+ */
+class FakeStore implements TripStoreLike {
   readonly trips = new Map<string, Trip>();
   failSave: Error | null = null;
   failList: Error | null = null;
+  /** When set, saves wait for this promise — the write is "in flight". */
+  gate: Promise<void> | null = null;
+  saves = 0;
 
   list(): TripSummary[] {
     if (this.failList) throw this.failList;
@@ -116,7 +124,9 @@ class FakeStore implements TripStore {
     return this.trips.get(id) ?? null;
   }
 
-  save(trip: Trip): void {
+  async save(trip: Trip): Promise<void> {
+    this.saves += 1;
+    if (this.gate) await this.gate;
     if (this.failSave) throw this.failSave;
     this.trips.set(trip.id, trip);
   }
@@ -149,7 +159,7 @@ function enginesWith(): EngineSurface {
     emptyLeg: () => leg('empty'),
     tripFromPoints: (_points, name) => ({ ...trip('built', name), legs: [leg('leg-built')] }),
     rerouteSpan: (input) => input,
-    createTripStore: () => new FakeStore(),
+    createTripStore: (): TripStore => new FakeStore(),
     emptyTrip: (name) => trip('empty', name),
     defaultProfile: () => PROFILE,
   };
@@ -158,7 +168,8 @@ function enginesWith(): EngineSurface {
 interface Harness {
   session: TripSession;
   store: FakeStore;
-  runAutosave: () => void;
+  /** Run the scheduled autosave and wait for the write it started. */
+  runAutosave: () => Promise<void>;
   scheduled: () => number;
 }
 
@@ -183,17 +194,28 @@ function harness(options: { failSave?: Error } = {}): Harness {
   return {
     session,
     store,
-    runAutosave: () => {
+    runAutosave: async () => {
       const callback = pending;
       pending = null;
       callback?.();
+      // Let the queued write settle.
+      await session.flush();
     },
     scheduled: () => delay,
   };
 }
 
+/** A deferred promise, so a test can hold a write open. */
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve = () => {};
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 describe('TripSession — autosave', () => {
-  it('marks a newly adopted trip dirty and saves it after the debounce', () => {
+  it('marks an adopted trip dirty, saves it after the debounce and stamps updatedAt on each edit', async () => {
     const { session, store, runAutosave, scheduled } = harness();
     session.adopt(trip());
 
@@ -201,23 +223,12 @@ describe('TripSession — autosave', () => {
     expect(scheduled()).toBe(AUTOSAVE_DELAY_MS);
     expect(store.trips.size).toBe(0);
 
-    runAutosave();
+    await runAutosave();
 
     expect(store.trips.get('trip-1')?.name).toBe('Test');
     expect(session.saveStatus.kind).toBe('saved');
     expect(session.saveStatus.at).toBe(Date.parse('2026-07-01T14:32:00.000Z'));
-  });
 
-  it('saves immediately when asked (imports)', () => {
-    const { session, store } = harness();
-    session.adopt(trip(), { save: 'now' });
-    expect(store.trips.has('trip-1')).toBe(true);
-    expect(session.saveStatus.kind).toBe('saved');
-  });
-
-  it('stamps updatedAt on every edit and keeps the editor in sync', () => {
-    const { session } = harness();
-    session.adopt(trip());
     const next = session.apply({ type: 'reverse-leg', legId: 'leg-1' });
     expect(next?.updatedAt).toBe('2026-07-01T14:32:00.000Z');
     expect(session.trip?.name).toBe('Test↔');
@@ -225,9 +236,10 @@ describe('TripSession — autosave', () => {
     expect(session.saveStatus.kind).toBe('dirty');
   });
 
-  it('undo and redo return trips and schedule a save; no-ops return null', () => {
+  it('undo and redo return trips and schedule a save; no-ops return null', async () => {
     const { session, store, runAutosave } = harness();
     session.adopt(trip(), { save: 'now' });
+    await session.flush();
     expect(session.undo()).toBeNull();
     expect(session.redo()).toBeNull();
 
@@ -238,98 +250,157 @@ describe('TripSession — autosave', () => {
     const redone = session.redo();
     expect(redone?.name).toBe('Test↔');
 
-    runAutosave();
+    await runAutosave();
     expect(store.trips.get('trip-1')?.name).toBe('Test↔');
   });
 
-  it('surfaces a quota error as a StoreError code, not a silent failure', () => {
-    const { session, store, runAutosave } = harness({
-      failSave: new StoreError('quota-exceeded', 'QuotaExceededError'),
-    });
+  it('shows "saving" for a write that has not committed, and never "saved" before it lands', async () => {
+    const { session, store } = harness();
     session.adopt(trip());
-    runAutosave();
+    const gate = deferred();
+    store.gate = gate.promise;
 
-    expect(session.saveStatus.kind).toBe('error');
-    expect(session.saveStatus.code).toBe('quota-exceeded');
-    expect(session.saveStatus.message).toContain('Quota');
-    expect(store.trips.size).toBe(0);
+    const first = session.saveNow();
+    expect(session.saveStatus.kind).toBe('saving');
+    gate.resolve();
+    expect((await first).kind).toBe('saved');
+
+    // A slow write for an *older* trip must not mark a newer edit as saved.
+    const slow = deferred();
+    store.gate = slow.promise;
+    const inFlight = session.saveNow();
+    expect(session.saveStatus.kind).toBe('saving');
+    session.apply({ type: 'reverse-leg', legId: 'leg-1' });
+    expect(session.saveStatus.kind).toBe('dirty');
+    slow.resolve();
+    await inFlight;
+    expect(session.saveStatus.kind).toBe('dirty');
+    store.gate = null;
+    expect((await session.saveNow()).kind).toBe('saved');
   });
 
-  it('reports an unavailable store instead of pretending to save', () => {
-    const session = new TripSession({ engines: enginesWith(), store: null });
-    expect(session.persistent).toBe(false);
+  it('surfaces a rejected write as an error status, and an unavailable store as unavailable', async () => {
+    const { session, store } = harness({
+      failSave: new StoreError('quota-exceeded', 'QuotaExceededError: 8 000 000 bytes'),
+    });
     session.adopt(trip());
-    const status = session.saveNow();
-    expect(status.kind).toBe('unavailable');
+    const status = await session.saveNow();
+
+    expect(status.kind).toBe('error');
+    expect(status.code).toBe('quota-exceeded');
+    expect(status.message).toContain('Quota');
+    expect(store.trips.size).toBe(0);
+
+    // A plain (non-StoreError) rejection is still visible.
+    store.failSave = new Error('IndexedDB transaction aborted');
+    const aborted = await session.saveNow();
+    expect(aborted.kind).toBe('error');
+    expect(aborted.message).toContain('aborted');
+
+    const blocked = new TripSession({ engines: enginesWith(), store: null });
+    expect(blocked.persistent).toBe(false);
+    blocked.adopt(trip());
+    expect((await blocked.saveNow()).kind).toBe('unavailable');
+  });
+
+  it('flushes a pending autosave when the page is hidden', async () => {
+    const { session, store } = harness();
+    session.adopt(trip());
+    expect(store.trips.size).toBe(0);
+
+    // `flush` is what the pagehide listener calls: it must write and wait.
+    await session.flush();
+    expect(store.trips.get('trip-1')?.name).toBe('Test');
+    expect(session.saveStatus.kind).toBe('saved');
+
+    // Nothing pending: flush is a no-op, not a second write.
+    const before = store.saves;
+    await session.flush();
+    expect(store.saves).toBe(before);
   });
 });
 
 describe('TripSession — library', () => {
-  it('sorts summaries by updatedAt descending and survives a broken index', () => {
+  it('sorts summaries by updatedAt descending and survives a broken index', async () => {
     const { session, store } = harness();
     store.trips.set('a', { ...trip('a'), updatedAt: '2026-01-01T00:00:00.000Z' });
     store.trips.set('b', { ...trip('b'), updatedAt: '2026-03-01T00:00:00.000Z' });
-    expect(session.list().map((entry) => entry.id)).toEqual(['b', 'a']);
+    expect((await session.list()).map((entry) => entry.id)).toEqual(['b', 'a']);
 
     store.failList = new StoreError('corrupt', 'index unreadable');
-    expect(session.list()).toEqual([]);
+    expect(await session.list()).toEqual([]);
     expect(session.listProblem?.code).toBe('corrupt');
   });
 
-  it('renames the open trip through the editor and saves it', () => {
+  it('renames, duplicates and removes through the store, without adopting what it touches', async () => {
     const { session, store } = harness();
     session.adopt(trip(), { save: 'now' });
-    expect(session.renameSaved('trip-1', 'Ny tur')).toBe(true);
+    await session.flush();
+    store.trips.set('other', trip('other', 'Annen'));
+
+    // Rename the open trip: editor and store both follow.
+    expect(await session.renameSaved('trip-1', 'Ny tur')).toBe(true);
     expect(session.trip?.name).toBe('Ny tur');
     expect(store.trips.get('trip-1')?.name).toBe('Ny tur');
-  });
-
-  it('renames a stored trip that is not open without adopting it', () => {
-    const { session, store } = harness();
-    store.trips.set('other', trip('other', 'Annen'));
-    expect(session.renameSaved('other', 'Omdøpt')).toBe(true);
-    expect(session.trip).toBeNull();
+    // Rename a trip that is not open: it is not adopted.
+    expect(await session.renameSaved('other', 'Omdøpt')).toBe(true);
+    expect(session.trip?.id).toBe('trip-1');
     expect(store.trips.get('other')?.name).toBe('Omdøpt');
-  });
+    expect(await session.renameSaved('other', '   ')).toBe(false);
 
-  it('duplicates under a new id and name suffix without touching the open trip', () => {
-    const { session, store } = harness();
-    store.trips.set('trip-1', trip());
-    session.open('trip-1');
-    const newId = session.duplicate('trip-1', '(kopi)');
-    expect(newId).not.toBeNull();
+    // Duplicate under a new id and name suffix; the open trip is untouched.
+    const newId = await session.duplicate('trip-1', '(kopi)');
     expect(newId).not.toBe('trip-1');
-    expect(store.trips.get(newId!)?.name).toBe('Test (kopi)');
-    expect(session.trip?.name).toBe('Test');
-  });
+    expect(store.trips.get(newId!)?.name).toBe('Ny tur (kopi)');
+    expect(session.trip?.name).toBe('Ny tur');
 
-  it('removes a trip and closes it when it was open', () => {
-    const { session, store } = harness();
-    store.trips.set('trip-1', trip());
-    session.open('trip-1');
-    expect(session.remove('trip-1')).toBe(true);
+    // Remove closes the trip it deleted, and reports a failure rather than lying.
+    expect(await session.remove('trip-1')).toBe(true);
     expect(store.trips.has('trip-1')).toBe(false);
     expect(session.trip).toBeNull();
+
+    store.failSave = new StoreError('quota-exceeded', 'full');
+    expect(await session.renameSaved('other', 'Ny')).toBe(false);
   });
 
-  it('imports a file, adopts and persists it immediately; malformed input throws', () => {
+  it('imports a file, adopts and persists it before resolving, and exports without adopting', async () => {
     const { session, store } = harness();
-    const imported = session.importFile('Importert', 'tur.gpx');
+    const imported = await session.importFile('Importert', 'tur.gpx');
     expect(imported.name).toBe('Importert');
     expect(session.trip?.name).toBe('Importert');
     expect(store.trips.has(imported.id)).toBe(true);
 
-    expect(() => session.importFile('bad', 'bad.gpx')).toThrow(StoreError);
-  });
+    await expect(session.importFile('bad', 'bad.gpx')).rejects.toBeInstanceOf(StoreError);
 
-  it('exports the open trip and any stored trip without adopting it', () => {
-    const { session, store } = harness();
+    // Exporting never adopts: the open trip stays the open trip.
     store.trips.set('other', trip('other', 'Andre'));
-    session.adopt(trip(), { save: 'now' });
-    expect(session.exportGpxFor('trip-1')).toContain('Test');
-    expect(session.exportGpxFor('other')).toContain('Andre');
-    expect(session.exportGeoJsonFor('other')).toContain('Andre');
-    expect(session.trip?.id).toBe('trip-1');
-    expect(session.exportGpxFor('missing')).toBeNull();
+    expect(await session.exportGpxFor(imported.id)).toContain('Importert');
+    expect(await session.exportGpxFor('other')).toContain('Andre');
+    expect(await session.exportGeoJsonFor('other')).toContain('Andre');
+    expect(session.trip?.id).toBe(imported.id);
+    expect(await session.exportGpxFor('missing')).toBeNull();
+  });
+});
+
+describe('TripSession — storage reporting', () => {
+  it('reports the backend, persistence and usage the UI needs, and nothing it cannot know', async () => {
+    const usage: StorageUsage = { usedBytes: 8_000_000, quotaBytes: 8_000_000_000, source: 'indexeddb' };
+    const asyncStore: TripStoreLike = Object.assign(new FakeStore(), {
+      backend: 'indexeddb' as const,
+      persistent: true,
+      problem: null,
+      migration: null,
+      usage: async () => usage,
+    });
+    const session = new TripSession({ engines: enginesWith(), store: asyncStore });
+    expect(session.backend).toBe('indexeddb');
+    expect(session.storageInfo).toEqual({ backend: 'indexeddb', persistent: true, problem: null });
+    expect(await session.usage()).toEqual(usage);
+
+    // A plain sync store knows nothing about the backend: say so, do not guess.
+    const plain = harness().session;
+    expect(plain.backend).toBeNull();
+    expect(plain.storageInfo).toBeNull();
+    expect(await plain.usage()).toBeNull();
   });
 });

@@ -148,3 +148,39 @@ unavoidable — it does not quietly plan a 15 kg loss.
 - No season is promised by the app itself; opening data belongs to the sources.
 - No mountain safety advice: avalanche and flood warnings are shown if available,
   but absence is not safety.
+
+## D13. Fuel stations as food
+
+**Default: a station sells food unless it is flagged unmanned.**
+
+The binary carries a heuristic "unmanned" bit (`automated`, vending-only, or a
+name containing "automat"). A flagged station counts for nothing; an unflagged
+one counts as a food source **and the plan says so**, with "confirm it is not a
+card-only automat" attached.
+
+This is deliberately the opposite default to a hut (D1). A hut's food status is an
+administrative fact we cannot observe; a fuel station's is a physical one that the
+planner can verify in seconds on arrival, and treating every station as empty
+would produce absurd carry plans in northern Norway. The asymmetry is intentional
+and is stated in the UI.
+
+## D14. Missing daily distance
+
+**Default: assume 25 km/day — and say so.**
+
+If the trip has no usable `dailyKm`, every day count needs a number. The plan uses
+25 km/day and emits an explicit warning: *"No daily distance is set … every day
+count below follows from that guess."* It never substitutes silently.
+
+## D15. Elevation that is only partly known
+
+**Default: unknown, not partial.**
+
+A leg's ascent/descent is reported only when **every** consecutive pair has
+elevation. One missing sample makes the whole figure `null` rather than a smaller
+number that looks complete. The same rule applies to imported GPX files, whose own
+`<ele>` values are labelled `gpx` and never blended with DEM samples.
+
+Known limitation (declared, not hidden): a GPX exported from a mixed-source trip
+and re-imported relabels its DEM points as `gpx`, because GPX has no field for
+provenance. The elevation values are preserved.

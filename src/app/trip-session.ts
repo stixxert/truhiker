@@ -1,17 +1,23 @@
 /**
  * Trip session: the bridge between the route editor, the trip store and the UI.
  *
- * Everything that changes a trip goes through here, and every change follows
- * the same three steps:
+ * Everything that changes a trip goes through here, and every change follows the
+ * same three steps:
  *
  *   1. the editor returns a **new** trip (never a mutated one);
  *   2. the session marks itself dirty and schedules an autosave (~1 s);
  *   3. a save either succeeds and stamps the time, or fails with a `StoreError`
  *      whose code becomes a specific, visible message.
  *
+ * Storage is asynchronous (IndexedDB is the durable backend), so every method
+ * that touches it returns a promise. The status line has a `'saving'` state
+ * between `'dirty'` and `'saved'`: a trip that has been handed to the store but
+ * not yet committed is **not** shown as saved.
+ *
  * There is no silent failure path: a blocked `localStorage` is
  * `status.kind === 'unavailable'`, a full quota is `'error'` with
- * `code: 'quota-exceeded'`, and both are rendered by the status line.
+ * `code: 'quota-exceeded'`, a rejected write is `'error'` with the message, and
+ * all of them are rendered by the status line.
  *
  * The class holds no DOM and no timers of its own — `schedule` is injected — so
  * the whole behaviour is unit-testable in Node.
@@ -23,16 +29,22 @@ import {
   type RouteEditor,
   type StoreErrorCode,
   type Trip,
-  type TripStore,
   type TripSummary,
 } from '../contracts';
+import type {
+  AsyncTripStore,
+  MigrationResult,
+  StorageUsage,
+  TripStorageInfo,
+  TripStoreLike,
+} from '../store/types';
 import { newTripId } from '../lib/ids';
 import type { EngineSurface } from './engine-types';
 
 /** Autosave delay after the last change, milliseconds. */
 export const AUTOSAVE_DELAY_MS = 1000;
 
-export type SaveStatusKind = 'idle' | 'dirty' | 'saved' | 'error' | 'unavailable';
+export type SaveStatusKind = 'idle' | 'dirty' | 'saving' | 'saved' | 'error' | 'unavailable';
 
 export interface SaveStatus {
   readonly kind: SaveStatusKind;
@@ -51,7 +63,9 @@ export interface TripSessionOptions {
   /** Storage to persist into; `null`/`undefined` means "use the default". */
   storage?: Storage | null;
   /** Inject a store (tests) instead of creating one from `storage`. */
-  store?: TripStore | null;
+  store?: TripStoreLike | null;
+  /** Inject the async store factory (tests) instead of `engines.createTripStorage`. */
+  createStorage?: (options: { storage?: Storage | null }) => Promise<TripStoreLike>;
   now?: () => Date;
   schedule?: ScheduleFn;
   onChange?: (session: TripSession) => void;
@@ -66,6 +80,14 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function newestFirst(a: { updatedAt: string }, b: { updatedAt: string }): number {
+  return a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0;
+}
+
+function isAsyncStore(store: TripStoreLike): store is AsyncTripStore {
+  return typeof (store as Partial<AsyncTripStore>).usage === 'function';
+}
+
 /** Turn any thrown value from the store into a renderable save status. */
 export function saveStatusForError(error: unknown): SaveStatus {
   if (error instanceof StoreError) {
@@ -77,11 +99,12 @@ export function saveStatusForError(error: unknown): SaveStatus {
 export class TripSession {
   private readonly engines: EngineSurface;
   private readonly storage: Storage | null | undefined;
+  private readonly createStorage: ((options: { storage?: Storage | null }) => Promise<TripStoreLike>) | null;
   private readonly now: () => Date;
   private readonly schedule: ScheduleFn;
   private readonly onChangeListener: ((session: TripSession) => void) | undefined;
 
-  private store: TripStore | null = null;
+  private store: TripStoreLike | null = null;
   private storeError: string | null = null;
   private editorInstance: RouteEditor | null = null;
   private current: Trip | null = null;
@@ -89,31 +112,60 @@ export class TripSession {
   private cancelAutosave: (() => void) | null = null;
   private lastListError: SaveStatus | null = null;
 
+  /** Resolves once the storage backend has been chosen (or refused). */
+  private readonly ready: Promise<void>;
+  /** Bumped on every change, so a slow save cannot claim a newer trip. */
+  private sequence = 0;
+  /** Saves run one at a time, in the order they were requested. */
+  private saveChain: Promise<unknown> = Promise.resolve();
+
   constructor(options: TripSessionOptions) {
     this.engines = options.engines;
     this.storage = options.storage;
     this.now = options.now ?? (() => new Date());
     this.schedule = options.schedule ?? defaultSchedule;
     this.onChangeListener = options.onChange;
+    this.createStorage = options.createStorage ?? null;
 
     if (options.store !== undefined) {
       this.store = options.store;
       this.storeError = options.store === null ? 'no storage' : null;
       if (this.store === null) this.status = { kind: 'unavailable' };
+      this.ready = Promise.resolve();
     } else {
-      try {
+      this.ready = this.openStore();
+    }
+  }
+
+  /** Choose (and possibly open) the storage backend. Never throws. */
+  private async openStore(): Promise<void> {
+    try {
+      const factory = this.createStorage ?? this.engines.createTripStorage;
+      if (factory) {
+        this.store = await factory({ storage: this.storage });
+      } else {
+        // A surface with no async factory (old tests): use its sync store.
         this.store = this.engines.createTripStore(this.storage ?? undefined);
-      } catch (error) {
-        this.store = null;
-        this.storeError = messageOf(error);
-        this.status = { kind: 'unavailable', message: this.storeError };
       }
+      if (!this.store) {
+        this.storeError = 'no storage';
+        this.setStatus({ kind: 'unavailable' });
+      }
+    } catch (error) {
+      this.store = null;
+      this.storeError = messageOf(error);
+      this.setStatus({ kind: 'unavailable', message: this.storeError });
     }
   }
 
   // -------------------------------------------------------------------------
   // Reading state
   // -------------------------------------------------------------------------
+
+  /** Resolves when the store is ready; the UI awaits this before its first list. */
+  whenReady(): Promise<void> {
+    return this.ready;
+  }
 
   get trip(): Trip | null {
     return this.current;
@@ -145,7 +197,40 @@ export class TripSession {
     return this.storeError;
   }
 
-  /** The error from the last `list()` call, if the index could not be read. */
+  /** `indexeddb`, `localstorage`, or `null` when no store could be created. */
+  get backend(): 'indexeddb' | 'localstorage' | null {
+    const store = this.store;
+    if (!store || !isAsyncStore(store)) return null;
+    return store.backend;
+  }
+
+  /** Which backend, whether it is durable, and why not — for the library dialog. */
+  get storageInfo(): TripStorageInfo | null {
+    const store = this.store;
+    if (!store || !isAsyncStore(store)) return null;
+    return { backend: store.backend, persistent: store.persistent, problem: store.problem };
+  }
+
+  /** What the legacy localStorage import did, when the store performed one. */
+  get migration(): MigrationResult | null {
+    const store = this.store;
+    if (!store || !isAsyncStore(store)) return null;
+    return store.migration;
+  }
+
+  /** "x MB of ~y MB used". `null` when the browser reports nothing. */
+  async usage(): Promise<StorageUsage | null> {
+    await this.ready;
+    const store = this.store;
+    if (!store || !isAsyncStore(store)) return null;
+    try {
+      return await store.usage();
+    } catch {
+      return null;
+    }
+  }
+
+  /** The error from the last `list()` call, if the store could not be read. */
   get listProblem(): SaveStatus | null {
     return this.lastListError;
   }
@@ -155,32 +240,33 @@ export class TripSession {
   // -------------------------------------------------------------------------
 
   /**
-   * Adopt a trip as the open trip. `save: 'now'` persists it immediately (used
-   * for imports, where the user expects the file to be kept), otherwise the
-   * debounced autosave picks it up.
+   * Adopt a trip as the open trip. `save: 'now'` hands it to the store
+   * immediately (used for imports, where the user expects the file to be kept)
+   * — the status goes to `'saving'` and only becomes `'saved'` when the write
+   * commits. Otherwise the debounced autosave picks it up.
    */
-  adopt(
-    trip: Trip,
-    options: { save?: 'now' | 'deferred' | 'manual' } = {},
-  ): Trip {
+  adopt(trip: Trip, options: { save?: 'now' | 'deferred' | 'manual' } = {}): Trip {
     this.cancelPending();
     this.editorInstance = this.engines.createEditor(trip);
     this.current = trip;
+    this.sequence += 1;
     this.setStatus({ kind: 'dirty' });
-    if (options.save === 'now') this.saveNow();
+    if (options.save === 'now') void this.saveNow();
     else if (options.save !== 'manual') this.scheduleAutosave();
     return trip;
   }
 
   /** Open a saved trip by id. Returns `null` when it is not there. */
-  open(id: string): Trip | null {
+  async open(id: string): Promise<Trip | null> {
+    await this.ready;
     if (!this.store) return null;
     try {
-      const trip = this.store.load(id);
+      const trip = await this.store.load(id);
       if (!trip) return null;
       this.cancelPending();
       this.editorInstance = this.engines.createEditor(trip);
       this.current = trip;
+      this.sequence += 1;
       this.setStatus({ kind: 'saved', at: this.now().getTime() });
       return trip;
     } catch (error) {
@@ -244,18 +330,67 @@ export class TripSession {
     return this.commit(next, { alreadyTouched: true });
   }
 
-  /** Persist the current trip now, cancelling any pending autosave. */
-  saveNow(): SaveStatus {
+  // -------------------------------------------------------------------------
+  // Saving
+  // -------------------------------------------------------------------------
+
+  /**
+   * Persist the current trip now and resolve once the write has committed (or
+   * failed). The status is `'saving'` from the moment this is called until the
+   * store answers — never `'saved'` for a write that has not landed.
+   */
+  saveNow(): Promise<SaveStatus> {
     this.cancelPending();
-    if (!this.current) return this.status;
-    if (!this.store) {
+    const trip = this.current;
+    if (!trip) return Promise.resolve(this.status);
+    const sequence = this.sequence;
+    this.setStatus({ kind: 'saving' });
+    const run = this.saveChain.then(() => this.write(trip, sequence));
+    this.saveChain = run.catch(() => undefined);
+    return run;
+  }
+
+  /**
+   * Flush a pending autosave. Called on `pagehide`/`visibilitychange`: the
+   * browser may not give an async write time to finish, which is why
+   * `docs/12-storage.md` still lists "an edit in the last second" as a loss.
+   */
+  async flush(): Promise<void> {
+    await this.ready;
+    const pending = this.cancelAutosave !== null;
+    this.cancelPending();
+    if (!this.current) {
+      await this.saveChain;
+      return;
+    }
+    if (!pending && this.status.kind !== 'dirty') {
+      // Nothing changed, but a write may still be committing: wait for it so
+      // the status the caller reads afterwards is the final one.
+      await this.saveChain;
+      return;
+    }
+    await this.saveNow();
+  }
+
+  private async write(trip: Trip, sequence: number): Promise<SaveStatus> {
+    await this.ready;
+    const store = this.store;
+    if (!store) {
       this.setStatus({ kind: 'unavailable', message: this.storeError ?? undefined });
       return this.status;
     }
     try {
-      this.store.save(this.current);
-      this.setStatus({ kind: 'saved', at: this.now().getTime() });
+      await store.save(trip);
+      // A write for a trip that is no longer open must not touch the status of
+      // the current one: opening B while A's write was queued used to stamp a
+      // freshly-opened, saved B as "not saved" (or as an error).
+      if (this.current?.id !== trip.id) return this.status;
+      // A newer edit landed while this write was in flight: the stored trip is
+      // the old one, so the status must not claim it is saved.
+      if (sequence === this.sequence) this.setStatus({ kind: 'saved', at: this.now().getTime() });
+      else if (this.status.kind !== 'saving') this.setStatus({ kind: 'dirty' });
     } catch (error) {
+      if (this.current?.id !== trip.id) return this.status;
       this.setStatus(saveStatusForError(error));
     }
     return this.status;
@@ -265,22 +400,24 @@ export class TripSession {
   // Library operations
   // -------------------------------------------------------------------------
 
-  list(): TripSummary[] {
+  async list(): Promise<TripSummary[]> {
+    await this.ready;
     if (!this.store) return [];
     try {
-      const summaries = this.store.list();
+      const summaries = await this.store.list();
       this.lastListError = null;
-      return [...summaries].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0));
+      return [...summaries].sort(newestFirst);
     } catch (error) {
       this.lastListError = saveStatusForError(error);
       return [];
     }
   }
 
-  remove(id: string): boolean {
+  async remove(id: string): Promise<boolean> {
+    await this.ready;
     if (!this.store) return false;
     try {
-      this.store.remove(id);
+      await this.store.remove(id);
       if (this.current?.id === id) this.close();
       return true;
     } catch (error) {
@@ -291,21 +428,23 @@ export class TripSession {
 
   /**
    * Rename a stored trip. When it is the open trip, the change goes through
-   * `rewrite` so the editor and the autosave see it.
+   * `rewrite` so the editor and the autosave see it, and the save is awaited
+   * before this resolves.
    */
-  renameSaved(id: string, name: string): boolean {
+  async renameSaved(id: string, name: string): Promise<boolean> {
+    await this.ready;
     if (!this.store) return false;
     const trimmed = name.trim();
     if (trimmed.length === 0) return false;
     if (this.current?.id === id) {
       this.rewrite({ ...this.current, name: trimmed });
-      this.saveNow();
-      return true;
+      const status = await this.saveNow();
+      return status.kind !== 'error';
     }
     try {
-      const trip = this.store.load(id);
+      const trip = await this.store.load(id);
       if (!trip) return false;
-      this.store.save(this.touch({ ...trip, name: trimmed }));
+      await this.store.save(this.touch({ ...trip, name: trimmed }));
       return true;
     } catch (error) {
       this.setStatus(saveStatusForError(error));
@@ -314,10 +453,11 @@ export class TripSession {
   }
 
   /** Copy a stored trip under a new id and name. Returns the new id. */
-  duplicate(id: string, nameSuffix: string): string | null {
+  async duplicate(id: string, nameSuffix: string): Promise<string | null> {
+    await this.ready;
     if (!this.store) return null;
     try {
-      const trip = this.store.load(id);
+      const trip = await this.store.load(id);
       if (!trip) return null;
       const stamp = this.now().toISOString();
       const copy: Trip = {
@@ -327,7 +467,7 @@ export class TripSession {
         createdAt: stamp,
         updatedAt: stamp,
       };
-      this.store.save(copy);
+      await this.store.save(copy);
       return copy.id;
     } catch (error) {
       this.setStatus(saveStatusForError(error));
@@ -335,13 +475,17 @@ export class TripSession {
     }
   }
 
-  /** Parse an uploaded file into a trip and adopt it, saving immediately. */
-  importFile(text: string, filename: string): Trip {
+  /** Parse an uploaded file into a trip, adopt it and save it before resolving. */
+  async importFile(text: string, filename: string): Promise<Trip> {
+    await this.ready;
     if (!this.store) {
       throw new StoreError('unsupported', this.storeError ?? 'storage unavailable');
     }
     const trip = this.store.fromFile(text, filename);
-    this.adopt(trip, { save: 'now' });
+    this.adopt(trip, { save: 'manual' });
+    // Awaited so the caller (and the library list) sees the saved row; a failed
+    // write is reported through the status line, not thrown at the importer.
+    await this.saveNow();
     return trip;
   }
 
@@ -366,22 +510,34 @@ export class TripSession {
   }
 
   /** Export any stored trip without adopting it as the open trip. */
-  exportGpxFor(id: string): string | null {
-    if (!this.store) return null;
+  async exportGpxFor(id: string): Promise<string | null> {
+    const trip = await this.loadForExport(id);
+    if (!trip) return null;
     try {
-      const trip = this.current?.id === id ? this.current : this.store.load(id);
-      return trip ? this.store.toGpx(trip) : null;
+      return this.store ? this.store.toGpx(trip) : null;
     } catch (error) {
       this.setStatus(saveStatusForError(error));
       return null;
     }
   }
 
-  exportGeoJsonFor(id: string): string | null {
+  async exportGeoJsonFor(id: string): Promise<string | null> {
+    const trip = await this.loadForExport(id);
+    if (!trip) return null;
+    try {
+      return this.store ? this.store.toGeoJson(trip) : null;
+    } catch (error) {
+      this.setStatus(saveStatusForError(error));
+      return null;
+    }
+  }
+
+  private async loadForExport(id: string): Promise<Trip | null> {
+    await this.ready;
+    if (this.current?.id === id) return this.current;
     if (!this.store) return null;
     try {
-      const trip = this.current?.id === id ? this.current : this.store.load(id);
-      return trip ? this.store.toGeoJson(trip) : null;
+      return await this.store.load(id);
     } catch (error) {
       this.setStatus(saveStatusForError(error));
       return null;
@@ -394,6 +550,7 @@ export class TripSession {
 
   private commit(next: Trip, options: { alreadyTouched?: boolean } = {}): Trip {
     this.current = options.alreadyTouched ? next : this.touch(next);
+    this.sequence += 1;
     this.setStatus({ kind: 'dirty' });
     this.scheduleAutosave();
     return this.current;
@@ -408,7 +565,7 @@ export class TripSession {
     this.cancelPending();
     this.cancelAutosave = this.schedule(() => {
       this.cancelAutosave = null;
-      this.saveNow();
+      void this.saveNow();
     }, AUTOSAVE_DELAY_MS);
   }
 

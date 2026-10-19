@@ -27,6 +27,9 @@ const REQUIRED = [
   ['D10', 'energy model and food weight'],
   ['D11', 'data freshness'],
   ['D12', 'what the app refuses to claim'],
+  ['D13', 'fuel stations as food'],
+  ['D14', 'missing daily distance'],
+  ['D15', 'elevation that is only partly known'],
 ];
 
 const problems = [];

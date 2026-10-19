@@ -1,11 +1,16 @@
 /**
  * Acceptance: load → edit → save → reload, through the real session, store and
- * editor over one shared Storage.
+ * editor over one shared backend.
  *
  * Each piece was previously tested against a fake of the next: the session with
  * a fake store, the store with synthetic trips that were never edited. This is
  * the journey a user actually performs, and it also pins that undo history does
  * not leak into storage.
+ *
+ * The backend is the real async store over injected storage: in Node there is no
+ * `indexedDB`, so `createTripStorage` exercises its localStorage fallback path —
+ * and the reload proves that the fallback is the same behaviour the IndexedDB
+ * store provides (`test/store/indexeddb.test.ts` covers that side).
  */
 import { readFileSync } from 'node:fs';
 
@@ -28,11 +33,12 @@ function newSession(storage: Storage): TripSession {
 }
 
 describe('acceptance: edit, save, reload', () => {
-  it('restores an edited trip exactly, and does not restore undo history', () => {
+  it('restores an edited trip exactly, and does not restore undo history', async () => {
     const storage = memoryStorage();
 
     const first = newSession(storage);
-    const imported = first.importFile(readFileSync(DEMO, 'utf8'), 'gjendesheim-besseggen.gpx');
+    await first.whenReady();
+    const imported = await first.importFile(readFileSync(DEMO, 'utf8'), 'gjendesheim-besseggen.gpx');
     const legId = imported.legs[0]!.id;
 
     // A scripted edit sequence covering geometry, splitting and naming.
@@ -45,16 +51,16 @@ describe('acceptance: edit, save, reload', () => {
 
     expect(first.canUndo).toBe(true);
     const edited = first.trip!;
-    const status = first.saveNow();
-    expect(status.kind).not.toBe('error');
+    const status = await first.saveNow();
+    expect(status.kind).toBe('saved');
 
     // --- reload through a *new* session over the same storage ---------------
     const second = newSession(storage);
-    const listed = second.list();
+    const listed = await second.list();
     expect(listed).toHaveLength(1);
     expect(listed[0]!.name).toBe(edited.name);
 
-    const reloaded = second.open(edited.id);
+    const reloaded = await second.open(edited.id);
     expect(reloaded).not.toBeNull();
 
     // Geometry, elevation provenance and the derived numbers survive.
@@ -73,7 +79,7 @@ describe('acceptance: edit, save, reload', () => {
     const gpx = second.exportGpx();
     expect(gpx).toBeTruthy();
     const third = newSession(memoryStorage());
-    const reimported = third.importFile(gpx!, 'reload.gpx');
+    const reimported = await third.importFile(gpx!, 'reload.gpx');
     expect(reimported.legs[0]!.points).toHaveLength(edited.legs[0]!.points.length);
   });
 });

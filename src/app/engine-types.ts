@@ -16,6 +16,7 @@
 
 import type { Leg, RouteEditor, RoutePoint, Trip, TripStore, UserProfile, WeatherPlan } from '../contracts';
 import type { SnapIndex } from '../snap';
+import type { TripStoreLike } from '../store/types';
 
 /**
  * Weather cache contract, as specified in docs/09 §7. Declared structurally
@@ -58,6 +59,13 @@ export interface EngineSurface {
 
   // storage
   createTripStore(storage?: Storage): TripStore;
+  /**
+   * The async backend the app actually uses: IndexedDB when the browser has it,
+   * the localStorage store when it does not. Optional so a surface without it
+   * (older tests) still works — the session then falls back to
+   * `createTripStore`.
+   */
+  createTripStorage?(options: { storage?: Storage | null }): Promise<TripStoreLike>;
   emptyTrip(name: string, profile: UserProfile): Trip;
   defaultProfile(): UserProfile;
 }

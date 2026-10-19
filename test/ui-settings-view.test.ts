@@ -47,30 +47,27 @@ describe('trip settings form', () => {
     if (!result.ok) return;
     expect(result.profile).toEqual(PROFILE);
     expect('bodyFatPercent' in result.profile).toBe(false);
+
+    // A comma decimal separator is what a Norwegian keyboard produces.
+    const comma = parseSettingsForm(values({ massKg: '70,5' }), createI18n('no'));
+    expect(comma.ok).toBe(true);
+    if (comma.ok) expect(comma.profile.massKg).toBe(70.5);
+
+    // A body-fat percentage is optional but kept when given.
+    const fat = parseSettingsForm(values({ bodyFatPercent: '22' }), createI18n('no'));
+    expect(fat.ok).toBe(true);
+    if (fat.ok) expect(fat.profile.bodyFatPercent).toBe(22);
   });
 
-  it('accepts a comma decimal separator', () => {
-    const result = parseSettingsForm(values({ massKg: '70,5' }), createI18n('no'));
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.profile.massKg).toBe(70.5);
-  });
-
-  it('keeps an optional body-fat percentage when given', () => {
-    const result = parseSettingsForm(values({ bodyFatPercent: '22' }), createI18n('no'));
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.profile.bodyFatPercent).toBe(22);
-  });
-
-  it('omits an undecided start date instead of faking one', () => {
-    const result = parseSettingsForm(values({ startDate: '' }), createI18n('no'));
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.profile.startDate).toBeUndefined();
-      expect('startDate' in result.profile).toBe(false);
+  it('omits an undecided start date instead of faking one, and accepts the exact limits', () => {
+    const undecided = parseSettingsForm(values({ startDate: '' }), createI18n('no'));
+    expect(undecided.ok).toBe(true);
+    if (undecided.ok) {
+      expect(undecided.profile.startDate).toBeUndefined();
+      expect('startDate' in undecided.profile).toBe(false);
     }
-  });
 
-  it('accepts the exact limits', () => {
+
     const result = parseSettingsForm(
       values({
         massKg: String(SETTINGS_LIMITS.massKg.min),

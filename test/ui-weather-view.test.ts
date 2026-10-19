@@ -100,7 +100,7 @@ function ready(): WeatherPanelState {
 }
 
 describe('buildWeatherView — honesty rules', () => {
-  it('renders numbers for a day inside the horizon', () => {
+  it('renders numbers for a day inside the horizon, and zero as zero', () => {
     const view = buildWeatherView(ready(), PROFILE, 9, createI18n('no'));
     expect(view.state).toBe('table');
     const row = view.rows[0];
@@ -112,14 +112,11 @@ describe('buildWeatherView — honesty rules', () => {
     expect(row.issuedLabel).toContain('sendt');
     expect(row.dateLabel).toContain('1. juli');
     expect(row.distanceLabel).toBe('15,0 km fra start');
-  });
-
-  it('renders zero as zero — it is a measurement, not an unknown', () => {
-    const view = buildWeatherView(ready(), PROFILE, 9, createI18n('no'));
+    // Zero is a measurement, not an unknown.
     expect(view.rows[1].tempLabel).toBe('0 °C');
   });
 
-  it('renders no numeric fields at all beyond the horizon', () => {
+  it('renders no numeric fields at all beyond the horizon, and marks a failed day', () => {
     const view = buildWeatherView(ready(), PROFILE, 9, createI18n('no'));
     const beyond = view.rows[2];
     expect(beyond.status).toBe('beyond-horizon');
@@ -136,10 +133,7 @@ describe('buildWeatherView — honesty rules', () => {
     });
     expect(serialised).not.toContain('0');
     expect(beyond.ariaLabel).toContain('utenfor varselhorisonten');
-  });
 
-  it('marks a failed day unavailable with its reason and no numbers', () => {
-    const view = buildWeatherView(ready(), PROFILE, 9, createI18n('no'));
     const unavailable = view.rows[3];
     expect(unavailable.status).toBe('unavailable');
     expect(unavailable.badge).toBe('ikke tilgjengelig');
@@ -147,7 +141,7 @@ describe('buildWeatherView — honesty rules', () => {
     expect(unavailable.tempLabel).toBeNull();
   });
 
-  it('states the horizon in words and counts the days', () => {
+  it('states the horizon in words, counts the days and translates warnings', () => {
     const view = buildWeatherView(ready(), PROFILE, 9, createI18n('no'));
     expect(view.note).toContain('9');
     expect(view.note).toContain('horisont');
@@ -155,10 +149,6 @@ describe('buildWeatherView — honesty rules', () => {
     expect(view.statusLine).toContain('1 dag utenfor horisonten');
     expect(view.fetchedLabel).toContain('varsel hentet');
     expect(view.withoutForecast).toBe(false);
-  });
-
-  it('translates warnings, keeps severity and refuses a non-https link', () => {
-    const view = buildWeatherView(ready(), PROFILE, 9, createI18n('no'));
     expect(view.warnings[0].severityLabel).toBe('alvorlig');
     expect(view.warnings[0].url).toBe('https://www.met.no/vaer-og-klima/varsler');
     expect(view.warnings[0].periodLabel).toContain('–');
@@ -166,28 +156,26 @@ describe('buildWeatherView — honesty rules', () => {
     expect(view.warnings[1].url).toBeNull();
   });
 
-  it('says exactly what is missing when the start date is absent', () => {
-    const view = buildWeatherView(
+  it('says exactly what is missing when the start date or the daily distance is absent', () => {
+    const noDate = buildWeatherView(
       { kind: 'needs-start-date' },
       { ...PROFILE, startDate: undefined },
       9,
       createI18n('no'),
     );
-    expect(view.state).toBe('message');
-    expect(view.action).toBe('settings');
-    expect(view.message).toContain('startdato');
-    expect(view.rows).toEqual([]);
-  });
+    expect(noDate.state).toBe('message');
+    expect(noDate.action).toBe('settings');
+    expect(noDate.message).toContain('startdato');
+    expect(noDate.rows).toEqual([]);
 
-  it('says exactly what is missing when the daily distance is absent', () => {
-    const view = buildWeatherView(
+    const noDaily = buildWeatherView(
       { kind: 'needs-daily-km' },
       { ...PROFILE, dailyKm: 0 },
       9,
       createI18n('en'),
     );
-    expect(view.action).toBe('settings');
-    expect(view.message).toContain('kilometres per day');
+    expect(noDaily.action).toBe('settings');
+    expect(noDaily.message).toContain('kilometres per day');
   });
 
   it('renders a visible state for a missing engine, no trip, loading and failure', () => {
@@ -210,32 +198,33 @@ describe('buildWeatherView — honesty rules', () => {
     expect(no[3].action).toBe('refresh');
   });
 
-  it('uses the singular for a single day count', () => {
+  it('counts in the singular for one day, and says when none is inside the horizon', () => {
     const single: WeatherPlan = { ...plan(), days: [plan().days[0]] };
-    const view = buildWeatherView({ kind: 'ready', plan: single }, PROFILE, 9, createI18n('no'));
-    expect(view.statusLine).toBe('1 dag med varsel');
-  });
+    const one = buildWeatherView({ kind: 'ready', plan: single }, PROFILE, 9, createI18n('no'));
+    expect(one.statusLine).toBe('1 dag med varsel');
 
-  it('says no day is inside the horizon when every day is beyond it', () => {
     const beyondOnly: WeatherPlan = {
       ...plan(),
       days: [plan().days[2]],
       hasForecast: false,
     };
-    const view = buildWeatherView({ kind: 'ready', plan: beyondOnly }, PROFILE, 9, createI18n('no'));
-    expect(view.withoutForecast).toBe(true);
-    expect(view.statusLine).toContain('Ingen dager ligger innenfor');
+    const none = buildWeatherView(
+      { kind: 'ready', plan: beyondOnly },
+      PROFILE,
+      9,
+      createI18n('no'),
+    );
+    expect(none.withoutForecast).toBe(true);
+    expect(none.statusLine).toContain('Ingen dager ligger innenfor');
   });
 });
 
 describe('weather date helpers', () => {
-  it('formats an ISO date without a timezone shift', () => {
+  it('formats dates without a timezone shift, times in the locale, and tolerates junk', () => {
     // Midnight UTC must stay on the same calendar day in every UI timezone.
     expect(parseDateLabel('2026-07-01', createI18n('en'))).toContain('1 Jul');
     expect(parseDateLabel('2026-07-01', createI18n('no'))).toContain('1. juli');
-  });
 
-  it('formats a time in the active locale and tolerates junk', () => {
     const time = timeLabel('2026-06-30T21:00:00.000Z', 'en-GB');
     expect(time).toMatch(/^\d{2}:\d{2}$/);
     expect(timeLabel(undefined, 'en-GB')).toBe('');

@@ -13,7 +13,7 @@
  */
 
 import { createEditor, emptyLeg, rerouteSpan, tripFromPoints } from '../route/index';
-import { createTripStore, defaultProfile, emptyTrip } from '../store/index';
+import { createTripStorage, createTripStore, defaultProfile, emptyTrip } from '../store/index';
 import { forecastHorizonDays, planTripWeather } from '../weather/index';
 import type { EngineSurface, WeatherCacheLike, WeatherDepsLike } from './engine-types';
 
@@ -32,6 +32,7 @@ export const engines: EngineSurface = {
   tripFromPoints,
   rerouteSpan,
   createTripStore,
+  createTripStorage,
   emptyTrip,
   defaultProfile,
 };

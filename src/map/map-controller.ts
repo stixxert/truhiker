@@ -18,6 +18,7 @@
 
 import {
   Map as MapLibreMap,
+  Popup,
   ScaleControl,
   type Map as MapLibreMapType,
   type RasterSourceSpecification,
@@ -58,6 +59,28 @@ export interface MapCallbacks {
   onFatal(message: string): void;
 }
 
+/**
+ * One resupply point as the map needs it: a position, a kind for the colour and
+ * a flag for whether it counts as food. The map never decides *what* the point
+ * means — that is `src/resupply`'s job.
+ */
+export interface ResupplyMapPoint {
+  readonly id: string;
+  readonly kind: string;
+  readonly position: LonLat;
+  /** False for huts and unmanned fuel: drawn hollow, never a "you can eat" dot. */
+  readonly usable: boolean;
+}
+
+export interface ResupplyMapHandlers {
+  /** A marker was clicked. The app moves the profile cursor to its distance. */
+  onSelect?: (id: string) => void;
+  /** Hover in/out; `null` when the pointer left every marker. */
+  onHover?: (id: string | null) => void;
+  /** The card to show on hover. Built by the app so the text is translated. */
+  cardFor?: (id: string) => Node | null;
+}
+
 export interface MapControllerOptions {
   reducedMotion?: boolean;
   /** Initial map sky/atmosphere, on by default. */
@@ -87,6 +110,75 @@ const EMPTY_POINTS: GeoJSON.FeatureCollection<GeoJSON.Point> = {
 
 function wmtsUrl(layer: 'topo' | 'topograatone'): string {
   return `${WMTS_BASE}/${layer}/default/webmercator/{z}/{y}/{x}.png`;
+}
+
+type StyleLayers = NonNullable<StyleSpecification['layers']>;
+
+/**
+ * Resupply markers: colour by kind, hollow for anything that is not a food
+ * source, and a selection ring. There is no glyph server in this style, so the
+ * kind is carried by colour and by the hover card, which has the words.
+ */
+type CircleLayer = Extract<StyleLayers[number], { type: 'circle' }>;
+type ColorSpec = NonNullable<CircleLayer['paint']>['circle-color'];
+
+/** Kind → colour. Chosen to stay distinguishable on the dark basemap. */
+function resupplyColor(): NonNullable<ColorSpec> {
+  return [
+    'match',
+    ['get', 'kind'],
+    'supermarket', '#7ee787',
+    'convenience', '#3ad9c4',
+    'general', '#8fd0ff',
+    'grocery', '#8fd0ff',
+    'fuel', '#ffd166',
+    'post', '#c9a7ff',
+    'parcel', '#c9a7ff',
+    'hut', '#ff9e64',
+    '#e8efef',
+  ];
+}
+
+function resupplyLayers(): StyleLayers {
+  return [
+    {
+      id: 'resupply-ring',
+      type: 'circle',
+      source: 'resupply',
+      filter: ['==', ['get', 'id'], '__none__'],
+      paint: {
+        'circle-radius': 14,
+        'circle-color': '#f2fffc',
+        'circle-opacity': 0.12,
+        'circle-stroke-color': '#f2fffc',
+        'circle-stroke-width': 2,
+      },
+    },
+    {
+      id: 'resupply-halo',
+      type: 'circle',
+      source: 'resupply',
+      filter: ['==', ['get', 'usable'], true],
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 8, 10, 11, 15, 15],
+        'circle-color': resupplyColor(),
+        'circle-opacity': 0.22,
+      },
+    },
+    {
+      id: 'resupply-points',
+      type: 'circle',
+      source: 'resupply',
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 3.5, 10, 5, 15, 7],
+        'circle-color': resupplyColor(),
+        // A point that is not food is hollow: the visual is the honesty rule.
+        'circle-opacity': ['case', ['==', ['get', 'usable'], true], 1, 0.4],
+        'circle-stroke-color': ['case', ['==', ['get', 'usable'], true], '#06100f', '#f2fffc'],
+        'circle-stroke-width': ['case', ['==', ['get', 'usable'], true], 1.6, 1.8],
+      },
+    },
+  ];
 }
 
 function buildStyle(): StyleSpecification {
@@ -120,6 +212,7 @@ function buildStyle(): StyleSpecification {
       },
       route: { type: 'geojson', data: EMPTY_LINE },
       'route-endpoints': { type: 'geojson', data: EMPTY_POINTS },
+      resupply: { type: 'geojson', data: EMPTY_POINTS },
       'route-cursor': { type: 'geojson', data: EMPTY_POINTS },
     },
     layers: [
@@ -194,6 +287,7 @@ function buildStyle(): StyleSpecification {
           'circle-stroke-width': 2,
         },
       },
+      ...resupplyLayers(),
       {
         id: 'route-cursor-halo',
         type: 'circle',
@@ -247,6 +341,11 @@ export class MapController {
   private cameraFrame = 0;
   private ready = false;
   private disposed = false;
+  private resupply: ResupplyMapPoint[] = [];
+  private resupplyHandlers: ResupplyMapHandlers = {};
+  private resupplyPopup: Popup | null = null;
+  private resupplyHovered: string | null = null;
+  private resupplySelected: string | null = null;
 
   constructor(container: HTMLElement, callbacks: MapCallbacks, options: MapControllerOptions = {}) {
     this.callbacks = callbacks;
@@ -287,6 +386,10 @@ export class MapController {
       this.ready = true;
       if (options.sky !== false) this.applySky();
       void this.probeTerrain();
+      this.wireResupplyInteraction();
+      // Markers can be set before the style finished loading; paint them now.
+      this.applyResupply();
+      this.applyResupplySelection();
     });
 
     const scheduleCamera = (): void => {
@@ -649,6 +752,133 @@ export class MapController {
         essential: false,
       },
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // Resupply markers
+  // -------------------------------------------------------------------------
+
+  /** Replace the resupply markers. Safe before the style has loaded. */
+  setResupplyPoints(points: readonly ResupplyMapPoint[]): void {
+    this.resupply = [...points];
+    this.applyResupply();
+  }
+
+  setResupplyHandlers(handlers: ResupplyMapHandlers): void {
+    this.resupplyHandlers = handlers;
+  }
+
+  /**
+   * Ring the marker for `id` and show its card, or clear both with `null`.
+   *
+   * Selecting from the list and hovering on the map are the same affordance:
+   * "what is this point?" — so a selection keeps the card open.
+   */
+  setResupplySelection(id: string | null): void {
+    this.resupplySelected = id;
+    this.applyResupplySelection();
+    if (id === null) {
+      this.resupplyPopup?.remove();
+      this.resupplyPopup = null;
+      return;
+    }
+    // On a phone the panel is a bottom sheet that would cover the card; the
+    // ring plus the list row already say which point this is.
+    if (!this.isNarrow()) this.showResupplyCard(id, true);
+  }
+
+  /** The same 620 px breakpoint the camera padding uses. */
+  private isNarrow(): boolean {
+    return (this.map.getCanvas()?.clientWidth ?? 900) < 620;
+  }
+
+  private applyResupply(): void {
+    const source = this.map.getSource('resupply');
+    if (!source || !('setData' in source)) return;
+    const features: Array<GeoJSON.Feature<GeoJSON.Point>> = this.resupply.map((point) => ({
+      type: 'Feature',
+      properties: { id: point.id, kind: point.kind, usable: point.usable },
+      geometry: { type: 'Point', coordinates: [point.position.lon, point.position.lat] },
+    }));
+    (source as { setData(data: GeoJSON.GeoJSON): void }).setData({
+      type: 'FeatureCollection',
+      features,
+    });
+  }
+
+  private applyResupplySelection(): void {
+    if (!this.map.getLayer('resupply-ring')) return;
+    this.map.setFilter('resupply-ring', ['==', ['get', 'id'], this.resupplySelected ?? '__none__']);
+  }
+
+  private pointById(id: string): ResupplyMapPoint | undefined {
+    return this.resupply.find((point) => point.id === id);
+  }
+
+  private wireResupplyInteraction(): void {
+    const layer = 'resupply-points';
+    if (!this.map.getLayer(layer)) return;
+    this.map.on('click', layer, (event) => {
+      const id = event.features?.[0]?.properties?.id;
+      if (typeof id === 'string') this.resupplyHandlers.onSelect?.(id);
+    });
+    this.map.on('mousemove', layer, (event) => {
+      const id = event.features?.[0]?.properties?.id;
+      if (typeof id !== 'string') return;
+      this.map.getCanvas().style.cursor = 'pointer';
+      if (id !== this.resupplyHovered) {
+        this.resupplyHovered = id;
+        this.resupplyHandlers.onHover?.(id);
+      }
+      this.showResupplyCard(id);
+    });
+    this.map.on('mouseleave', layer, () => {
+      this.map.getCanvas().style.cursor = '';
+      if (this.resupplyHovered !== null) {
+        this.resupplyHovered = null;
+        this.resupplyHandlers.onHover?.(null);
+      }
+      this.resupplyPopup?.remove();
+      this.resupplyPopup = null;
+    });
+  }
+
+  private showResupplyCard(id: string, replace = false): void {
+    if (this.resupplyPopup?.isOpen() && !replace) return;
+    const card = this.resupplyHandlers.cardFor?.(id) ?? null;
+    const point = this.pointById(id);
+    if (!card || !point) return;
+    this.resupplyPopup?.remove();
+    this.resupplyPopup = new Popup({
+      closeButton: false,
+      closeOnClick: false,
+      offset: 14,
+      maxWidth: '260px',
+      className: 'resupply-popup',
+    })
+      .setLngLat([point.position.lon, point.position.lat])
+      .setDOMContent(card)
+      .addTo(this.map);
+  }
+
+  /**
+   * Centre the map on a point (used when a panel row is activated).
+   *
+   * On a narrow viewport the supply panel is a bottom sheet, so the camera
+   * padding lifts the point into the strip of map that is still visible —
+   * otherwise the selection would be hidden by the thing that selected it.
+   */
+  focusOn(position: LonLat): void {
+    const height = this.map.getContainer().clientHeight;
+    const padding = this.isNarrow()
+      ? { top: 0, right: 0, bottom: Math.round(height * 0.55), left: 0 }
+      : undefined;
+    this.map.easeTo({
+      center: [position.lon, position.lat],
+      duration: this.reducedMotion ? 0 : 600,
+      zoom: Math.max(this.map.getZoom(), 9),
+      ...(padding ? { padding } : {}),
+    });
   }
 
   setCursor(position: LonLat | null): void {

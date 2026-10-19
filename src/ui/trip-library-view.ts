@@ -28,6 +28,29 @@ export interface TripLibraryView {
   readonly problem: string | null;
   readonly problemDetail: string | null;
   readonly importEnabled: boolean;
+  /** "IndexedDB · 12.3 MB of ~8 GB used". Empty when nothing is known. */
+  readonly storageLabel: string;
+  /** Visible warning when storage is not what it should be. Never silent. */
+  readonly storageNote: string | null;
+  /** The technical reason behind `storageNote`, for a tooltip. */
+  readonly storageDetail: string | null;
+}
+
+/**
+ * What the library should say about storage. Gathered from the session, which
+ * asks the backend itself — the view only formats it.
+ */
+export interface TripLibraryStorage {
+  readonly backend: 'indexeddb' | 'localstorage';
+  readonly persistent: boolean;
+  readonly usedBytes: number | null;
+  readonly quotaBytes: number | null;
+  /** Why IndexedDB is not in use, when it is not. */
+  readonly problem: string | null;
+  /** Trips imported from localStorage on this load. */
+  readonly migrated: number;
+  /** A failed migration message; the old copies are still there. */
+  readonly migrationError: string | null;
 }
 
 /** Date only, short form — the trip list is a list, not a changelog. */
@@ -46,6 +69,55 @@ export interface TripLibraryInput {
   currentId: string | null;
   problem: SaveStatus | null;
   importEnabled: boolean;
+  /** `null` while the backend is still being opened. */
+  storage?: TripLibraryStorage | null;
+}
+
+/** Bytes as "12.3 MB" / "1.2 GB", in the UI's locale. */
+function formatBytes(bytes: number, locale: string): string {
+  const megabytes = bytes / 1_000_000;
+  const value = megabytes >= 1000 ? megabytes / 1000 : megabytes;
+  const unit = megabytes >= 1000 ? 'GB' : 'MB';
+  const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
+  return `${number} ${unit}`;
+}
+
+function storageParts(
+  storage: TripLibraryStorage | null | undefined,
+  i18n: Pick<I18n, 't' | 'locale'>,
+): Pick<TripLibraryView, 'storageLabel' | 'storageNote' | 'storageDetail'> {
+  if (!storage) return { storageLabel: '', storageNote: null, storageDetail: null };
+
+  const parts: string[] = [i18n.t(storage.backend === 'indexeddb' ? 'storage.indexeddb' : 'storage.localstorage')];
+  if (storage.usedBytes !== null && storage.quotaBytes !== null && storage.quotaBytes > 0) {
+    parts.push(
+      i18n.t('storage.usage', {
+        used: formatBytes(storage.usedBytes, i18n.locale),
+        quota: formatBytes(storage.quotaBytes, i18n.locale),
+      }),
+    );
+  }
+  if (storage.backend === 'indexeddb') {
+    parts.push(i18n.t(storage.persistent ? 'storage.persistent' : 'storage.notPersistent'));
+  }
+  if (storage.migrated > 0) parts.push(i18n.t('storage.migrated', { n: storage.migrated }));
+
+  const notes: string[] = [];
+  const details: string[] = [];
+  if (storage.backend !== 'indexeddb') {
+    notes.push(i18n.t('storage.fallback'));
+    if (storage.problem) details.push(storage.problem);
+  }
+  if (storage.migrationError) {
+    notes.push(i18n.t('storage.migrationFailed'));
+    details.push(storage.migrationError);
+  }
+
+  return {
+    storageLabel: parts.join(' · '),
+    storageNote: notes.length > 0 ? notes.join(' ') : null,
+    storageDetail: details.length > 0 ? details.join('\n') : null,
+  };
 }
 
 export function buildTripLibraryView(
@@ -79,5 +151,6 @@ export function buildTripLibraryView(
     problem,
     problemDetail: input.problem?.message ?? null,
     importEnabled: input.importEnabled,
+    ...storageParts(input.storage, i18n),
   };
 }

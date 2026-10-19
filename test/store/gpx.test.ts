@@ -71,7 +71,7 @@ function storeErrorCode(fn: () => unknown): unknown {
 }
 
 describe('GPX export', () => {
-  it('produces well-formed XML, including for a trip with no legs', () => {
+  it('produces well-formed XML — for an empty trip too — and escapes every name and provenance value', () => {
     const xml = store.toGpx(syntheticTrip());
     expect(gpxErrors(xml)).toEqual([]);
     expect(xml).not.toMatch(/<trkseg\s*\/>|<trk\s*\/>|<gpx[^>]*\/>/);
@@ -83,6 +83,29 @@ describe('GPX export', () => {
     expect(gpxErrors(empty)).toEqual([]);
     expect(empty).toContain('<metadata>');
     expect(empty).not.toContain('<trk>');
+
+    const named: Trip = { ...syntheticTrip(), name: 'A & B <test>' };
+    const escaped = store.toGpx(named);
+    expect(escaped).toContain('<name>A &amp; B &lt;test&gt;</name>');
+    expect(escaped).not.toContain('<test>');
+    expect(gpxErrors(escaped)).toEqual([]);
+    expect(store.fromFile(escaped, 'escaped.gpx').name).toBe('A & B <test>');
+
+    const legName = `Quote " and ' and & <tag> 🏔`;
+    const quoted = store.toGpx({
+      ...syntheticTrip(),
+      legs: [
+        {
+          ...syntheticTrip().legs[0]!,
+          name: legName,
+          provenance: [
+            { kind: 'turrutebasen', label: `jot21 "north"`, licence: 'CC BY 4.0 ©Kartverket' },
+          ],
+        },
+      ],
+    });
+    expect(gpxErrors(quoted)).toEqual([]);
+    expect(store.fromFile(quoted, 'quotes.gpx').legs[0]!.name).toBe(legName);
   });
 
   it('writes one <trk> per leg and honours the legIds and includeElevation options', () => {
@@ -215,30 +238,6 @@ describe('GPX export/import round-trip (the lossless guarantee)', () => {
     expect(Math.abs(pathLength(twice.legs[0]!.points) - pathLength(imported.points))).toBeLessThan(0.01);
   });
 
-  it('escapes names and provenance, so the output is always well-formed', () => {
-    const named: Trip = { ...syntheticTrip(), name: 'A & B <test>' };
-    const xml = store.toGpx(named);
-    expect(xml).toContain('<name>A &amp; B &lt;test&gt;</name>');
-    expect(xml).not.toContain('<test>');
-    expect(gpxErrors(xml)).toEqual([]);
-    expect(store.fromFile(xml, 'escaped.gpx').name).toBe('A & B <test>');
-
-    const legName = `Quote " and ' and & <tag> 🏔`;
-    const quoted = store.toGpx({
-      ...syntheticTrip(),
-      legs: [
-        {
-          ...syntheticTrip().legs[0]!,
-          name: legName,
-          provenance: [
-            { kind: 'turrutebasen', label: `jot21 "north"`, licence: 'CC BY 4.0 ©Kartverket' },
-          ],
-        },
-      ],
-    });
-    expect(gpxErrors(quoted)).toEqual([]);
-    expect(store.fromFile(quoted, 'quotes.gpx').legs[0]!.name).toBe(legName);
-  });
 });
 
 describe('GPX import', () => {

@@ -59,10 +59,26 @@ import { loadPace, savePace } from '../ui/pace-store';
 import { ProfileChart, type CursorSource } from '../ui/profile-chart';
 import { StatsBar } from '../ui/stats';
 import { WeatherPanel } from '../ui/weather-panel';
+import { SupplyPanel, buildResupplyCard, type SupplyTab } from '../ui/supply-panel';
+import {
+  DEFAULT_RADIUS_M,
+  buildResupplyView,
+  type ResupplyPanelState,
+  type ResupplyRowView,
+} from '../ui/resupply-view';
+import {
+  DEFAULT_FOOD_KCAL_PER_G,
+  buildEnergyView,
+  computeEnergyModel,
+  type EnergyAssumptions,
+  type EnergyPanelState,
+} from '../ui/energy-view';
+import { SupplyService } from './supply-service';
+import { planResupplyForTrip } from '../resupply';
 import { TripLibraryDialog } from '../ui/trip-library';
 import { TripSettingsDialog } from '../ui/trip-settings';
 import { EditorToolbar, type EditorAction } from '../ui/editor-toolbar';
-import { saveStatusDetail, saveStatusText } from '../ui/save-status';
+import { isPendingSave, saveStatusDetail, saveStatusText } from '../ui/save-status';
 import { storeErrorDetail, storeErrorText } from '../ui/store-error';
 import { buildTripLibraryView } from '../ui/trip-library-view';
 import type { WeatherPanelState } from '../ui/weather-view';
@@ -200,6 +216,20 @@ export class App {
   private snapIndicatorSnap: SnapResult | null = null;
   private snapHovering = false;
   private weatherState: WeatherPanelState = { kind: 'no-trip' };
+  private supplyPanel: SupplyPanel | null = null;
+  private supplyService: SupplyService | null = null;
+  private supplyState: ResupplyPanelState = { kind: 'no-trip' };
+  private supplyRows: readonly ResupplyRowView[] = [];
+  private supplyRadius = DEFAULT_RADIUS_M;
+  private supplyToken = 0;
+  private energyAssumptions: EnergyAssumptions = {
+    foodKcalPerGram: DEFAULT_FOOD_KCAL_PER_G,
+    packMassKg: 12,
+  };
+  /** Once the user edits the assumptions, a profile change stops overwriting them. */
+  private energyEdited = false;
+  /** Signature of the trip/route the current resupply plan was built against. */
+  private supplySig = '';
   private horizonDays = DOCUMENTED_HORIZON_DAYS;
   private readonly weatherCache = new MemoryWeatherCache();
   private weatherToken = 0;
@@ -211,6 +241,8 @@ export class App {
   private snapTimer: number | null = null;
   private editorFrame = 0;
   private lastSaveBanner: string | null = null;
+  /** Guards the async trip-library render against out-of-order results. */
+  private tripRenderToken = 0;
 
   private readonly state: AppState = {
     route: null,
@@ -275,9 +307,11 @@ export class App {
     saveStatus: HTMLElement;
     tripsButton: HTMLButtonElement;
     weatherButton: HTMLButtonElement;
+    supplyButton: HTMLButtonElement;
     settingsButton: HTMLButtonElement;
     editorToolbar: HTMLElement;
     weatherPanel: HTMLElement;
+    supplyPanel: HTMLElement;
     tripsDialog: HTMLDialogElement;
     settingsDialog: HTMLDialogElement;
   };
@@ -335,9 +369,11 @@ export class App {
       saveStatus: byId('save-status'),
       tripsButton: byId<HTMLButtonElement>('btn-trips'),
       weatherButton: byId<HTMLButtonElement>('btn-weather'),
+      supplyButton: byId<HTMLButtonElement>('btn-supply'),
       settingsButton: byId<HTMLButtonElement>('btn-settings'),
       editorToolbar: byId('editor-toolbar'),
       weatherPanel: byId('weather-panel'),
+      supplyPanel: byId('supply-panel'),
       tripsDialog: byId<HTMLDialogElement>('trips-dialog'),
       settingsDialog: byId<HTMLDialogElement>('settings-dialog'),
     };
@@ -420,6 +456,25 @@ export class App {
     this.refreshBanners();
   }
 
+  /**
+   * One visible sentence when the browser gave us less than IndexedDB: the
+   * localStorage fallback caps a trip at 1.5 MB, which the user must know
+   * before they try to save a long route.
+   */
+  private async announceStorageBackend(): Promise<void> {
+    const session = this.session;
+    if (!session) return;
+    await session.whenReady();
+    const info = session.storageInfo;
+    if (!info || info.backend === 'indexeddb') return;
+    this.banners.show({
+      id: 'storage-fallback',
+      kind: 'warning',
+      message: this.i18n.t('storage.fallback'),
+      detail: info.problem ?? undefined,
+    });
+  }
+
   // -------------------------------------------------------------------------
   // Phase 3 — engines, trips, weather, editing
   // -------------------------------------------------------------------------
@@ -453,13 +508,33 @@ export class App {
       onClose: () => this.hideWeatherPanel(),
     });
 
+    this.supplyService = new SupplyService({ fetchImpl: window.fetch.bind(window) });
+    this.supplyPanel = new SupplyPanel(this.elements.supplyPanel, this.i18n, {
+      onClose: () => this.hideSupplyPanel(),
+      onRefresh: () => void this.refreshSupply(true),
+      onSettings: () => this.openSettings(),
+      onOpenRoute: () => this.openFilePicker(),
+      onSelectPoint: (row) => this.selectSupplyRow(row.id),
+      onRadius: (radiusM) => {
+        this.supplyRadius = radiusM;
+        void this.refreshSupply(true);
+      },
+      onAssumptions: (assumptions) => {
+        this.energyEdited = true;
+        this.energyAssumptions = assumptions;
+        this.renderEnergy();
+      },
+      onEscape: () => this.elements.supplyButton.focus(),
+    });
+    this.supplyPanel.setRadius(this.supplyRadius);
+
     this.trips = new TripLibraryDialog(this.elements.tripsDialog, this.i18n, {
-      onOpen: (id) => this.openSavedTrip(id),
-      onRename: (id, name) => this.renameSavedTrip(id, name),
-      onDuplicate: (id) => this.duplicateSavedTrip(id),
-      onDelete: (id) => this.deleteSavedTrip(id),
-      onExportGpx: (id) => this.exportSavedTrip(id, 'gpx'),
-      onExportGeoJson: (id) => this.exportSavedTrip(id, 'geojson'),
+      onOpen: (id) => void this.openSavedTrip(id),
+      onRename: (id, name) => void this.renameSavedTrip(id, name),
+      onDuplicate: (id) => void this.duplicateSavedTrip(id),
+      onDelete: (id) => void this.deleteSavedTrip(id),
+      onExportGpx: (id) => void this.exportSavedTrip(id, 'gpx'),
+      onExportGeoJson: (id) => void this.exportSavedTrip(id, 'geojson'),
       onImport: (file) => void this.importTripFile(file),
       onSettings: () => this.openSettings(),
       onNewTrip: () => this.startNewTrip(),
@@ -469,11 +544,15 @@ export class App {
       onSave: (profile) => this.saveProfile(profile),
     });
 
-    this.elements.saveButton.addEventListener('click', () => this.saveTrip());
+    this.elements.saveButton.addEventListener('click', () => void this.saveTrip());
     this.elements.tripsButton.addEventListener('click', () => this.openTripLibrary());
     this.elements.weatherButton.addEventListener('click', () => {
       if (this.weatherPanel?.isOpen) this.hideWeatherPanel();
       else this.showWeatherPanel();
+    });
+    this.elements.supplyButton.addEventListener('click', () => {
+      if (this.supplyPanel?.isOpen) this.hideSupplyPanel();
+      else this.showSupplyPanel();
     });
     this.elements.settingsButton.addEventListener('click', () => this.openSettings());
 
@@ -488,6 +567,7 @@ export class App {
       for (const button of [
         this.elements.tripsButton,
         this.elements.weatherButton,
+        this.elements.supplyButton,
         this.elements.settingsButton,
         this.elements.saveButton,
       ]) {
@@ -507,6 +587,9 @@ export class App {
         storage: this.storage,
         onChange: () => this.handleSessionChange(),
       });
+      // Choosing the backend is asynchronous (IndexedDB). If the browser makes
+      // us fall back, say so once, rather than only inside the trips dialog.
+      void this.announceStorageBackend();
     } catch (error) {
       this.engines = null;
       this.engineError = messageOf(error);
@@ -567,17 +650,18 @@ export class App {
     }
     this.renderSaveStatus();
     this.updateRouteMeta();
+    this.invalidateSupply();
     if (this.trips?.isOpen) this.renderTrips();
   }
 
-  private saveTrip(): void {
+  private async saveTrip(): Promise<void> {
     const session = this.session;
     if (!session?.trip) return;
-    const status = session.saveNow();
+    // `saveNow` resolves when the write has committed (or failed): the toast
+    // follows the truth, not the intent.
+    const status = await session.saveNow();
     if (status.kind === 'saved') {
-      this.showToast(
-        saveStatusText(status, this.i18n),
-      );
+      this.showToast(saveStatusText(status, this.i18n));
     }
     this.renderSaveStatus();
   }
@@ -594,6 +678,9 @@ export class App {
     if (detail) element.title = detail;
     else element.removeAttribute('title');
     this.elements.saveButton.disabled = !session?.trip;
+    // A write in flight is not "saved" and the button says so without blocking
+    // a second save: the session queues them.
+    this.elements.saveButton.setAttribute('aria-busy', String(isPendingSave(status)));
 
     if (status.kind === 'error') {
       const signature = `${status.code ?? ''}:${status.message ?? ''}`;
@@ -670,25 +757,66 @@ export class App {
     this.trips?.open();
   }
 
+  /**
+   * Fill the library from the store. Asynchronous (listing reads the summaries
+   * store), so a token drops a render whose data was superseded meanwhile.
+   */
   private renderTrips(): void {
-    if (!this.trips) return;
+    const dialog = this.trips;
+    if (!dialog) return;
     const session = this.session;
-    const view = buildTripLibraryView(
-      {
-        summaries: session?.list() ?? [],
-        currentId: session?.trip?.id ?? null,
-        problem: session?.listProblem ?? (session ? null : { kind: 'unavailable' }),
-        importEnabled: this.engines !== null && session !== null,
-      },
-      this.i18n,
-    );
-    this.trips.render(view);
+    if (!session) {
+      dialog.render(
+        buildTripLibraryView(
+          {
+            summaries: [],
+            currentId: null,
+            problem: { kind: 'unavailable' },
+            importEnabled: false,
+            storage: null,
+          },
+          this.i18n,
+        ),
+      );
+      return;
+    }
+
+    const token = ++this.tripRenderToken;
+    void (async () => {
+      await session.whenReady();
+      const [summaries, usage] = await Promise.all([session.list(), session.usage()]);
+      if (token !== this.tripRenderToken) return;
+      const info = session.storageInfo;
+      const migration = session.migration;
+      dialog.render(
+        buildTripLibraryView(
+          {
+            summaries,
+            currentId: session.trip?.id ?? null,
+            problem: session.listProblem,
+            importEnabled: this.engines !== null,
+            storage: info
+              ? {
+                  backend: info.backend,
+                  persistent: info.persistent,
+                  usedBytes: usage?.usedBytes ?? null,
+                  quotaBytes: usage?.quotaBytes ?? null,
+                  problem: info.problem,
+                  migrated: migration?.imported ?? 0,
+                  migrationError: migration?.error ?? null,
+                }
+              : null,
+          },
+          this.i18n,
+        ),
+      );
+    })();
   }
 
-  private openSavedTrip(id: string): void {
+  private async openSavedTrip(id: string): Promise<void> {
     const session = this.session;
     if (!session) return;
-    const trip = session.open(id);
+    const trip = await session.open(id);
     if (!trip) {
       this.renderTrips();
       this.showToast(this.i18n.t('store.notFound'), 'warning');
@@ -707,25 +835,25 @@ export class App {
     this.showToast(this.i18n.t('route.loaded', { name: trip.name }));
   }
 
-  private renameSavedTrip(id: string, name: string): void {
+  private async renameSavedTrip(id: string, name: string): Promise<void> {
     const session = this.session;
     if (!session) return;
-    const ok = session.renameSaved(id, name);
+    const ok = await session.renameSaved(id, name);
     if (ok) this.showToast(this.i18n.t('route.loaded', { name: name.trim() }));
     this.renderTrips();
     this.handleSessionChange();
   }
 
-  private duplicateSavedTrip(id: string): void {
+  private async duplicateSavedTrip(id: string): Promise<void> {
     const session = this.session;
     if (!session) return;
-    const newId = session.duplicate(id, this.i18n.t('trips.duplicateSuffix'));
+    const newId = await session.duplicate(id, this.i18n.t('trips.duplicateSuffix'));
     this.renderTrips();
     if (!newId) {
       this.showToast(this.i18n.t('store.quota'), 'warning');
       return;
     }
-    const copy = session.open(newId);
+    const copy = await session.open(newId);
     if (copy) {
       this.editorUi = initialEditorState(copy, this.editorUi.snapping);
       this.overlay?.setTrip(copy);
@@ -738,11 +866,11 @@ export class App {
     }
   }
 
-  private deleteSavedTrip(id: string): void {
+  private async deleteSavedTrip(id: string): Promise<void> {
     const session = this.session;
     if (!session) return;
     const wasCurrent = session.trip?.id === id;
-    if (!session.remove(id)) {
+    if (!(await session.remove(id))) {
       this.showToast(this.i18n.t('store.quota'), 'warning');
     }
     this.renderTrips();
@@ -784,11 +912,14 @@ export class App {
     this.renderWeather();
   }
 
-  private exportSavedTrip(id: string, format: 'gpx' | 'geojson'): void {
+  private async exportSavedTrip(id: string, format: 'gpx' | 'geojson'): Promise<void> {
     const session = this.session;
     if (!session) return;
-    const summary = session.list().find((candidate) => candidate.id === id);
-    const text = format === 'gpx' ? session.exportGpxFor(id) : session.exportGeoJsonFor(id);
+    const [summaries, text] = await Promise.all([
+      session.list(),
+      format === 'gpx' ? session.exportGpxFor(id) : session.exportGeoJsonFor(id),
+    ]);
+    const summary = summaries.find((candidate) => candidate.id === id);
     if (text === null) {
       this.showToast(this.i18n.t('store.unsupported'), 'warning');
       return;
@@ -823,7 +954,7 @@ export class App {
     }
     const text = await file.text();
     try {
-      const trip = session.importFile(text, file.name);
+      const trip = await session.importFile(text, file.name);
       this.banners.dismiss('import-failed');
       this.editorUi = initialEditorState(trip, this.editorUi.snapping);
       this.overlay?.setTrip(trip);
@@ -944,13 +1075,18 @@ export class App {
     session.rewrite({ ...session.trip, profile });
     this.settings?.close();
     this.afterTripChange(false);
-    this.showToast(this.i18n.t('settings.saved'));
+    // Write it now: the toast must not claim "saved" for a pending autosave.
+    void this.saveTrip();
     if (this.weatherPanel?.isOpen) void this.refreshWeather();
+    if (this.supplyPanel?.isOpen) void this.refreshSupply(true);
   }
 
   // --- weather -------------------------------------------------------------
 
   private showWeatherPanel(): void {
+    // One floating panel at a time: they share the same corner, and at 390 px
+    // they share the whole screen.
+    if (this.supplyPanel?.isOpen) this.hideSupplyPanel();
     this.weatherPanel?.show();
     this.elements.weatherButton.setAttribute('aria-expanded', 'true');
     void this.refreshWeather();
@@ -1018,6 +1154,218 @@ export class App {
       this.weatherTimer = null;
       void this.refreshWeather();
     }, 900);
+  }
+
+  // --- resupply + energy ---------------------------------------------------
+
+  private showSupplyPanel(tab: SupplyTab = 'resupply'): void {
+    if (this.weatherPanel?.isOpen) this.hideWeatherPanel();
+    this.supplyPanel?.open(tab);
+    this.elements.supplyButton.setAttribute('aria-expanded', 'true');
+    this.syncEnergyAssumptions();
+    void this.refreshSupply(true);
+  }
+
+  private hideSupplyPanel(): void {
+    this.supplyPanel?.hide();
+    this.elements.supplyButton.setAttribute('aria-expanded', 'false');
+  }
+
+  /**
+   * Keep the pack mass following the trip's own base pack mass until the user
+   * edits the assumptions — then their number wins, because it is theirs.
+   */
+  private syncEnergyAssumptions(): void {
+    const profile = this.session?.trip?.profile;
+    if (!profile || this.energyEdited) return;
+    const packMassKg = Math.max(0, profile.packBaseKg);
+    if (packMassKg !== this.energyAssumptions.packMassKg) {
+      this.energyAssumptions = { ...this.energyAssumptions, packMassKg };
+    }
+  }
+
+  /**
+   * Correlate the route with the bundled shops and the live huts, then plan.
+   *
+   * The index is fetched on first open (lazy) and cached by the service; a hut
+   * failure is a partial result, an index failure is a visible dead end.
+   */
+  private async refreshSupply(force = false): Promise<void> {
+    const panel = this.supplyPanel;
+    if (!panel) return;
+    const token = ++this.supplyToken;
+    const trip = this.session?.trip ?? null;
+    const route = this.state.route;
+
+    if (!trip) {
+      this.supplyState = { kind: 'no-trip' };
+      this.renderSupply();
+      return;
+    }
+    if (!route) {
+      this.supplyState = { kind: 'no-route' };
+      this.renderSupply();
+      return;
+    }
+    const profile = trip.profile;
+    if (!(profile.massKg > 0) || !(profile.heightCm > 0) || !(profile.ageYears > 0)) {
+      this.supplyState = { kind: 'no-profile' };
+      this.renderSupply();
+      return;
+    }
+    if (!force && this.supplyState.kind === 'ready') {
+      // A ready plan for the same trip and route is reused; a refresh is asked
+      // for explicitly.
+      this.renderSupply();
+      return;
+    }
+
+    this.supplyState = { kind: 'loading' };
+    this.renderSupply();
+    const service = this.supplyService;
+    if (!service) {
+      this.supplyState = { kind: 'index-failed', message: 'the supply service is unavailable' };
+      this.renderSupply();
+      return;
+    }
+    try {
+      const result = await service.corridor(route.points, this.supplyRadius);
+      if (token !== this.supplyToken) return;
+      try {
+        const plan = planResupplyForTrip(trip, result.candidates);
+        this.supplyState = {
+          kind: 'ready',
+          data: { ...result, candidates: result.candidates, plan, radiusM: this.supplyRadius },
+        };
+      } catch (error) {
+        this.supplyState = { kind: 'plan-failed', message: messageOf(error) };
+      }
+    } catch (error) {
+      if (token !== this.supplyToken) return;
+      this.supplyState = { kind: 'index-failed', message: messageOf(error) };
+    }
+    if (token !== this.supplyToken) return;
+    this.renderSupply();
+  }
+
+  /** Render both tabs from the current state and put the points on the map. */
+  private renderSupply(): void {
+    const panel = this.supplyPanel;
+    if (!panel) return;
+    this.syncEnergyAssumptions();
+    const view = buildResupplyView(this.supplyState, this.i18n);
+    this.supplyRows = view.rows;
+    panel.setAssumptions(this.energyAssumptions);
+    panel.renderResupply(view);
+    this.renderSupplyMap();
+    this.renderEnergy();
+  }
+
+  private renderSupplyMap(): void {
+    const map = this.map;
+    if (!map) return;
+    map.setResupplyPoints(
+      this.supplyRows.map((row) => ({
+        id: row.id,
+        kind: row.kind,
+        position: row.point,
+        usable: row.countsAsFood,
+      })),
+    );
+    map.setResupplyHandlers({
+      onSelect: (id) => this.selectSupplyRow(id),
+      cardFor: (id) => {
+        const row = this.supplyRows.find((candidate) => candidate.id === id);
+        return row ? buildResupplyCard(this.doc, row, this.i18n) : null;
+      },
+    });
+  }
+
+  /**
+   * A resupply point was activated — on the map or in the list. The profile
+   * cursor moves to its along-route distance, so the two views answer together.
+   */
+  private selectSupplyRow(id: string): void {
+    const row = this.supplyRows.find((candidate) => candidate.id === id);
+    if (!row) return;
+    this.map?.setResupplySelection(row.id);
+    const route = this.state.route;
+    if (!route) return;
+    this.state.cursorDistance = row.alongRouteM;
+    this.state.cursorSource = 'map';
+    this.chart.setExternalCursor(row.alongRouteM);
+    this.renderReadout(row.alongRouteM);
+    this.scheduleMarker(pointAtDistance(route, row.alongRouteM));
+    if (!this.map) return;
+    this.map.focusOn(row.point);
+  }
+
+  private energyState(): EnergyPanelState {
+    const trip = this.session?.trip ?? null;
+    if (!trip) return { kind: 'no-trip' };
+    const profile = trip.profile;
+    if (!(profile.massKg > 0) || !(profile.heightCm > 0) || !(profile.ageYears > 0)) {
+      return { kind: 'no-profile' };
+    }
+    const route = this.state.route;
+    if (!route) return { kind: 'no-route' };
+    const routeProfile = this.state.profile;
+    if (this.state.profileStatus !== 'ready' || routeProfile === null) {
+      const reason =
+        this.state.profileError === 'scope'
+          ? 'scope'
+          : this.state.profileError === 'dem'
+            ? 'dem'
+            : this.state.profileStatus === 'loading'
+              ? 'loading'
+              : 'none';
+      return { kind: 'elevation-missing', reason };
+    }
+    const model = computeEnergyModel({
+      profile,
+      // The profile's own length is the one the cursor and the chart use.
+      routeDistanceM: routeProfile.distanceM,
+      ascentM: routeProfile.ascentM,
+      descentM: routeProfile.descentM,
+      assumptions: this.energyAssumptions,
+    });
+    if (!model) {
+      return { kind: 'invalid', message: this.i18n.t('energy.noProfile') };
+    }
+    return { kind: 'ready', model };
+  }
+
+  private renderEnergy(): void {
+    this.supplyPanel?.renderEnergy(buildEnergyView(this.energyState(), this.i18n));
+  }
+
+  /** Everything a resupply plan depends on, in one comparable string. */
+  private supplySignature(): string {
+    const trip = this.session?.trip ?? null;
+    return [
+      trip?.updatedAt ?? '',
+      trip ? JSON.stringify(trip.profile) : '',
+      this.supplyRadius,
+      this.state.route?.distanceM ?? -1,
+      this.state.profileStatus,
+      this.state.profile?.ascentM ?? -1,
+    ].join('|');
+  }
+
+  /**
+   * The route, the profile or the trip changed. The energy panel is cheap and
+   * is always re-rendered; the corridor query is only repeated when something
+   * it depends on actually changed (and only while the panel is open).
+   */
+  private invalidateSupply(): void {
+    const signature = this.supplySignature();
+    if (signature === this.supplySig) {
+      this.renderEnergy();
+      return;
+    }
+    this.supplySig = signature;
+    if (this.supplyPanel?.isOpen) void this.refreshSupply(true);
+    else this.renderEnergy();
   }
 
   // --- editor --------------------------------------------------------------
@@ -1652,6 +2000,7 @@ export class App {
         this.renderProfilePanel();
         this.renderStats();
         this.syncCursorToCamera();
+        this.invalidateSupply();
       })
       .catch((error: unknown) => {
         if (this.job !== job) return;
@@ -1675,6 +2024,7 @@ export class App {
     this.renderStats();
     this.renderReadout(null);
     this.refreshBanners();
+    this.invalidateSupply();
   }
 
   private retryElevation(): void {
@@ -2146,7 +2496,16 @@ export class App {
       if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
       if (event.key !== 's' && event.key !== 'S') return;
       event.preventDefault();
-      this.saveTrip();
+      void this.saveTrip();
+    });
+
+    // Leaving the page: flush a pending autosave. IndexedDB writes are async and
+    // the browser may not wait for them — docs/12-storage.md says so plainly.
+    window.addEventListener('pagehide', () => {
+      void this.session?.flush();
+    });
+    this.doc.addEventListener('visibilitychange', () => {
+      if (this.doc.visibilityState === 'hidden') void this.session?.flush();
     });
     this.elements.demoDetails.addEventListener('toggle', () => {
       this.positionDemoPopover();
@@ -2263,6 +2622,7 @@ export class App {
     this.renderSaveStatus();
     this.weatherPanel?.refreshLanguage();
     this.trips?.refreshLanguage();
+    this.renderSupply();
   }
 
   /**
