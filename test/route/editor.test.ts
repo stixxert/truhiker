@@ -269,6 +269,47 @@ describe('geometry commands', () => {
     expect(second.legs[0].provenance.filter((e) => e.kind === 'snapped')).toHaveLength(1);
     expect(second.legs[0].provenance.filter((e) => e.kind === 'edited' && !e.label)).toHaveLength(2);
 
+    // A routed span records its source (Turrutebasen, fetched, modified) without
+    // duplicating the marker when the same route is applied again.
+    const routed = createEditor(makeTrip(straightPoints(8.3, 8.4, 61.5, 5, ELEVATED)), {
+      now: fixedClock(),
+    });
+    const source = {
+      kind: 'turrutebasen' as const,
+      label: 'Turrutebasen',
+      url: 'https://wfs.geonorge.no/skwms1/wfs.turogfriluftsruter',
+      fetchedAt: '2026-10-19T00:00:00.000Z',
+      licence: 'CC BY 4.0 ©Kartverket',
+      modified: true,
+    };
+    const routeOnce = routed.apply({
+      type: 'replace-span',
+      legId: 'leg-1',
+      from: 0,
+      to: 4,
+      points: [
+        { lon: 8.3, lat: 61.5 },
+        { lon: 8.31, lat: 61.51 },
+      ],
+      snapped: true,
+      provenance: [source],
+    });
+    expect(routeOnce.legs[0].provenance.filter((e) => e.kind === 'turrutebasen')).toHaveLength(1);
+    expect(routeOnce.legs[0].provenance.find((e) => e.kind === 'turrutebasen')?.modified).toBe(true);
+    const routeTwice = routed.apply({
+      type: 'replace-span',
+      legId: 'leg-1',
+      from: 0,
+      to: 1,
+      points: [
+        { lon: 8.3, lat: 61.5 },
+        { lon: 8.32, lat: 61.52 },
+      ],
+      snapped: true,
+      provenance: [source],
+    });
+    expect(routeTwice.legs[0].provenance.filter((e) => e.kind === 'turrutebasen')).toHaveLength(1);
+
     // rename trims, and clears an empty name entirely.
     const named = createEditor(makeTrip(straightPoints(8.3, 8.4, 61.5, 4, ELEVATED)), {
       now: fixedClock(),

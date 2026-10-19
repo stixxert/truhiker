@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One Turrutebasen waypoint on the bundled demo route, in the GML shape
+  `app:RuteInfoPunkt` returns (namespace prefixes, `gml:pos` in lat lon).
+  The end-to-end gate serves this instead of calling Geonorge: whether the
+  journey can open the resupply panel must not depend on a live WFS being up.
+  The unavailable-source behaviour is covered by `npm run failure-paths`.
+-->
+<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0"
+    xmlns:app="http://skjema.geonorge.no/SOSI/produktspesifikasjon/TurOgFriluftsruter/20171210"
+    xmlns:gml="http://www.opengis.net/gml/3.2" numberMatched="unknown" numberReturned="1">
+  <wfs:member>
+    <app:RuteInfoPunkt gml:id="ruteinfopunkt.memurubu">
+      <app:identifikasjon>
+        <app:Identifikasjon>
+          <app:lokalId>9f1b0a8e-0000-4000-8000-0000000000e2e</app:lokalId>
+        </app:Identifikasjon>
+      </app:identifikasjon>
+      <app:oppdateringsdato>2026-09-02T11:00:35</app:oppdateringsdato>
+      <app:opphav>Memurubu</app:opphav>
+      <app:vedlikeholdsansvarlig>DNT | DNT Oslo og omegn</app:vedlikeholdsansvarlig>
+      <app:tilrettelegging>42</app:tilrettelegging>
+      <app:geometri>
+        <gml:Point gml:id="ruteinfopunkt.memurubu_POSISJON" srsName="urn:ogc:def:crs:EPSG::4258">
+          <gml:pos>61.498757 8.635633</gml:pos>
+        </gml:Point>
+      </app:geometri>
+    </app:RuteInfoPunkt>
+  </wfs:member>
+</wfs:FeatureCollection>

@@ -3,7 +3,9 @@
  *
  * `EditCommand` in `src/contracts` is the shared vocabulary and it is closed
  * (`insert | move | delete-vertex | delete-leg | split-leg | reverse-leg |
- * trim-leg | rename-leg | replace-span`). Merge is missing from it, yet the
+ * trim-leg | rename-leg | replace-span`). `replace-span` gained an optional
+ * `provenance` list so a routed span can record its source; older callers are
+ * unaffected. Merge is missing from it, yet the
  * spec requires merge to be an undoable edit with unioned provenance, so it is
  * declared *here* as an extension and the editor accepts the union. Contract
  * compatibility is preserved: anything typed as `EditCommand` is still a valid

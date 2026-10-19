@@ -38,7 +38,7 @@ export interface OffTrailSegment {
   readonly to: LonLat;
 }
 
-export interface EditOverlayDeps {
+interface EditOverlayDeps {
   map: MapLibreMapType;
   getTrip: () => Trip | null;
   isSnapping: () => boolean;
@@ -53,6 +53,8 @@ export interface EditOverlayDeps {
     snap: SnapResult | null,
   ) => void;
   onSnapIndicator: (snap: SnapResult | null, hovering: boolean) => void;
+  /** A click while the editor is picking route endpoints. */
+  onRoutePoint: (point: LonLat) => void;
 }
 
 const SOURCE_HANDLES = 'edit-handles';
@@ -64,6 +66,8 @@ const LAYER_OFFTRAIL = 'edit-offtrail-line';
 const LAYER_HIT = 'edit-hittest-line';
 const LAYER_HANDLES = 'edit-handles-circle';
 const LAYER_SNAP = 'edit-snap-circle';
+const SOURCE_PICK = 'route-pick';
+const LAYER_PICK = 'route-pick-circle';
 
 const EMPTY: GeoJSON.FeatureCollection<GeoJSON.Geometry> = {
   type: 'FeatureCollection',
@@ -81,13 +85,20 @@ export class EditOverlay {
   private installed = false;
   private drag: { legId: string; index: number } | null = null;
   private previewPoint: LonLat | null = null;
+  private routeMode = false;
   private suppressedClick = false;
   private selection: VertexSelection | null = null;
 
-  constructor(deps: EditOverlayDeps) {
+  /**
+   * `mapReady` is the caller's guarantee that `load` has already fired (the app
+   * awaits `whenReady()` first). Waiting for `load` again never resolves:
+   * `isStyleLoaded()` can briefly report false after it, and the event does not
+   * fire twice. That made every map edit silently inert.
+   */
+  constructor(deps: EditOverlayDeps, options: { readonly mapReady?: boolean } = {}) {
     this.deps = deps;
     this.map = deps.map;
-    if (this.map.isStyleLoaded()) this.install();
+    if (options.mapReady || this.map.isStyleLoaded()) this.install();
     else this.map.once('load', () => this.install());
   }
 
@@ -98,6 +109,7 @@ export class EditOverlay {
     if (!map.getSource(SOURCE_OFFTRAIL)) map.addSource(SOURCE_OFFTRAIL, { type: 'geojson', data: EMPTY });
     if (!map.getSource(SOURCE_SNAP)) map.addSource(SOURCE_SNAP, { type: 'geojson', data: EMPTY });
     if (!map.getSource(SOURCE_HIT)) map.addSource(SOURCE_HIT, { type: 'geojson', data: EMPTY });
+    if (!map.getSource(SOURCE_PICK)) map.addSource(SOURCE_PICK, { type: 'geojson', data: EMPTY });
 
     if (!map.getLayer(LAYER_OFFTRAIL)) {
       map.addLayer({
@@ -121,6 +133,20 @@ export class EditOverlay {
         source: SOURCE_HIT,
         layout: { 'line-join': 'round', 'line-cap': 'round' },
         paint: { 'line-color': '#000000', 'line-width': 22, 'line-opacity': 0 },
+      });
+    }
+
+    if (!map.getLayer(LAYER_PICK)) {
+      map.addLayer({
+        id: LAYER_PICK,
+        type: 'circle',
+        source: SOURCE_PICK,
+        paint: {
+          'circle-radius': 7,
+          'circle-color': '#f2fffc',
+          'circle-stroke-color': '#e3b269',
+          'circle-stroke-width': 3,
+        },
       });
     }
 
@@ -188,6 +214,30 @@ export class EditOverlay {
   setTrip(trip: Trip | null): void {
     this.updateHitData(trip);
     this.rebuildHandles();
+  }
+
+  /** Pick two endpoints for a route; clicks stop editing the trip. */
+  setRouteMode(active: boolean): void {
+    this.routeMode = active;
+    this.drag = null;
+    this.hideSnapPreview();
+    this.deps.onSnapIndicator(null, false);
+    if (!active) this.setRoutePick(null, null);
+    this.updateCursor();
+  }
+
+  /** Show the chosen endpoints (start while picking the end). */
+  setRoutePick(start: LonLat | null, end: LonLat | null): void {
+    const source = this.map.getSource(SOURCE_PICK);
+    if (!source || !('setData' in source)) return;
+    const features = [start, end]
+      .filter((point): point is LonLat => point !== null)
+      .map((point) => ({
+        type: 'Feature' as const,
+        properties: { role: point === start ? 'start' : 'end' },
+        geometry: { type: 'Point' as const, coordinates: [point.lon, point.lat] },
+      }));
+    (source as GeoJSONSource).setData({ type: 'FeatureCollection', features });
   }
 
   setSelection(selection: VertexSelection | null): void {
@@ -295,6 +345,10 @@ export class EditOverlay {
 
   private onClick = (event: MapMouseEvent): void => {
     if (!this.enabled || !this.installed) return;
+    if (this.routeMode) {
+      this.deps.onRoutePoint({ lon: event.lngLat.lng, lat: event.lngLat.lat });
+      return;
+    }
     if (this.mode === 'view') return;
     if (this.suppressedClick) {
       this.suppressedClick = false;
@@ -326,7 +380,7 @@ export class EditOverlay {
   };
 
   private onHandleDown = (event: MapLayerMouseEvent): void => {
-    if (!this.enabled || this.mode !== 'edit') return;
+    if (!this.enabled || this.routeMode || this.mode !== 'edit') return;
     const feature = event.features?.[0];
     if (!feature) return;
     const legId = String(feature.properties?.legId ?? '');
@@ -419,6 +473,8 @@ export class EditOverlay {
     const canvas = this.map.getCanvas();
     if (!canvas) return;
     canvas.style.cursor =
-      this.enabled && (this.mode === 'draw' || this.mode === 'edit') ? 'crosshair' : '';
+      this.enabled && (this.routeMode || this.mode === 'draw' || this.mode === 'edit')
+        ? 'crosshair'
+        : '';
   }
 }

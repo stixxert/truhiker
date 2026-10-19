@@ -6,11 +6,12 @@
  * Placeholders use `{name}` and are substituted by `t()`.
  */
 export const no = {
-  'app.name': 'Ruteanalyse',
+  'app.name': 'TruHiker',
   'app.tagline': 'GPX-analyse for norske fjell',
   'app.metaDescription':
-    'Analyser GPX-ruter for norsk fjellterreng: 3D-kart, høydeprofil, stigning og estimert gangtid. Alt skjer i nettleseren.',
+    'Analyser GPX-ruter for norsk fjellterreng: 3D-kart, høydeprofil, stigning og estimert gangtid. Ruten blir i nettleseren.',
   'app.loading': 'Laster …',
+  'action.more': 'Mer',
 
   'action.openGpx': 'Åpne GPX',
   'action.demo': 'Prøv demoruten',
@@ -26,8 +27,11 @@ export const no = {
   'action.fitRoute': 'Vis hele ruten',
 
   'lang.label': 'Språk',
-  'lang.no': 'Norsk',
-  'lang.en': 'Engelsk',
+  // The visible text on the buttons is "NO"/"EN", so it must appear in the
+  // accessible name too (WCAG 2.5.3). Parentheses are stripped before the
+  // comparison, so the code is a bare word rather than "Norsk (NO)".
+  'lang.no': 'Norsk – NO',
+  'lang.en': 'Engelsk – EN',
 
   'layers.label': 'Kartlag',
   'layers.topo': 'Topo',
@@ -37,13 +41,13 @@ export const no = {
   'demo.title': 'Om demoruten',
   'demo.name': 'Rute',
   'demo.number': 'Rutenummer',
-  'demo.maintainer': 'Vedlikehold',
+  'demo.maintainer': 'Vedlikeholdes av',
   'demo.marked': 'Merking',
   'demo.markedYes': 'Merket på bakken',
   'demo.source': 'Kilde',
   'demo.sourceValue': 'Kartverket Turrutebasen, CC BY 4.0',
   'demo.note':
-    'Ruten er ekte spor fra Turrutebasen, uten høyde i filen. Høydeprofilen hentes direkte fra Kartverket DTM.',
+    'Ruten er ekte stigeometri fra Turrutebasen, uten høyde i filen. Høydeprofilen hentes direkte fra Kartverket DTM.',
 
   'terrain.toggle': '3D',
   'terrain.enable': 'Vis terrenget i 3D',
@@ -64,7 +68,7 @@ export const no = {
   'profile.title': 'Høydeprofil',
   'profile.empty': 'Ingen rute lastet',
   'profile.emptyHint': 'Slipp en GPX-fil på kartet for å se høydeprofilen.',
-  'profile.loading': 'Henter høydedata … {done} av {total} ruter',
+  'profile.loading': 'Henter høydedata … {done} av {total} fliser',
   'profile.loadingShort': 'Henter høydedata …',
   'profile.unavailable': 'Høydedata utilgjengelig',
   'profile.unavailableDetail':
@@ -90,7 +94,7 @@ export const no = {
   'stats.descent': 'Nedstigning',
   'stats.time': 'Gangtid',
   'stats.elevation': 'Høyde',
-  'stats.elevationSource': 'Høydedata',
+  'stats.elevationSource': 'Høydedatakilde',
   'stats.pace': 'Juster gangtempo',
   'stats.disabled': 'Utilgjengelig – krever høydedata',
   'stats.range': '{min}–{max}',
@@ -101,7 +105,8 @@ export const no = {
   'source.none': 'Ingen rute',
   'source.loading': 'Henter …',
   'source.error': 'Utilgjengelig',
-  'source.title': 'Kartverket DTM (bart terreng) via hoydedata.no – CC BY 4.0',
+  'source.title':
+    'Kartverket DTM (terrengmodell uten bygg og vegetasjon) via hoydedata.no – CC BY 4.0',
 
   'pace.title': 'Gangtempo',
   'pace.intro':
@@ -116,12 +121,16 @@ export const no = {
   'save.saving': 'lagrer …',
   'save.saved': 'lagret {time}',
   'save.quota': 'Lagring mislyktes: nettleserlagringen er full. Last ned turen som GPX i stedet.',
+  'save.quotaSize':
+    'Lagring mislyktes: turen er {size}, og nettleserlagringen er full. Last den ned som GPX i stedet.',
   'save.error': 'Lagring mislyktes: {message}',
   'save.unavailable': 'Lagring er utilgjengelig i denne nettleseren',
-  'save.hint': 'Lagre turen (Ctrl+S)',
+  'save.hint': 'Lagre turen (Ctrl+S eller ⌘S)',
 
   'store.quota':
     'Nettleserlagringen er full. Last ned turen som GPX, eller slett en gammel tur, og prøv igjen.',
+  'store.quotaSize':
+    'Nettleserlagringen er full: turen er {size}. Last den ned som GPX, eller slett en gammel tur, og prøv igjen.',
   'store.corrupt': 'De lagrede turene kunne ikke leses fordi dataene er skadet.',
   'store.unsupported':
     'Nettleseren tillater ikke lagring her. Det skjer i privat modus eller når lagring er blokkert.',
@@ -167,8 +176,8 @@ export const no = {
   'storage.persistent': 'varig lagring',
   'storage.notPersistent': 'kan ryddes av nettleseren',
   'storage.fallback':
-    'IndexedDB er utilgjengelig, så turene lagres i localStorage (ca. 5 MB). Store turer kan ikke lagres før dette virker.',
-  'storage.migrated': '{n} flyttet fra localStorage',
+    'IndexedDB er utilgjengelig, så turene lagres i localStorage. Hver tur kan være opptil 1,5 MB; større turer kan ikke lagres før dette virker.',
+  'storage.migrated': '{n} turer flyttet fra localStorage',
   'storage.migrationFailed':
     'Turer fra localStorage kunne ikke flyttes. De ligger fortsatt i localStorage.',
 
@@ -176,9 +185,9 @@ export const no = {
   'weather.title': 'Vær langs ruten',
   'weather.refresh': 'Oppdater',
   'weather.fetched': 'varsel hentet {time}',
-  'weather.issued': 'sendt {time}',
+  'weather.issued': 'varsel sendt {time}',
   'weather.horizonNote':
-    'MET sitt varsel dekker omtrent {days} døgn fremover. Dager utenfor horisonten vises uten tall – vi fyller ikke inn anslag.',
+    'MET sitt varsel dekker omtrent {days} døgn fremover. Dager utenfor horisonten vises uten tall – ingen anslag.',
   'weather.summary': '{forecast} {forecastUnit} med varsel, {beyond} {beyondUnit} utenfor horisonten',
   'weather.summaryAll': '{forecast} {forecastUnit} med varsel',
   'weather.unitDayOne': 'dag',
@@ -188,10 +197,15 @@ export const no = {
   'weather.loading': 'Henter varsel …',
   'weather.loadingDay': 'henter …',
   'weather.failed': 'Værvarselet er ikke tilgjengelig: {message}',
+  'weather.noForecast': 'Værvarselet er ikke tilgjengelig. Prøv Oppdater.',
+  'weather.networkError': 'nettverket svarte ikke',
   'weather.beyondHorizon': 'utenfor varselhorisonten',
   'weather.dayUnavailable': 'ikke tilgjengelig',
-  'weather.noValues': 'ingen målinger',
-  'weather.noTrip': 'Last en rute først, så viser vi været for hver dag.',
+  'weather.noValues': 'ingen verdier',
+  'weather.noTrip': 'Last en rute først, så vises været for hver dag.',
+  // D12: alerts are deliberately not implemented, and silence is not safety.
+  'weather.alertsUnsupported':
+    'Varsler om skred, flom og uvær er ikke støttet i denne versjonen. Fravær av varsel betyr ikke at det er trygt.',
   'weather.engineMissing': 'Værmodulen er ikke tilgjengelig i denne versjonen.',
   'weather.needsStartDate':
     'Værvinduet trenger en startdato. Åpne turinnstillingene og fyll inn startdato og kilometer per dag.',
@@ -202,7 +216,6 @@ export const no = {
   'weather.rowAriaBadge': 'Dag {day}, {date}: {badge}',
   'weather.warnings': 'Varsler',
   'weather.warningLink': 'Les varselet',
-  'weather.warningsBestEffort': 'Varsler hentes på beste evne og kan mangle.',
   'weather.fromDistance': '{distance} fra start',
   'weather.colDay': 'Dag',
   'weather.colDate': 'Dato',
@@ -240,11 +253,13 @@ export const no = {
   'editor.snapFailed': 'stinettet er ikke tilgjengelig',
   'editor.snapIdle': 'stinettet lastes når du tegner eller redigerer',
   'editor.snapReady': 'stinettet er lastet – før musepekeren over kartet for å se hva den snapper til',
-  'editor.offTrail': '{count} avstikk utenfor sti',
+  // "avstikk" is the plan's detour (supply.detourValue); geometry that leaves a
+  // mapped trail is "utenfor sti", so the two cannot be read as the same thing.
+  'editor.offTrail': '{count} strekninger utenfor sti',
   'editor.offTrailNone': 'hele ruten følger registrerte stier',
-  'editor.offTrailUnknown': 'avstikk ikke beregnet – stinettet er ikke lastet',
-  'editor.offTrailSnapOff': 'avstikk beregnes når snapping er på',
-  'editor.offTrailSpan': 'Avstikk {n}: {from}–{to} utenfor sti',
+  'editor.offTrailUnknown': 'strekninger utenfor sti er ikke beregnet – stinettet er ikke lastet',
+  'editor.offTrailSnapOff': 'strekninger utenfor sti beregnes når snapping er på',
+  'editor.offTrailSpan': 'Utenfor sti {n}: {from}–{to}',
   'editor.deleteVertex': 'Slett punkt',
   'editor.split': 'Del etappe',
   'editor.reverse': 'Snu etappe',
@@ -252,12 +267,26 @@ export const no = {
   'editor.deleteLeg': 'Slett etappe',
   'editor.legName': 'Etappenavn',
   'editor.renameApply': 'Lagre navn',
-  'editor.reroute': 'Reroute strekning',
+  'editor.reroute': 'Fest til sti',
   'editor.rerouteHint':
-    'Reroute flytter punktene i den valgte strekningen til nærmeste turrute innenfor radiusen og erstatter sammenhengende stykker med stiens linje – den finner ikke nye veier, og der ingen sti er nær nok blir punktet stående som avstikk.',
-  'editor.rerouteNeedsSnap': 'Reroute krever at stinettet er lastet.',
+    'Fest til sti flytter punktene i den valgte strekningen til nærmeste turrute innenfor radiusen og erstatter sammenhengende stykker med stiens linje – den finner ikke nye veier, og der ingen sti er nær nok blir punktet stående som utenfor sti.',
+  'editor.rerouteNeedsSnap': 'Fest til sti krever at stinettet er lastet.',
+  'editor.route': 'Rute',
+  'editor.routeHint': 'Finn en rute mellom to punkter langs Turrutebasen',
+  'route.pickStart': 'Klikk startpunktet på kartet. Escape avbryter.',
+  'route.pickEnd': 'Klikk målpunktet.',
+  'route.loading': 'Henter stinett og beregner rute …',
+  'route.done': 'Rute lagt inn: {distance}.',
+  'route.noTrailStart': 'Ingen sti innen {radius} av startpunktet.',
+  'route.noTrailEnd': 'Ingen sti innen {radius} av målpunktet.',
+  'route.noPath': 'Stinettet henger ikke sammen mellom punktene.',
+  'route.areaTooLarge': 'Området er for stort for ruting. Flytt punktene nærmere hverandre.',
+  'route.tooManyFeatures': 'For mange stier i området. Flytt punktene nærmere hverandre.',
+  'route.networkUnavailable': 'Stinettet er utilgjengelig: {detail}',
+  'route.needsLeg': 'Åpne eller tegn en etappe først.',
+  'route.failed': 'Ruten kunne ikke legges inn.',
   'editor.rerouteNoTrail':
-    'Reroute fant ingen sti innenfor radiusen. Strekningen er uendret og markert som avstikk.',
+    'Fant ingen sti innenfor radiusen. Strekningen er uendret og markert som utenfor sti.',
   'editor.selectHint':
     'Klikk et punkt for å velge det. Skift-klikk et annet punkt for å velge en strekning.',
   'editor.drawHint': 'Klikk på kartet for å legge til punkter.',
@@ -268,7 +297,7 @@ export const no = {
   'editor.selection': '{leg}: punkt {from} av {total}',
   'editor.selectionSpan': '{leg}: punkt {from}–{to}',
   'editor.legFallback': 'Etappe {n}',
-  'editor.offTrailBadge': 'avstikk',
+  'editor.offTrailBadge': 'utenfor sti',
 
   'settings.title': 'Turinnstillinger',
   'settings.intro':
@@ -288,7 +317,7 @@ export const no = {
   'settings.support': 'Forsyningsmodell',
   'settings.carryAll': 'Bær alt selv',
   'settings.mailDrops': 'Mat sendes i forveien',
-  'settings.paceTitle': 'Dagslengde',
+  'settings.paceTitle': 'Dagsdistanse',
   'settings.dailyKm': 'Kilometer per dag',
   'settings.dailyHours': 'Timer per dag',
   'settings.startDate': 'Startdato',
@@ -318,7 +347,7 @@ export const no = {
     'Kartflisene fra Kartverkets hurtigbuffer svarte ikke. Viser WMS-kart fra Geonorge i stedet.',
   'banner.basemapFailed':
     'Kartflisene er utilgjengelige. Ruten og høydeprofilen virker fortsatt, men bakgrunnskartet mangler.',
-  'banner.basemapRetry': 'Prøv hurtigbuffer igjen',
+  'banner.basemapRetry': 'Prøv hurtigbufferen for kartfliser igjen',
   'banner.terrainFailed':
     '3D-terreng er utilgjengelig fordi Mapterhorn ikke svarte. Kartet vises flatt.',
   'banner.demoFailed': 'Demoruten kunne ikke lastes. Åpne en GPX-fil i stedet.',
@@ -326,11 +355,11 @@ export const no = {
   'banner.noTrack': 'Filen inneholder ingen spor eller ruter.',
   'banner.tooShort': 'Ruten er for kort til å analysere (minst to punkter trengs).',
   'banner.hashTooLong':
-    'Ruten er for lang til å deles via lenken (maks {max} tegn). Last opp filen i stedet.',
+    'Ruten er for lang til å deles via lenken (maks {max} tegn). Åpne filen i stedet.',
   'banner.hashInvalid': 'Lenken inneholder en rute som ikke kunne leses.',
   'banner.shareCopied': 'Lenke til ruten er kopiert.',
   'banner.shareFailed': 'Kunne ikke kopiere lenken. Kopier adressen fra nettleseren i stedet.',
-  'banner.offScope': 'Ruten går utenfor Norge – høydeprofil og statistikk er utilgjengelig.',
+  'banner.offScope': 'Ruten går utenfor Norge – høydeprofil og statistikk er utilgjengelige.',
   'banner.demFailed': 'Høydedata er utilgjengelig: {message}',
   'banner.workerFailed': 'Høydeberegningen stoppet: {message}',
   'banner.welcome': 'Kartet er klart.',
@@ -339,17 +368,17 @@ export const no = {
 
   'empty.title': 'Slipp en GPX-fil her',
   'empty.body':
-    'eller åpne en fil fra menyen. Alt skjer i nettleseren din – ingen konto, ingenting lastes opp.',
+    'eller åpne en fil fra menyen. Ruten blir i nettleseren din – ingen konto, ingenting lastes opp.',
   // B4: the route itself never leaves the browser, but positions from it are
   // sent to fetch elevation, trails and weather. Say both, precisely.
   'empty.privacy':
-    'Ruten lagres bare i denne nettleseren. For å hente høydedata, stier og vær sender appen posisjoner fra ruten til Kartverket, MET og hoydedata.no. Ingen konto, ingen sporing.',
+    'Ruten lagres bare i denne nettleseren. For å hente høydedata, stier, vær og 3D-terreng sender appen posisjoner fra ruten til Kartverket, MET, hoydedata.no og Mapterhorn. Ingen konto, ingen sporing.',
 
   'map.ariaLabel': 'Kart over ruten. Bruk piltastene for å panorere og + og − for å zoome.',
   'map.zoomIn': 'Zoom inn',
   'map.zoomOut': 'Zoom ut',
   'map.resetNorth': 'Rett kartet mot nord',
-  'about.shortDisclaimer': 'Planleggingsverktøy',
+  'about.shortDisclaimer': 'Planleggingsverktøy – ikke navigasjon',
 
   'units.metre': 'm',
   'units.metresAboveSea': 'moh',
@@ -360,9 +389,9 @@ export const no = {
   'units.grade': '{value} %',
 
   'about.title': 'Om data og bruk',
-  'about.disclaimerTitle': 'Ikke et navigasjonsverktøy',
+  'about.disclaimerTitle': 'Planleggingsverktøy – ikke navigasjon',
   'about.disclaimer':
-    'Tallene er estimater. Vær, snø, elvekryssinger og stengsler endrer seg, og må sjekkes før du går.',
+    'Dette er et planleggingsverktøy. Sjekk forholdene på bakken: vær, snø, elvekryssinger og stengsler endrer seg. Tallene er estimater.',
   'about.dataTitle': 'Datakilder',
   'about.kartverket': 'Bakgrunnskart og høydedata: Kartverket (topo, DTM), CC BY 4.0.',
   'about.mapterhorn': '3D-terreng: Mapterhorn, avledet av Kartverkets høydedata.',
@@ -385,7 +414,7 @@ export const no = {
     'Forsyningspunktene er et OSM-uttrekk av butikker, bensinstasjoner og postpunkt. Åpningstider er ikke lagret i filen, bare hvorvidt OSM hadde dem.',
   'about.privacyTitle': 'Lagring og personvern',
   'about.privacy':
-    'Tur og rute lagres bare i denne nettleseren (IndexedDB, med localStorage som reserve). Det finnes ingen konto, og turen lastes ikke opp. For å hente stier, butikker, høydedata og vær sender appen posisjoner fra ruten til Kartverket (Turrutebasen og bakgrunnskart), MET og hoydedata.no. Ingen sporing og ingen analyseverktøy; kartflisene lastes fra den kilden du velger.',
+    'Tur og rute lagres bare i denne nettleseren (IndexedDB, med localStorage som reserve). Det finnes ingen konto, og turen lastes ikke opp. For å hente stier, butikker, høydedata, vær og 3D-terreng sender appen posisjoner fra ruten til Kartverket (Turrutebasen og bakgrunnskart), MET, hoydedata.no og Mapterhorn. Ingen sporing og ingen analyseverktøy; kartflisene lastes fra den kilden du velger.',
 
   // --- Resupply and energy (docs/13) --------------------------------------
   'supply.open': 'Forsyning',
@@ -395,7 +424,7 @@ export const no = {
   'supply.radius': 'Korridor',
   'supply.radiusOption': '{km} km',
   'supply.radiusHint':
-    'Punkter innenfor korridoren rundt ruten. Standard er 5 km; øk den for å se hva som finnes i nærheten. Hytter hentes alltid innenfor 5 km. Avstikkeren vises per punkt og legges ikke til distansen.',
+    'Punkter innenfor korridoren rundt ruten. Standard er 5 km; øk den for å se hva som finnes i nærheten. Hytter hentes alltid innenfor 5 km. Avstikkeren fra ruten vises per punkt og legges ikke til distansen.',
   'supply.refresh': 'Oppdater',
   'supply.legsTitle': 'Etapper',
   'supply.warningsTitle': 'Forbehold',
@@ -412,9 +441,9 @@ export const no = {
   'supply.countOne': '{count} punkt langs ruten',
   'supply.countMany': '{count} punkter langs ruten',
   'supply.fetched': 'hentet {time}',
-  'supply.indexLine': 'OpenStreetMap-uttrekk {date} · {count} punkt · ODbL 1.0',
+  'supply.indexLine': 'OpenStreetMap-uttrekk {date} · {count} punkter · ODbL 1.0',
   'supply.mailDrop':
-    'Innlevering til {name}: ankomst {arrival}, send mellom {notBefore} og {shipBy} (hentefrist {window} døgn).',
+    'Pakke til {name}: ankomst {arrival}, send mellom {notBefore} og {shipBy} (hentefrist {window} døgn).',
   'supply.worstGap': 'Lengste strekning uten forsyning: {distance} · {days}',
   'supply.hutsFailed':
     'Hytter kunne ikke hentes ({message}). Butikkene under er komplette, men hytter mangler i oversikten.',
@@ -425,28 +454,35 @@ export const no = {
   'supply.detourOnRoute': 'på ruten',
   'supply.detourValue': '{distance} fra ruten',
   'supply.gapValue': '{distance} · {days}',
-  'supply.gapNone': 'siste punkt',
-  'supply.rowAria':
-    '{name}, {kind}, {distance} fra start, {detour}, til neste brukbare punkt {gap}',
   'supply.legTitle': '{from} → {to}',
   'supply.anchorStart': 'Start',
   'supply.anchorEnd': 'Slutt',
   'supply.legNumbers': '{distance} · {days} · {kcal} kcal · {kg} kg mat · {cost} kr',
-  'supply.carryWarning': 'Bær {kg} kg for {days} – mer enn {max} dager du kan bære for.',
+  'supply.carryWarning': 'Bær {kg} kg i {days}. Du kan bære mat for høyst {max} dager.',
+  // D14: with no daily distance the plan assumes one, and says so on screen.
+  'supply.warnDailyKmFallback':
+    'Ingen kilometer per dag er satt i turinnstillingene, så planen antar {km} km per dag. Hver dagberegning under bygger på den antakelsen.',
+  'supply.warnBridged':
+    '{km} km av turen er rett linje mellom etapper som ikke møtes. Strekningen er regnet som gangtid, men er ikke en registrert sti.',
+  // D13: a station with no "unmanned" flag is assumed staffed — and named.
+  'supply.warnStaffedFuel':
+    'Bensinstasjoner antatt bemannet: {names} ({count}). Sjekk at ingen er en kortautomat, og regn bare med enkel butikkmat.',
+  'supply.warnClosedOnArrival':
+    '{name}: stengt på beregnet ankomstdato {date}. Sjekk åpningstidene før du planlegger rundt punktet.',
   'supply.warnHutsCounted':
     '{count} hytter ({names}) er tatt med som matkilde fordi du ba om det. Mat på hytte er ikke bekreftet – ha reserve.',
   'supply.warnHutOne':
-    'Hytte på ruten ({names}) teller ikke som mat: om det selges mat på hytta er ikke maskinlesbart. Regn med å bære alt selv.',
+    'Hytte på ruten ({names}) teller ikke som mat: om det selges mat på hytta er ikke kjent. Regn med å bære alt selv.',
   'supply.warnHutMany':
-    '{count} hytter på ruten ({names}) teller ikke som mat: om det selges mat på hytta er ikke maskinlesbart.',
+    '{count} hytter på ruten ({names}) teller ikke som mat: om det selges mat på hyttene er ikke kjent.',
   'supply.warnUnmannedFuel':
     'Ubemannet bensinstasjon ({names}) teller ikke som mat – sjekk stasjonen.',
   'supply.warnHoursAll':
     'Ingen av de {total} punktene er bekreftet åpne. Filen lagrer bare om OSM hadde åpningstider, ikke hva de er.',
   'supply.warnHoursSome':
-    '{missing} av {total} punkt har ingen åpningstider i OSM, og ingen er bekreftet åpne. Sjekk før du planlegger rundt dem.',
+    'Åpningstider mangler i OSM for {missing} av {total}. Ingen er bekreftet åpne. Sjekk før du planlegger rundt dem.',
   'supply.warnDetour':
-    '{count} punkt ligger mer enn 2 km fra ruten ({names}); turen inn og tilbake kommer i tillegg.',
+    'Punkter mer enn 2 km fra ruten: {count} ({names}). Turen inn og tilbake kommer i tillegg.',
   'supply.warnPostNotFood':
     '{count} post- eller pakkepunkt selger ikke mat. De kan bare brukes som mottak: velg «mat sendes i forveien» i turinnstillingene.',
   'supply.warnGap':
@@ -463,8 +499,8 @@ export const no = {
   'supply.provenanceChain': 'Kjede (verifisert)',
   'supply.badgeUnconfirmed': 'ikke bekreftet',
   'supply.badgeUnmanned': 'ubemannet',
-  'supply.badgeHoursUnread': 'åpningstid ikke lest',
-  'supply.badgeHoursMissing': 'åpningstid ukjent',
+  'supply.badgeHoursUnread': 'åpningstider ikke lagret',
+  'supply.badgeHoursMissing': 'åpningstider ukjent',
   'supply.checkDnt': 'Sjekk hos DNT',
   'supply.dayValue': '{value} d',
   'supply.dayValueUnderTenth': '< 0,1 d',

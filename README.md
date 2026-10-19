@@ -12,6 +12,8 @@ weather the walk will face.
 - **Routes.** Import GPX or GeoJSON, or draw on the map. Move, insert, split,
   reverse, trim, merge and undo. Snapping follows mapped trails; where no trail is
   near, the line is dashed and marked off-trail.
+- **Routing.** Pick two points and follow mapped Turrutebasen trails. Where no
+  trail connects them, the app says so instead of drawing a line.
 - **Elevation.** From Kartverket's national 1 m terrain model, sampled live:
   profile, ascent, descent, grade and walking time.
 - **Resupply.** Shops, fuel, post points and huts along the corridor, with the
@@ -55,16 +57,15 @@ npm run dev            # http://localhost:5173
 
 ```bash
 npm test               # hermetic, no network
-npm run verify         # types, tests, build, bundle, licences, hosting
+npm run verify         # types, tests, build, budget, browser gates, licences
 npm run build          # static build into dist/
 npm run preview        # serve the build
 ```
 
-Two commands reach the network on purpose:
+One command reaches the network on purpose:
 
 ```bash
-npm run test:live                       # real Kartverket and MET requests
-npm run profile -- path/to/route.gpx    # elevation profile as JSON
+npm run test:live     # real Kartverket and MET requests
 ```
 
 ## Deploy
@@ -76,10 +77,15 @@ npx wrangler deploy
 
 ## Limits
 
-- Snapping, not routing: the app will not plot a path between two arbitrary points.
+- Routing uses Turrutebasen marked trails only, for a box up to 1.5° around the
+  two points. Where the network does not connect them, it says so; it never
+  bridges a gap or draws a straight line. OSM routing is not available yet.
+- Routing endpoints are placed with the pointer; there is no keyboard way to
+  pick them yet.
 - Planning only: there is no offline mode for use on the trail.
 - Elevation covers mainland Norway.
-- A hut's food status is not published as data, so a hut never counts as resupply.
+- A hut's food status is not published as data, so a hut never counts as resupply
+  unless you opt in.
 - Weather outside the forecast horizon is shown as unknown, not estimated.
 - All figures are estimates.
 
@@ -89,21 +95,20 @@ npx wrangler deploy
 | --- | --- | --- |
 | **Kartverket** — topo, DTM, Turrutebasen | basemap, elevation, trails and huts | CC BY 4.0 · ©Kartverket |
 | **MET Norway** | weather forecasts | NLOD / CC BY 4.0 |
-| **Mapterhorn** | 3D terrain (derived from Kartverket) | see its attribution |
+| **Mapterhorn** | 3D terrain (derived from Kartverket) | derived; see `docs/LICENSES.md` |
 | **OpenStreetMap contributors** | resupply points | ODbL 1.0 · © OpenStreetMap contributors |
 
-Attribution is shown in the application itself: the map footer reads
-`©Kartverket · Mapterhorn · Planleggingsverktøy`, and **Om data** lists every source
-with its licence. The bundled demo route is *Memurubu–Glitterheim* (`jot21`) from
-Kartverket Turrutebasen, CC BY 4.0, maintained by DNT Oslo og omegn.
+Attribution is part of the interface: the map footer names Kartverket and
+Mapterhorn, and **About data** (*Om data*) lists every source with its licence and
+a link.
 
-The resupply data is a derivative database of OpenStreetMap, offered under ODbL
-1.0 and served by the app itself. Neither UT.no, Wikiloc, AllTrails nor
-Outdooractive content is used or redistributed.
+Two data sets ship with the app:
+
+- **Demo route** — *Memurubu–Glitterheim* (`jot21`), real trail geometry from
+  Kartverket Turrutebasen, CC BY 4.0, maintained by DNT Oslo og omegn.
+- **Resupply points** — a derivative database of OpenStreetMap, served under
+  ODbL 1.0.
 
 ## How it was built
 
-With an AI coding agent working against a written specification. The checks in
-`tools/verify/` are what made that safe: a licence audit, a check that every
-documented default still exists, a hermetic test suite, a headless render under the
-production CSP, and a deploy dry run. `npm run verify` runs them all.
+With an AI coding agent working against a written specification.

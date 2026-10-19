@@ -270,6 +270,7 @@ export function applyCommand(
       assertMinPoints(points, leg.id, 'replace-span');
       let provenance = appendProvenance(leg.provenance, EDITED_MARKER);
       if (command.snapped) provenance = ensureProvenance(provenance, SNAPPED_MARKER);
+      for (const entry of command.provenance ?? []) provenance = ensureProvenance(provenance, entry);
       return commit(legIndex, recomputeLeg({ ...leg, points, provenance }));
     }
 

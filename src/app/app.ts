@@ -86,6 +86,12 @@ import { buildTripLibraryView } from '../ui/trip-library-view';
 import type { WeatherPanelState } from '../ui/weather-view';
 import { MemoryWeatherCache } from '../lib/weather-cache';
 import { findLeg, flattenTrip } from '../lib/trip-route';
+import { loadTrailNetwork, type TrailNetworkFailureCode } from '../route/trail-network';
+import {
+  routeBetweenLines,
+  type RouteBetweenResult,
+  type RoutingFailureCode,
+} from '../route/trail-routing';
 import { snapRouteLabel } from '../lib/snap-label';
 import { loadEngines } from './engine-loader';
 import { DOCUMENTED_HORIZON_DAYS, type EngineSurface } from './engine-types';
@@ -231,6 +237,7 @@ export class App {
   private settings: TripSettingsDialog | null = null;
   private editorUi: EditorUiState = initialEditorState(null);
   private snapTrackerLine: string | null = null;
+  private routePick: { start: LonLat | null; busy: boolean } | null = null;
   private snapIndicatorSnap: SnapResult | null = null;
   private snapHovering = false;
   private weatherState: WeatherPanelState = { kind: 'no-trip' };
@@ -660,17 +667,22 @@ export class App {
 
   private initOverlay(): void {
     if (!this.map) return;
-    this.overlay = new EditOverlay({
-      map: this.map.map,
-      getTrip: () => this.session?.trip ?? null,
-      isSnapping: () => this.editorUi.snapping,
-      snap: (point) => this.snapAt(point),
-      onDrawPoint: (point) => this.drawPoint(point),
-      onSelect: (legId, index, extend) => this.selectVertexAt(legId, index, extend),
-      onMoveVertex: (legId, index, point) => this.moveVertex(legId, index, point),
-      onInsertPoint: (legId, index, point) => this.insertVertex(legId, index, point),
-      onSnapIndicator: (snap, hovering) => this.setSnapIndicator(snap, hovering),
-    });
+    this.overlay = new EditOverlay(
+      {
+        map: this.map.map,
+        getTrip: () => this.session?.trip ?? null,
+        isSnapping: () => this.editorUi.snapping,
+        snap: (point) => this.snapAt(point),
+        onDrawPoint: (point) => this.drawPoint(point),
+        onSelect: (legId, index, extend) => this.selectVertexAt(legId, index, extend),
+        onMoveVertex: (legId, index, point) => this.moveVertex(legId, index, point),
+        onInsertPoint: (legId, index, point) => this.insertVertex(legId, index, point),
+        onSnapIndicator: (snap, hovering) => this.setSnapIndicator(snap, hovering),
+        onRoutePoint: (point) => this.handleRoutePoint(point),
+      },
+      // initOverlay runs after `whenReady()`: `load` has already fired.
+      { mapReady: true },
+    );
     this.overlay.setEnabled(this.engines !== null);
     this.overlay.setMode(this.editorUi.mode);
     this.overlay.setTrip(this.session?.trip ?? null);
@@ -1479,6 +1491,7 @@ export class App {
 
   private switchMode(mode: InteractionMode): void {
     if (!this.engines || !this.session?.trip) return;
+    this.cancelRoute();
     this.editorUi = setMode(this.editorUi, mode, this.session.trip);
     this.overlay?.setMode(mode);
     this.overlay?.setTrip(this.session.trip);
@@ -1626,6 +1639,9 @@ export class App {
       case 'reroute':
         this.rerouteSelection();
         return;
+      case 'route':
+        this.toggleRoute();
+        return;
       case 'rename':
         return;
     }
@@ -1709,6 +1725,139 @@ export class App {
       snapped: true,
     });
     if (applied) this.afterTripChange();
+  }
+
+  // --- trail routing -------------------------------------------------------
+
+  /** Turrutebasen routing replaces the active leg with a routed polyline. */
+  private toggleRoute(): void {
+    if (this.routePick) {
+      this.cancelRoute();
+      return;
+    }
+    const session = this.session;
+    const trip = session?.trip;
+    if (!session || !trip) return;
+    if (!findLeg(trip, this.editorUi.activeLegId) && trip.legs.length === 0) {
+      this.showToast(this.i18n.t('route.needsLeg'), 'warning');
+      return;
+    }
+    this.routePick = { start: null, busy: false };
+    this.overlay?.setRouteMode(true);
+    this.showToast(this.i18n.t('route.pickStart'));
+  }
+
+  private cancelRoute(): void {
+    if (!this.routePick) return;
+    this.routePick = null;
+    this.overlay?.setRouteMode(false);
+  }
+
+  private handleRoutePoint(point: LonLat): void {
+    const pick = this.routePick;
+    if (!pick || pick.busy) return;
+    if (!pick.start) {
+      pick.start = point;
+      this.overlay?.setRoutePick(point, null);
+      this.showToast(this.i18n.t('route.pickEnd'));
+      return;
+    }
+    void this.runRoute(pick.start, point);
+  }
+
+  private async runRoute(start: LonLat, end: LonLat): Promise<void> {
+    const pick = this.routePick;
+    if (!pick || pick.busy) return;
+    pick.busy = true;
+    this.overlay?.setRoutePick(start, end);
+    this.showToast(this.i18n.t('route.loading'));
+
+    const network = await loadTrailNetwork(start, end);
+    // Escape or a mode switch may have cancelled while the fetch was in flight;
+    // a late result must not overwrite the map.
+    if (this.routePick !== pick) return;
+    if (network.kind === 'failed') {
+      this.failRoute(network.code, network.detail);
+      return;
+    }
+    let routed: RouteBetweenResult;
+    try {
+      routed = routeBetweenLines(network.lines, start, end, { maxSnapDistanceM: 250 });
+    } catch (error) {
+      if (this.routePick === pick) this.failRoute('network-unavailable', messageOf(error));
+      return;
+    }
+    if (this.routePick !== pick) return;
+    if (routed.kind === 'failed') {
+      this.failRoute(routed.code, null);
+      return;
+    }
+    this.commitRoute(routed);
+  }
+
+  private failRoute(
+    code: RoutingFailureCode | TrailNetworkFailureCode,
+    detail: string | null,
+  ): void {
+    const radius = this.i18n.format.distance(250);
+    let message: string;
+    switch (code) {
+      case 'no-trail-near-start':
+        message = this.i18n.t('route.noTrailStart', { radius });
+        break;
+      case 'no-trail-near-end':
+        message = this.i18n.t('route.noTrailEnd', { radius });
+        break;
+      case 'no-path':
+        message = this.i18n.t('route.noPath');
+        break;
+      case 'area-too-large':
+        message = this.i18n.t('route.areaTooLarge');
+        break;
+      case 'too-many-features':
+        message = this.i18n.t('route.tooManyFeatures');
+        break;
+      default:
+        message = this.i18n.t('route.networkUnavailable', { detail: detail ?? '—' });
+    }
+    this.cancelRoute();
+    this.showToast(message, 'warning');
+  }
+
+  private commitRoute(result: Extract<RouteBetweenResult, { kind: 'ok' }>): void {
+    const session = this.session;
+    const trip = session?.trip;
+    if (!session || !trip) return;
+    const leg = findLeg(trip, this.editorUi.activeLegId) ?? trip.legs[0];
+    if (!leg) {
+      this.failRoute('network-unavailable', null);
+      return;
+    }
+    const applied = session.apply({
+      type: 'replace-span',
+      legId: leg.id,
+      from: 0,
+      to: leg.points.length - 1,
+      points: result.points,
+      snapped: true,
+      provenance: [
+        {
+          kind: 'turrutebasen',
+          label: 'Turrutebasen',
+          url: 'https://wfs.geonorge.no/skwms1/wfs.turogfriluftsruter',
+          fetchedAt: new Date().toISOString(),
+          licence: 'CC BY 4.0 ©Kartverket',
+          modified: true,
+        },
+      ],
+    });
+    this.cancelRoute();
+    if (applied) {
+      this.afterTripChange();
+      this.showToast(this.i18n.t('route.done', { distance: this.i18n.format.distance(result.distanceM) }));
+    } else {
+      this.showToast(this.i18n.t('route.failed'), 'warning');
+    }
   }
 
   private afterTripChange(refreshGeometry = true): void {
@@ -2425,14 +2574,20 @@ export class App {
     const detailParts = [meta.name, meta.routeNumber, meta.maintainer].filter(
       (part): part is string => typeof part === 'string' && part.length > 0,
     );
-    this.elements.demoSummary.textContent = this.i18n.t('route.demo');
+    const visible = this.i18n.t('route.demo');
+    this.elements.demoSummary.textContent = visible;
     this.elements.demoSummary.title =
       detailParts.length > 0
         ? detailParts.join(' · ')
         : this.i18n.t('route.demoDetails');
+    // WCAG 2.5.3 (label in name): the accessible name must contain the visible
+    // text, so the label starts with "Demorute" rather than replacing it with a
+    // description the user cannot see.
     this.elements.demoSummary.setAttribute(
       'aria-label',
-      `${this.i18n.t('route.demoDetails')}: ${detailParts.join(', ')}`,
+      detailParts.length > 0
+        ? `${visible}: ${detailParts.join(', ')}. ${this.i18n.t('route.demoDetails')}`
+        : `${visible}. ${this.i18n.t('route.demoDetails')}`,
     );
     this.elements.demoName.textContent = meta.name ?? '—';
     this.elements.demoNumber.textContent = meta.routeNumber ?? '—';
@@ -2633,6 +2788,11 @@ export class App {
     });
     this.doc.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') this.elements.demoDetails.open = false;
+    });
+    this.doc.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || !this.routePick) return;
+      event.preventDefault();
+      this.cancelRoute();
     });
 
     // Ctrl/Cmd+S saves the open trip even when no editor field has focus.

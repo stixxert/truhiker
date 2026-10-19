@@ -9,7 +9,7 @@ A static web application. No backend, no accounts, no server-side storage.
 │  route (GPX / drawn)                                    │
 │    ├─ src/core    elevation sampling, profile, ascent    │
 │    ├─ src/snap    Turrutebasen WFS → snapping            │
-│    ├─ src/route   immutable edit commands, undo/redo     │
+│    ├─ src/route   edit commands, undo/redo, routing A*  │
 │    ├─ src/resupply shops (bundled) + huts (live) → plan  │
 │    ├─ src/plan    energy, food mass, resupply gaps       │
 │    ├─ src/weather MET forecast + horizon discipline      │
@@ -39,7 +39,7 @@ input and served by the app; `data/shops.osm.json` records its SHA-256 and
 | --- | --- |
 | `core` | geodesy, TIFF decoding, DEM sampling, profile (median filter + hysteresis ascent) |
 | `snap` | Turrutebasen client, GML parsing, spatial index, nearest-segment snapping, IndexedDB cache |
-| `route` | immutable trip document, commands, undo/redo, re-snapping |
+| `route` | immutable trip document, commands, undo/redo, re-snapping, Turrutebasen routing (graph + A*, bounded WFS loader) |
 | `store` | IndexedDB (`bodies` + `summaries`), migration from localStorage, GPX/GeoJSON IO |
 | `resupply` | binary shop loader, corridor correlation, live huts, leg/gap planning |
 | `plan` | energy model (Minetti, Mifflin–St Jeor/Cunningham), nutrition, resupply arithmetic |
@@ -59,6 +59,8 @@ These are enforced in code and pinned by tests, not just described:
 5. Snapping never bridges two trails that do not connect.
 6. A stale write cannot mark a different, newer trip as saved.
 7. Every shipped file has a licence entry; every live source has an attribution.
+8. A route is returned only when the fetched trail graph connects the endpoints;
+   nothing is bridged and no straight line is substituted.
 
 ## Storage
 
@@ -73,6 +75,29 @@ IndexedDB database `truhiker`:
 
 A 3,000 km / 100,000-point trip (8.0 MB) is an acceptance test: save ~64 ms,
 load ~26 ms in Chromium.
+
+## Accessibility
+
+`npm run a11y` drives the built app through `wrangler dev` (workerd, production
+CSP) in Chromium and fails on any critical or serious axe-core violation
+(WCAG 2.0/2.1/2.2 A and AA) in four states: desktop 1440×900, mobile 390×844,
+and the mobile layout with the Forsyning and Vær panels open.
+
+The keyboard path is asserted, not assumed: on mobile, Tab reaches the menu
+toggle, Space opens it, Tab reaches Forsyning, Enter opens the panel and moves
+focus to its first tab, Escape closes it and returns focus to the trigger. On
+desktop, Tab reaches the elevation profile without a pointer (about thirty
+presses from a fresh load), ArrowRight/ArrowLeft move the cursor — `aria-valuenow`
+counts metres along the route — and the position is re-announced through
+`aria-valuetext`. No pointer event is used anywhere in the journey.
+
+The gate found a real defect on its first run: every resupply row carried an
+`aria-label` whose wording did not match the visible row, failing WCAG 2.5.3
+(label in name). The label was redundant — the row's own text is its name — so it
+and its translation key were removed.
+
+Limit: automated rules plus one scripted keyboard path are not a screen-reader
+test, and Chromium is the only engine available here (see Known limits).
 
 ## Performance
 
@@ -92,15 +117,20 @@ The gate fails if any of the three regresses.
 
 Cloudflare Workers **Static Assets** only: `wrangler.jsonc` has no `main`.
 Static-asset requests are free and unlimited; there is no dynamic budget to
-exhaust. Bundle: 19 files, ~0.57 MB brotli, against a 20,000-file ceiling.
+exhaust. Bundle: 19 files, ~0.59 MB brotli, against a 20,000-file ceiling.
 
-`npm run verify` runs the gate: typecheck, hermetic tests (≤250 cases, ≤12 s),
-build, bundle budget, licence audit, decisions check, hosting contract.
+`npm run verify` runs the gate: typecheck, hermetic tests (≤280 cases, ≤12 s),
+build, bundle budget, a headless render and an end-to-end journey under workerd
+with the production CSP, an axe and keyboard accessibility audit, a blocked-network
+failure-path run, licence audit and hosting contract.
 
 ## Known limits
 
-- Snapping, not routing: the app will not compute a path between two arbitrary
-  points.
+- Routing is Turrutebasen marked trails only, for a box up to 1.5° around the two
+  points. Where the network does not connect them, it says so. OSM routing is not
+  implemented; snapping still covers drawing and editing.
+- Routing endpoints are placed with the pointer; the keyboard can pan and zoom the
+  map but cannot place a route endpoint.
 - No offline mode; the app is a planning tool, not a trail companion.
 - Elevation is mainland Norway only.
 - Hut food status is not machine-readable; the app will not guess it.

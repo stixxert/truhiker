@@ -21,9 +21,10 @@ export type EditorAction =
   | 'trim'
   | 'delete-leg'
   | 'reroute'
+  | 'route'
   | 'rename';
 
-export interface EditorToolbarModel {
+interface EditorToolbarModel {
   /** False when the engines are missing or no trip is loaded. */
   available: boolean;
   mode: InteractionMode;
@@ -47,7 +48,7 @@ export interface EditorToolbarModel {
   renameEnabled: boolean;
 }
 
-export interface EditorToolbarHandlers {
+interface EditorToolbarHandlers {
   onMode: (mode: InteractionMode) => void;
   onSnapToggle: (enabled: boolean) => void;
   onRadius: (radiusM: number) => void;
@@ -64,6 +65,7 @@ const ACTION_IDS: Record<Exclude<EditorAction, 'rename'>, string> = {
   trim: 'btn-trim',
   'delete-leg': 'btn-leg-delete',
   reroute: 'btn-reroute',
+  route: 'btn-route',
 };
 
 const ACTION_FLAGS = {
@@ -73,6 +75,7 @@ const ACTION_FLAGS = {
   trim: 'canTrim',
   'delete-leg': 'canDeleteLeg',
   reroute: 'canReroute',
+  route: 'canRoute',
 } as const;
 
 export class EditorToolbar {

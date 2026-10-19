@@ -105,7 +105,16 @@ export type EditCommand =
   | { readonly type: 'trim-leg'; readonly legId: string; readonly from: number; readonly to: number }
   | { readonly type: 'rename-leg'; readonly legId: string; readonly name: string }
   /** Replace points[from..to] with `points`, after snapping. */
-  | { readonly type: 'replace-span'; readonly legId: string; readonly from: number; readonly to: number; readonly points: readonly RoutePoint[]; readonly snapped: boolean }
+  | {
+      readonly type: 'replace-span';
+      readonly legId: string;
+      readonly from: number;
+      readonly to: number;
+      readonly points: readonly RoutePoint[];
+      readonly snapped: boolean;
+      /** Source markers to record with the new geometry, e.g. a routed span. */
+      readonly provenance?: readonly Provenance[];
+    }
   /**
    * Merge `withLegId` into `legId` and remove it. Required by `docs/09` §2:
    * every documented edit must be a command, and split→merge must be lossless.
@@ -137,7 +146,7 @@ export interface RouteEditor {
  * - `unavailable`     — we tried and failed, or the point is outside coverage.
  * - `loading`         — in flight.
  */
-export type WeatherStatus = 'forecast' | 'beyond-horizon' | 'unavailable' | 'loading';
+type WeatherStatus = 'forecast' | 'beyond-horizon' | 'unavailable' | 'loading';
 
 export interface WeatherSample {
   /** ISO timestamp the sample describes (local midday of that trip day). */
@@ -196,6 +205,8 @@ export class StoreError extends Error {
   constructor(
     readonly code: StoreErrorCode,
     message: string,
+    /** Size of the payload that failed, when the failure was about size. */
+    readonly bytes?: number,
   ) {
     super(message);
     this.name = 'StoreError';

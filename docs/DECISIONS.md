@@ -2,7 +2,7 @@
 
 *Nothing here should be discovered by a user in the field. Each entry states the
 default, the behaviour it produces, and why. If a decision is changed, change it
-here first; `tools/verify/check-decisions.mjs` requires every section below to exist.*
+here first.*
 
 ---
 
@@ -133,7 +133,10 @@ unavoidable — it does not quietly plan a 15 kg loss.
 
 **Default:** every fetched fact shows when it was obtained.
 
-- Turrutebasen routes show `oppdateringsdato` (often years old).
+- Turrutebasen metadata carries `oppdateringsdato` (often years old). The bundled
+  demo export has no such field, so the demo shows its source and maintainer
+  rather than a freshness date the file does not contain; snapped trail metadata
+  keeps the field, and the current UI does not display it.
 - Shops show the extract date and whether their hours are unverified.
 - Weather shows the issue time and the horizon.
 - Elevation shows "hentet HH:MM".
@@ -184,3 +187,27 @@ number that looks complete. The same rule applies to imported GPX files, whose o
 Known limitation (declared, not hidden): a GPX exported from a mixed-source trip
 and re-imported relabels its DEM points as `gpx`, because GPX has no field for
 provenance. The elevation values are preserved.
+
+## D16. Trail routing
+
+**Default: route only where the fetched trail network connects the two points.**
+
+- The source is **Turrutebasen** (CC BY 4.0), fetched live through Geonorge WFS
+  for a bounded box around the endpoints: at most 1.5° per side, 1.5 square
+  degrees, and 5,000 features. OSM is not used.
+- A clicked point may be up to **250 m** from a trail; it snaps to the nearest
+  segment and the route starts at the snapped point, not at an arbitrary vertex.
+- Vertices within **5 m** are the same node. Nothing else connects routes: two
+  trails that cross without a shared or near-shared vertex are not joined.
+- If the network does not connect the points, the app says so. It never draws a
+  straight line, never bridges components, and never offers "as the crow flies".
+- A routed polyline **replaces the active leg** as an undoable edit, with
+  Turrutebasen provenance (service URL, fetch time, licence, modified marker).
+- Seasonal and one-way attributes are not asserted: `sesong` and `merking` are
+  empty in the available data.
+- Endpoints are placed with the pointer. The map is keyboard-pannable, but placing
+  an arbitrary endpoint without a pointer is not supported yet; this is stated in
+  the README limits rather than hidden.
+
+**Why:** a path that crosses a river, a cliff or a gap it never checked is the
+one routing failure that can end a trip. An honest "no path" is the product.

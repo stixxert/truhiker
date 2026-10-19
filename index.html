@@ -10,27 +10,33 @@
       content="Analyser GPX-ruter for norsk fjellterreng: 3D-kart, høydeprofil, stigning og estimert gangtid. Alt skjer i nettleseren."
     />
     <meta name="theme-color" content="#0e1618" />
-    <title>Ruteanalyse</title>
+    <title>TruHiker</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e1618'/%3E%3Cpath d='M5 24l7-12 4 6 3-4 8 10z' fill='%233ad9c4'/%3E%3C/svg%3E"
     />
   </head>
   <body>
-    <h1 class="sr-only" data-i18n="app.name">Ruteanalyse</h1>
+    <h1 class="sr-only" data-i18n="app.name">TruHiker</h1>
     <div class="app">
       <header class="topbar">
         <div class="topbar-row">
           <!-- Mobile-only "more" disclosure. It is display:none above 760 px, so the
                desktop row keeps every action in place; below 760 px it toggles
                .topbar-more-body into a popover. CSS-only so no state lives in JS. -->
-          <input type="checkbox" id="topbar-more" class="topbar-more-toggle" aria-label="Mer" />
+          <input
+            type="checkbox"
+            id="topbar-more"
+            class="topbar-more-toggle"
+            aria-label="Mer"
+            data-i18n-aria-label="action.more"
+          />
           <div class="brand">
             <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
               <path d="M3 26L12 9l5.5 9L21 12l8 14H3z" fill="currentColor" opacity="0.9" />
               <path d="M9.5 26L12 21.5l2.5 4.5H9.5z" fill="#0e1618" opacity="0.6" />
             </svg>
-            <span class="brand-name" data-i18n="app.name">Ruteanalyse</span>
+            <span class="brand-name" data-i18n="app.name">TruHiker</span>
           </div>
 
           <div class="route-meta" id="route-meta" hidden>
@@ -52,7 +58,7 @@
                     <dd id="demo-number"></dd>
                   </div>
                   <div>
-                    <dt data-i18n="demo.maintainer">Vedlikehold</dt>
+                    <dt data-i18n="demo.maintainer">Vedlikeholdes av</dt>
                     <dd id="demo-maintainer"></dd>
                   </div>
                   <div>
@@ -324,7 +330,13 @@
               </label>
               <!-- Mobile-only disclosure: radius and the point count stay reachable
                    without spending a second row of map. CSS-only, as in the header. -->
-              <input type="checkbox" id="editor-more" class="editor-more-toggle" aria-label="Mer" />
+              <input
+                type="checkbox"
+                id="editor-more"
+                class="editor-more-toggle"
+                aria-label="Mer"
+                data-i18n-aria-label="action.more"
+              />
               <label class="editor-more-label btn btn-small" for="editor-more">
                 <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
                   <circle cx="5" cy="10" r="1.5" fill="currentColor" />
@@ -368,6 +380,9 @@
               </button>
               <button class="btn btn-small btn-reroute" id="btn-reroute" type="button" data-i18n="editor.reroute">
                 Reroute
+              </button>
+              <button class="btn btn-small" id="btn-route" type="button" data-i18n="editor.route" data-i18n-title="editor.routeHint">
+                Rute
               </button>
               <span
                 class="reroute-note"
@@ -420,6 +435,7 @@
               </table>
             </div>
             <ul class="weather-warnings" id="weather-warnings" hidden></ul>
+            <p class="panel-note weather-alerts-note" id="weather-alerts-note"></p>
             <p class="panel-note" id="weather-note"></p>
           </aside>
 
@@ -584,14 +600,14 @@
               </svg>
               <h2 data-i18n="empty.title">Slipp en GPX-fil her</h2>
               <p data-i18n="empty.body">
-                eller åpne en fil fra menyen. Alt skjer i nettleseren din – ingen konto, ingenting lastes opp.
+                eller åpne en fil fra menyen. Ruten blir i nettleseren din – ingen konto, ingenting lastes opp.
               </p>
               <button class="btn btn-primary" id="btn-demo" type="button" data-i18n="action.demo">
                 Prøv demoruten
               </button>
               <p class="empty-privacy" data-i18n="empty.privacy">
-                Ruten lagres bare i denne nettleseren. For å hente høydedata, stier og vær sender appen posisjoner fra
-                ruten til Kartverket, MET og hoydedata.no. Ingen konto, ingen sporing.
+                Ruten lagres bare i denne nettleseren. For å hente høydedata, stier, vær og 3D-terreng sendes
+                posisjoner fra ruten til Kartverket, MET, hoydedata.no og Mapterhorn. Ingen konto, ingen sporing.
               </p>
             </div>
           </div>
@@ -714,10 +730,11 @@
         </header>
         <div class="dialog-body">
           <div class="notice">
+            <!-- Short no-JS fallback only: `i18n.apply()` replaces both strings from the
+                 dictionary, which is the single source of truth for the wording. -->
             <h3 data-i18n="about.disclaimerTitle">Planleggingsverktøy – ikke navigasjon</h3>
             <p data-i18n="about.disclaimer">
-              Dette er et planleggingsverktøy. Forholdene på bakken må alltid verifiseres: vær, snø, elvekryssinger og
-              stengsler endrer seg. Appen er ikke et navigasjonshjelpemiddel, og tallene er estimater.
+              Dette er et planleggingsverktøy. Tallene er estimater.
             </p>
           </div>
           <h3 data-i18n="about.dataTitle">Datakilder</h3>
@@ -766,10 +783,10 @@
           <p data-i18n="about.demo"></p>
           <h3 data-i18n="about.privacyTitle">Lagring og personvern</h3>
           <p data-i18n="about.privacy">
-            Tur og rute lagres bare i denne nettleseren (IndexedDB, med localStorage som reserve). Ingenting lastes opp
-            og det finnes ingen konto. For å hente stier, butikker, høydedata og vær sender appen posisjoner fra ruten
-            til Kartverket (Turrutebasen og bakgrunnskart), MET og hoydedata.no. Ingen sporing og ingen analyseverktøy;
-            kartflisene lastes fra den kilden du velger.
+            Tur og rute lagres bare i denne nettleseren (IndexedDB, med localStorage som reserve). Det finnes ingen
+            konto, og turen lastes ikke opp. For å hente stier, butikker, høydedata, vær og 3D-terreng sendes
+            posisjoner fra ruten til Kartverket (Turrutebasen og bakgrunnskart), MET, hoydedata.no og Mapterhorn.
+            Ingen sporing og ingen analyseverktøy; kartflisene lastes fra den kilden du velger.
           </p>
         </div>
       </div>

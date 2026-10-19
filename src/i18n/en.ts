@@ -5,11 +5,12 @@
 import type { MessageKey } from './no';
 
 export const en: Record<MessageKey, string> = {
-  'app.name': 'Route analysis',
+  'app.name': 'TruHiker',
   'app.tagline': 'GPX analysis for Norwegian mountains',
   'app.metaDescription':
-    'Analyse GPX routes for Norwegian mountain terrain: 3D map, elevation profile, ascent and estimated walking time. Everything runs in your browser.',
+    'Analyse GPX routes for Norwegian mountain terrain: 3D map, elevation profile, ascent and estimated walking time. The route stays in your browser.',
   'app.loading': 'Loading …',
+  'action.more': 'More',
 
   'action.openGpx': 'Open GPX',
   'action.demo': 'Try the demo route',
@@ -25,8 +26,8 @@ export const en: Record<MessageKey, string> = {
   'action.fitRoute': 'Show the whole route',
 
   'lang.label': 'Language',
-  'lang.no': 'Norwegian',
-  'lang.en': 'English',
+  'lang.no': 'Norwegian – NO',
+  'lang.en': 'English – EN',
 
   'layers.label': 'Map layer',
   'layers.topo': 'Topo',
@@ -63,7 +64,7 @@ export const en: Record<MessageKey, string> = {
   'profile.title': 'Elevation profile',
   'profile.empty': 'No route loaded',
   'profile.emptyHint': 'Drop a GPX file on the map to see the elevation profile.',
-  'profile.loading': 'Loading elevation data … {done} of {total} cells',
+  'profile.loading': 'Loading elevation data … {done} of {total} tiles',
   'profile.loadingShort': 'Loading elevation data …',
   'profile.unavailable': 'Elevation data unavailable',
   'profile.unavailableDetail':
@@ -100,7 +101,8 @@ export const en: Record<MessageKey, string> = {
   'source.none': 'No route',
   'source.loading': 'Loading …',
   'source.error': 'Unavailable',
-  'source.title': 'Kartverket DTM (bare earth) via hoydedata.no — CC BY 4.0',
+  'source.title':
+    'Kartverket DTM (terrain model without buildings and vegetation) via hoydedata.no — CC BY 4.0',
 
   'pace.title': 'Walking pace',
   'pace.intro':
@@ -115,12 +117,16 @@ export const en: Record<MessageKey, string> = {
   'save.saving': 'saving …',
   'save.saved': 'saved {time}',
   'save.quota': 'Saving failed: browser storage is full. Download the trip as GPX instead.',
+  'save.quotaSize':
+    'Saving failed: the trip is {size} and browser storage is full. Download it as GPX instead.',
   'save.error': 'Saving failed: {message}',
   'save.unavailable': 'Saving is unavailable in this browser',
-  'save.hint': 'Save the trip (Ctrl+S)',
+  'save.hint': 'Save the trip (Ctrl+S or ⌘S)',
 
   'store.quota':
     'Browser storage is full. Download the trip as GPX, or delete an old trip, then try again.',
+  'store.quotaSize':
+    'Browser storage is full: the trip is {size}. Download it as GPX, or delete an old trip, then try again.',
   'store.corrupt': 'The saved trips could not be read because the data is damaged.',
   'store.unsupported':
     'This browser does not allow storage here. That happens in private mode or when storage is blocked.',
@@ -166,8 +172,8 @@ export const en: Record<MessageKey, string> = {
   'storage.persistent': 'persistent storage',
   'storage.notPersistent': 'the browser may clear it',
   'storage.fallback':
-    'IndexedDB is unavailable, so trips are kept in localStorage (about 5 MB). Large trips cannot be saved until this works.',
-  'storage.migrated': '{n} moved from localStorage',
+    'IndexedDB is unavailable, so trips are kept in localStorage. Each trip can be up to 1.5 MB; larger trips cannot be saved until this works.',
+  'storage.migrated': '{n} trips moved from localStorage',
   'storage.migrationFailed':
     'Trips in localStorage could not be moved. They are still in localStorage.',
 
@@ -175,9 +181,9 @@ export const en: Record<MessageKey, string> = {
   'weather.title': 'Weather along the route',
   'weather.refresh': 'Refresh',
   'weather.fetched': 'forecast fetched {time}',
-  'weather.issued': 'issued {time}',
+  'weather.issued': 'forecast issued {time}',
   'weather.horizonNote':
-    'MET’s forecast covers about {days} days ahead. Days beyond the horizon are shown without numbers — we do not fill in estimates.',
+    'MET’s forecast covers about {days} days ahead. Days beyond the horizon are shown without numbers — no estimates.',
   'weather.summary': '{forecast} {forecastUnit} with a forecast, {beyond} {beyondUnit} beyond the horizon',
   'weather.summaryAll': '{forecast} {forecastUnit} with a forecast',
   'weather.unitDayOne': 'day',
@@ -187,10 +193,16 @@ export const en: Record<MessageKey, string> = {
   'weather.loading': 'Fetching the forecast …',
   'weather.loadingDay': 'fetching …',
   'weather.failed': 'The weather forecast is unavailable: {message}',
+  'weather.noForecast': 'The forecast is not available. Try Refresh.',
+  'weather.networkError': 'the network did not respond',
   'weather.beyondHorizon': 'outside the forecast horizon',
   'weather.dayUnavailable': 'not available',
-  'weather.noValues': 'no measurements',
-  'weather.noTrip': 'Load a route first and we will show the weather for each day.',
+  'weather.noValues': 'no values',
+  'weather.noTrip':
+    'Load a route first and the weather for each day is shown.',
+  // D12: alerts are deliberately not implemented, and silence is not safety.
+  'weather.alertsUnsupported':
+    'Warnings for avalanche, flood and severe weather are not supported in this version. The absence of a warning does not mean it is safe.',
   'weather.engineMissing': 'The weather module is unavailable in this build.',
   'weather.needsStartDate':
     'The weather timeline needs a start date. Open trip settings and fill in the start date and kilometres per day.',
@@ -201,7 +213,6 @@ export const en: Record<MessageKey, string> = {
   'weather.rowAriaBadge': 'Day {day}, {date}: {badge}',
   'weather.warnings': 'Warnings',
   'weather.warningLink': 'Read the warning',
-  'weather.warningsBestEffort': 'Warnings are fetched on a best-effort basis and may be missing.',
   'weather.fromDistance': '{distance} from start',
   'weather.colDay': 'Day',
   'weather.colDate': 'Date',
@@ -239,11 +250,12 @@ export const en: Record<MessageKey, string> = {
   'editor.snapFailed': 'the trail network is unavailable',
   'editor.snapIdle': 'the trail network loads when you draw or edit',
   'editor.snapReady': 'trail network loaded – move the pointer over the map to see what it snaps to',
-  'editor.offTrail': '{count} off-trail stretches',
+  'editor.offTrail': '{count} stretches outside a mapped trail',
   'editor.offTrailNone': 'the whole route follows recorded trails',
-  'editor.offTrailUnknown': 'off-trail stretches not computed – the trail network is not loaded',
-  'editor.offTrailSnapOff': 'off-trail stretches are computed when snapping is on',
-  'editor.offTrailSpan': 'Off-trail {n}: {from}–{to} away from trails',
+  'editor.offTrailUnknown':
+    'stretches outside a mapped trail are not computed – the trail network is not loaded',
+  'editor.offTrailSnapOff': 'stretches outside a mapped trail are computed when snapping is on',
+  'editor.offTrailSpan': 'Outside a mapped trail {n}: {from}–{to}',
   'editor.deleteVertex': 'Delete point',
   'editor.split': 'Split leg',
   'editor.reverse': 'Reverse leg',
@@ -251,12 +263,26 @@ export const en: Record<MessageKey, string> = {
   'editor.deleteLeg': 'Delete leg',
   'editor.legName': 'Leg name',
   'editor.renameApply': 'Save name',
-  'editor.reroute': 'Reroute span',
+  'editor.reroute': 'Snap span to trail',
   'editor.rerouteHint':
-    'Reroute moves the points in the selected span to the nearest foot trail within the radius and replaces continuous runs with that trail’s line – it does not find new paths, and where no trail is close enough the point stays as an off-trail stretch.',
-  'editor.rerouteNeedsSnap': 'Reroute needs the trail network to be loaded.',
+    'Snap span to trail moves the points in the selected span to the nearest foot trail within the radius and replaces continuous runs with that trail’s line – it does not find new paths, and where no trail is close enough the point stays outside a mapped trail.',
+  'editor.rerouteNeedsSnap': 'Snapping a span to a trail needs the trail network to be loaded.',
+  'editor.route': 'Route',
+  'editor.routeHint': 'Find a route between two points along Turrutebasen',
+  'route.pickStart': 'Click the start point on the map. Escape cancels.',
+  'route.pickEnd': 'Click the destination.',
+  'route.loading': 'Fetching trails and routing …',
+  'route.done': 'Route added: {distance}.',
+  'route.noTrailStart': 'No trail within {radius} of the start point.',
+  'route.noTrailEnd': 'No trail within {radius} of the destination.',
+  'route.noPath': 'The trail network does not connect the two points.',
+  'route.areaTooLarge': 'The area is too large to route. Move the points closer together.',
+  'route.tooManyFeatures': 'Too many trails in the area. Move the points closer together.',
+  'route.networkUnavailable': 'The trail network is unavailable: {detail}',
+  'route.needsLeg': 'Open or draw a leg first.',
+  'route.failed': 'The route could not be added.',
   'editor.rerouteNoTrail':
-    'Reroute found no trail within the radius. The span is unchanged and marked off-trail.',
+    'No trail was found within the radius. The span is unchanged and marked as outside a mapped trail.',
   'editor.selectHint':
     'Click a point to select it. Shift-click another point to select a span.',
   'editor.drawHint': 'Click the map to add points.',
@@ -267,13 +293,13 @@ export const en: Record<MessageKey, string> = {
   'editor.selection': '{leg}: point {from} of {total}',
   'editor.selectionSpan': '{leg}: points {from}–{to}',
   'editor.legFallback': 'Leg {n}',
-  'editor.offTrailBadge': 'off-trail',
+  'editor.offTrailBadge': 'outside a mapped trail',
 
   'settings.title': 'Trip settings',
   'settings.intro':
     'These are your numbers, not assumptions about you. They are used only to compute energy, food and daily distances for this trip.',
   'settings.bodyTitle': 'Body',
-  'settings.mass': 'Mass (kg)',
+  'settings.mass': 'Weight (kg)',
   'settings.height': 'Height (cm)',
   'settings.age': 'Age (years)',
   'settings.sex': 'Sex',
@@ -325,7 +351,7 @@ export const en: Record<MessageKey, string> = {
   'banner.noTrack': 'The file contains no tracks or routes.',
   'banner.tooShort': 'The route is too short to analyse (at least two points are needed).',
   'banner.hashTooLong':
-    'The route is too long to share through the link (max {max} characters). Upload the file instead.',
+    'The route is too long to share through the link (max {max} characters). Open the file instead.',
   'banner.hashInvalid': 'The link contains a route that could not be read.',
   'banner.shareCopied': 'Link to the route copied.',
   'banner.shareFailed': 'Could not copy the link. Copy the address from the browser instead.',
@@ -338,17 +364,17 @@ export const en: Record<MessageKey, string> = {
 
   'empty.title': 'Drop a GPX file here',
   'empty.body':
-    'or open one from the menu. Everything runs in your browser — no account, nothing uploaded.',
+    'or open one from the menu. Your route stays in your browser — no account, nothing uploaded.',
   // B4: the route itself never leaves the browser, but positions from it are
   // sent to fetch elevation, trails and weather. Say both, precisely.
   'empty.privacy':
-    'The route is stored only in this browser. To fetch elevation, trails and weather the app sends positions from the route to Kartverket, MET and hoydedata.no. No account, no tracking.',
+    'The route is stored only in this browser. To fetch elevation, trails, weather and 3D terrain the app sends positions from the route to Kartverket, MET, hoydedata.no and Mapterhorn. No account, no tracking.',
 
   'map.ariaLabel': 'Map of the route. Use the arrow keys to pan and + and − to zoom.',
   'map.zoomIn': 'Zoom in',
   'map.zoomOut': 'Zoom out',
   'map.resetNorth': 'Reset the map to north',
-  'about.shortDisclaimer': 'Planning tool',
+  'about.shortDisclaimer': 'Planning tool – not navigation',
 
   'units.metre': 'm',
   'units.metresAboveSea': 'm a.s.l.',
@@ -359,9 +385,9 @@ export const en: Record<MessageKey, string> = {
   'units.grade': '{value} %',
 
   'about.title': 'About data and use',
-  'about.disclaimerTitle': 'Not a navigation device',
+  'about.disclaimerTitle': 'Planning tool – not navigation',
   'about.disclaimer':
-    'The numbers are estimates. Weather, snow, river crossings and closures change, and must be checked before you go.',
+    'This is a planning tool. Check conditions on the ground: weather, snow, river crossings and closures change. The numbers are estimates.',
   'about.dataTitle': 'Data sources',
   'about.kartverket': 'Basemap and elevation: Kartverket (topo, DTM), CC BY 4.0.',
   'about.mapterhorn': '3D terrain: Mapterhorn, derived from Kartverket elevation data.',
@@ -384,7 +410,7 @@ export const en: Record<MessageKey, string> = {
     'The resupply points are an OSM extract of shops, fuel stations and post points. Opening hours are not stored in the file — only whether OSM had them.',
   'about.privacyTitle': 'Storage and privacy',
   'about.privacy':
-    'The trip and its route are stored only in this browser (IndexedDB, with localStorage as a fallback). There is no account, and the trip itself is not uploaded. To fetch trails, shops, elevation and weather the app sends positions from the route to Kartverket (Turrutebasen and the basemap), MET and hoydedata.no. No tracking and no analytics; map tiles load from the source you choose.',
+    'The trip and its route are stored only in this browser (IndexedDB, with localStorage as a fallback). There is no account, and the trip itself is not uploaded. To fetch trails, shops, elevation, weather and 3D terrain the app sends positions from the route to Kartverket (Turrutebasen and the basemap), MET, hoydedata.no and Mapterhorn. No tracking and no analytics; map tiles load from the source you choose.',
 
   'supply.open': 'Resupply',
   'supply.title': 'Resupply and energy',
@@ -412,7 +438,7 @@ export const en: Record<MessageKey, string> = {
   'supply.fetched': 'fetched {time}',
   'supply.indexLine': 'OpenStreetMap extract {date} · {count} points · ODbL 1.0',
   'supply.mailDrop':
-    'Drop for {name}: arrives {arrival}, post between {notBefore} and {shipBy} (pickup window {window} days).',
+    'Parcel to {name}: arrives {arrival}, post between {notBefore} and {shipBy} (pickup window {window} days).',
   'supply.worstGap': 'Longest stretch without resupply: {distance} · {days}',
   'supply.hutsFailed':
     'Huts could not be fetched ({message}). The shops below are complete, but huts are missing from the list.',
@@ -423,28 +449,36 @@ export const en: Record<MessageKey, string> = {
   'supply.detourOnRoute': 'on the route',
   'supply.detourValue': '{distance} off the route',
   'supply.gapValue': '{distance} · {days}',
-  'supply.gapNone': 'last point',
-  'supply.rowAria':
-    '{name}, {kind}, {distance} from the start, {detour}, next usable point {gap}',
   'supply.legTitle': '{from} → {to}',
   'supply.anchorStart': 'Start',
   'supply.anchorEnd': 'End',
   'supply.legNumbers': '{distance} · {days} · {kcal} kcal · {kg} kg food · {cost} NOK',
-  'supply.carryWarning': 'Carry {kg} kg for {days} — more than the {max} days you can carry for.',
+  'supply.carryWarning':
+    'Carry {kg} kg for {days}. You can carry food for at most {max} days.',
+  // D14: with no daily distance the plan assumes one, and says so on screen.
+  'supply.warnDailyKmFallback':
+    'No kilometres per day is set in the trip settings, so the plan assumes {km} km per day. Every day count below follows from that assumption.',
+  'supply.warnBridged':
+    '{km} km of the trip is a straight line between legs that do not meet. That distance is counted as walking time, but it is not a mapped trail.',
+  // D13: a station with no "unmanned" flag is assumed staffed — and named.
+  'supply.warnStaffedFuel':
+    'Fuel stations assumed staffed: {names} ({count}). Check that none is a card-only automat, and expect basic shop food only.',
+  'supply.warnClosedOnArrival':
+    '{name}: closed on the estimated arrival date {date}. Check the opening hours before planning around it.',
   'supply.warnHutsCounted':
     '{count} huts ({names}) are counted as a food source because you asked for it. Hut food is not confirmed — carry a reserve.',
   'supply.warnHutOne':
-    'The hut on the route ({names}) does not count as food: whether it sells food is not machine-readable. Assume you carry everything yourself.',
+    'The hut on the route ({names}) does not count as food: whether it sells food is not known. Assume you carry everything yourself.',
   'supply.warnHutMany':
-    '{count} huts on the route ({names}) do not count as food: whether a hut sells food is not machine-readable.',
+    '{count} huts on the route ({names}) do not count as food: whether they sell food is not known.',
   'supply.warnUnmannedFuel':
     'Unmanned fuel station ({names}) does not count as food — check the station.',
   'supply.warnHoursAll':
     'None of the {total} points is verified open. The file records only whether OSM had opening hours, not what they are.',
   'supply.warnHoursSome':
-    '{missing} of {total} points have no opening hours in OSM at all, and none is verified open. Check before you plan around them.',
+    'Opening hours are missing from OSM for {missing} of {total}. None is verified open. Check before you plan around them.',
   'supply.warnDetour':
-    '{count} points are more than 2 km off the route ({names}); the walk in and back is extra.',
+    'Points more than 2 km off the route: {count} ({names}). The walk in and back is extra.',
   'supply.warnPostNotFood':
     '{count} post or parcel points do not sell food. They can only be drop addresses: choose “food sent ahead” in trip settings.',
   'supply.warnGap':
@@ -461,7 +495,7 @@ export const en: Record<MessageKey, string> = {
   'supply.provenanceChain': 'Chain (verified)',
   'supply.badgeUnconfirmed': 'not confirmed',
   'supply.badgeUnmanned': 'unmanned',
-  'supply.badgeHoursUnread': 'hours not read',
+  'supply.badgeHoursUnread': 'hours not stored',
   'supply.badgeHoursMissing': 'hours unknown',
   'supply.checkDnt': 'Check with DNT',
   'supply.dayValue': '{value} d',
@@ -506,14 +540,14 @@ export const en: Record<MessageKey, string> = {
   'energy.sustainableBody':
     'Expenditure ({tdee} kcal/day) is below the intake ceiling ({ceiling} kcal/day). A {deficit} kcal/day deficit is a choice, not a requirement.',
   'energy.plannedIntake': 'Planned intake {value} kcal/day',
-  'energy.massTitle': 'Mass change over the trip',
+  'energy.massTitle': 'Weight change over the trip',
   'energy.massResult': '{kg} kg over {days}',
   'energy.massNoChange': 'No mass change with these numbers.',
   'energy.assumptions': 'Assumptions',
   'energy.foodDensity': 'Food energy density (kcal/g)',
   'energy.foodDensityHint':
     'Dry food is typically 4.4 kcal/g. Change it if you carry something else — the food mass below follows.',
-  'energy.packMass': 'Pack mass (kg)',
+  'energy.packMass': 'Pack weight (kg)',
   'energy.packMassHint': 'Base mass before food. The food is added per leg.',
   'energy.foodMass': 'Food for the whole trip: {kg} kg',
   'energy.daysLabel': '{days} at {km}',
@@ -527,5 +561,5 @@ export const en: Record<MessageKey, string> = {
   'settings.carryAllHint':
     'You carry all the food from the start. Long stretches between shops produce a carry warning in the resupply panel.',
   'settings.mailDropsHint':
-    'Mail drops: a parcel to a Post in Shops counter must be collected within 7 days (post it between arrival −7 and −5 days). Poste restante: 21 days (post between arrival −21 and −5). The app never schedules a drop it cannot show is collectable.',
+    'Mail drops: a parcel to a Post i butikk counter must be collected within 7 days (post it between arrival −7 and −5 days). Poste restante: 21 days (post between arrival −21 and −5). The app never schedules a drop it cannot show is collectable.',
 };

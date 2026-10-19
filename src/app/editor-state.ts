@@ -41,7 +41,7 @@ export interface EditorUiState {
 }
 
 export const DEFAULT_SNAP_RADIUS_M = 75;
-export const SNAP_RADIUS_LIMITS = { min: 20, max: 300 } as const;
+const SNAP_RADIUS_LIMITS = { min: 20, max: 300 } as const;
 
 /** Clamp a user-entered snap radius; junk falls back to the default. */
 export function clampSnapRadius(value: unknown): number {
@@ -138,6 +138,8 @@ export interface CommandAvailability {
   readonly canRename: boolean;
   readonly canDeleteLeg: boolean;
   readonly canReroute: boolean;
+  /** True when there is a leg whose geometry a route could replace. */
+  readonly canRoute: boolean;
 }
 
 function selectedLeg(state: EditorUiState, trip: Trip | null): Leg | undefined {
@@ -158,6 +160,7 @@ export function availableCommands(state: EditorUiState, trip: Trip | null): Comm
       canRename: false,
       canDeleteLeg: false,
       canReroute: false,
+      canRoute: false,
     };
   }
   const inLeg = selection !== null && selection.legId === leg.id;
@@ -176,6 +179,7 @@ export function availableCommands(state: EditorUiState, trip: Trip | null): Comm
     canRename: true,
     canDeleteLeg: (trip?.legs.length ?? 0) > 1,
     canReroute: inRange && span >= 1,
+    canRoute: true,
   };
 }
 
