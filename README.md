@@ -1,10 +1,14 @@
-# Route planner for Norwegian hiking (working title)
+# TruHiker
 
-*Project name not decided — the folder name is not the project name. It is no
-longer NPL-specific: NPL is one bundled case study.*
+**A rigorous, interactive route planner for long-distance walking in Norway.**
+<https://github.com/stixxert/truhiker> (private)
 
-A rigorous, interactive planning tool for long-distance walking in Norway.
-Originally scoped around *Norge på langs* (Lindesnes → Nordkapp, ~2,700 km).
+Originally scoped around *Norge på langs* (Lindesnes → Nordkapp, ~2,700 km); now a
+general GPX route analyser, with NPL as one bundled case study.
+
+Everything runs in your browser. Routes never leave the device: they are stored
+locally (IndexedDB) and can be downloaded as GPX. There is no account and no
+server-side database.
 
 **Status: product redefined as a general GPX route analyser (see plan v2).
 Phase 1 (elevation core) and Phase 2 (map shell) are complete and green; later
