@@ -74,6 +74,20 @@ IndexedDB database `truhiker`:
 A 3,000 km / 100,000-point trip (8.0 MB) is an acceptance test: save ~64 ms,
 load ~26 ms in Chromium.
 
+## Performance
+
+Measured by `npm run perf` under throttled Slow 4G (200 kb/s, 150 ms RTT) through
+a compressing server, which is what Cloudflare serves:
+
+| Metric | Budget | Measured |
+| --- | ---: | ---: |
+| First contentful paint | < 1 500 ms | **592 ms** |
+| Map interactive (canvas + a numeric stat) | < 8 000 ms | **5 195 ms** |
+| JS + CSS transfer | < 500 KB | **408 KB** |
+
+MapLibre is roughly 85 % of that transfer; it is the renderer and the 3D terrain.
+The gate fails if any of the three regresses.
+
 ## Deployment
 
 Cloudflare Workers **Static Assets** only: `wrangler.jsonc` has no `main`.
