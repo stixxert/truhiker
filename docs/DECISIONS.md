@@ -129,6 +129,26 @@ as published and never translated.
 an uploaded GPX's own elevations are kept and labelled `gpx`. The two are never
 silently mixed — the profile names its source.
 
+**Resolution follows the route, and the work is shared.** Sampling at 10 m over
+165 km is ~10 MB of raster for detail nobody can see on a 900 px chart, and the
+cost is request latency, not bandwidth:
+
+| Route length | Pixel size | DEM window | Requests for a 165 km route |
+| --- | --- | --- | --- |
+| ≤ 20 km | 10 m | 5 km | 47 (was the default for every route) |
+| ≤ 60 km | 15 m | 10 km | 17 |
+| ≤ 150 km | 20 m | 15 km | ~12 |
+| above | 30 m | 20 km | 11 |
+
+- Measured on a 165 km straight line: **28.8 s → 4.6 s**, 47 → 11 requests.
+- There is **one worker per page**, and its `HoydedataDem` caches are kept per
+  pixel size for the worker's lifetime. Re-sampling the same route after an edit
+  is a cache hit, not a second download (measured: 4.8 s → 1.3 s).
+- The panel says which wait it is: **"Fetching terrain data from Kartverket …
+  7 of 12 tiles"** while windows are on the wire, then **"Downloaded —
+  calculating the profile …"** for the (synchronous) profile maths. A progress bar
+  is shown only for the part that has progress to report.
+
 ## D10. Energy model and food weight
 
 **Default:** component-sum model (Minetti for grade, Mifflin–St Jeor or
@@ -141,15 +161,23 @@ unavoidable — it does not quietly plan a 15 kg loss.
 
 ## D11. Data freshness
 
-**Default:** every fetched fact shows when it was obtained.
+**Default:** every fetched fact names its source, and shows a time only when the
+time is a fact about the data.
 
 - Turrutebasen metadata carries `oppdateringsdato` (often years old). The bundled
   demo export has no such field, so the demo shows its source and maintainer
-  rather than a freshness date the file does not contain; snapped trail metadata
-  keeps the field, and the current UI does not display it.
-- Shops show the extract date and whether their hours are unverified.
-- Weather shows the issue time and the horizon.
-- Elevation shows "hentet HH:MM".
+  rather than a freshness date the file does not contain.
+- Shops show the **extract date**, whether their hours are unverified, and the
+  ODbL line. That date is the data's vintage; when *we* read the file is not.
+- The supply panel shows **no "hentet HH:MM"**. The shops are a bundled local
+  file, the corridor and the plan are computed in the browser, and the only live
+  part (the hut query) has its own failure warning. A fetch time over local data
+  reads as machine output and answers no question the user has.
+- Weather shows the **issue time** (a MET fact) and the horizon.
+- Elevation names its source (Kartverket DTM) and says nothing about a clock: a
+  national terrain model does not become stale at 13:14.
+- Trail metadata fetched during a snap keeps `oppdateringsdato`; the current UI
+  does not display it.
 
 ## D12. What the app refuses to claim
 
@@ -354,3 +382,21 @@ It scrolls, and the map chrome moves out of its way rather than being covered.**
 **Why:** the resupply list is read, not skimmed — the panel exists to show the
 distance to the next food. Hiding the bottom third of that answer, behind an
 invisible scrollbar, is failing at the one thing the panel is for.
+
+## D20. Resupply points are on the map, not only in the panel
+
+**Default: the shops, fuel, post points and huts in the corridor are drawn as soon
+as a route is known — panel open or not — and each kind has its own glyph.**
+
+- The corridor query runs when the route or the profile changes, not when the
+  panel is opened. A shop the user never sees because a panel is closed is not a
+  point they can plan around.
+- A point that counts as food is a filled disc with a white glyph; anything that
+  is not confirmed food (huts, unmanned fuel) is hollow with a dark glyph, so
+  "not food" is visible without reading the card. Kind is carried by the glyph
+  (basket, pump, envelope, hut) and by colour — the two together do not need a
+  legend.
+- The glyphs are drawn on a canvas at load time and registered with
+  `map.addImage`: an icon needs no glyph server, so the style still fetches no
+  font and the CSP is unchanged.
+- A hover card and a click still answer with words and move the profile cursor.

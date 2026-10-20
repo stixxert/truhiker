@@ -66,8 +66,12 @@ export const en: Record<MessageKey, string> = {
   'profile.title': 'Elevation profile',
   'profile.empty': 'No route loaded',
   'profile.emptyHint': 'Drop a GPX file on the map to see the elevation profile.',
-  'profile.loading': 'Loading elevation data … {done} of {total} tiles',
-  'profile.loadingShort': 'Loading elevation data …',
+  'profile.loading':
+    'Fetching terrain data from Kartverket … {done} of {total} tiles',
+  'profile.loadingShort':
+    'Fetching terrain data from Kartverket …',
+  'profile.computing':
+    'Downloaded — calculating the profile …',
   'profile.unavailable': 'Elevation data unavailable',
   'profile.unavailableDetail':
     'Kartverket elevation data (DTM) could not be loaded. Elevation, ascent, descent and walking time are disabled — not set to zero.',
@@ -446,7 +450,6 @@ export const en: Record<MessageKey, string> = {
   'supply.planFailed': 'The resupply plan could not be built ({message}).',
   'supply.countOne': '{count} point along the route',
   'supply.countMany': '{count} points along the route',
-  'supply.fetched': 'fetched {time}',
   'supply.indexLine': 'OpenStreetMap extract {date} · {count} points · ODbL 1.0',
   'supply.mailDrop':
     'Parcel to {name}: arrives {arrival}, post between {notBefore} and {shipBy} (pickup window {window} days).',

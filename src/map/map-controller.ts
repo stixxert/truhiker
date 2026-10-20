@@ -166,6 +166,91 @@ function resupplyColor(): NonNullable<ColorSpec> {
   ];
 }
 
+/**
+ * Resupply glyphs, drawn locally.
+ *
+ * A symbol layer normally needs a glyph server for text; an *icon* needs only
+ * images, so a canvas is enough and no font is ever fetched. 16 px at
+ * pixelRatio 2, white on transparent, meant to sit on the coloured disc.
+ */
+const RESUPPLY_ICON_PX = 16;
+const RESUPPLY_ICON_SCALE = 2;
+
+type IconKind = 'shop' | 'fuel' | 'post' | 'hut';
+
+function drawResupplyIcon(kind: IconKind): ImageData | null {
+  const size = RESUPPLY_ICON_PX * RESUPPLY_ICON_SCALE;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.scale(RESUPPLY_ICON_SCALE, RESUPPLY_ICON_SCALE);
+  ctx.fillStyle = '#f7fffd';
+  ctx.strokeStyle = '#f7fffd';
+  ctx.lineWidth = 1.4;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  if (kind === 'shop') {
+    // Market basket: a trapezoid with a handle.
+    ctx.beginPath();
+    ctx.moveTo(3.2, 6.4);
+    ctx.lineTo(12.8, 6.4);
+    ctx.lineTo(11.4, 13);
+    ctx.lineTo(4.6, 13);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(8, 6.6, 2.6, Math.PI, 0);
+    ctx.stroke();
+  } else if (kind === 'fuel') {
+    // Pump body plus a nozzle arm.
+    ctx.fillRect(3.4, 4.6, 6, 9);
+    ctx.clearRect(4.8, 6.2, 3.2, 2.4);
+    ctx.beginPath();
+    ctx.moveTo(9.8, 6.4);
+    ctx.lineTo(12.4, 6.4);
+    ctx.lineTo(12.4, 11.2);
+    ctx.stroke();
+  } else if (kind === 'post') {
+    // Envelope.
+    ctx.beginPath();
+    ctx.rect(2.4, 4.6, 11.2, 7.4);
+    ctx.fill();
+    ctx.strokeStyle = '#0b1416';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(2.8, 5.2);
+    ctx.lineTo(8, 9.1);
+    ctx.lineTo(13.2, 5.2);
+    ctx.stroke();
+  } else {
+    // Hut: a roof with a door.
+    ctx.beginPath();
+    ctx.moveTo(8, 3.4);
+    ctx.lineTo(14, 8.4);
+    ctx.lineTo(12.6, 8.4);
+    ctx.lineTo(12.6, 13);
+    ctx.lineTo(3.4, 13);
+    ctx.lineTo(3.4, 8.4);
+    ctx.lineTo(2, 8.4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#0b1416';
+    ctx.fillRect(6.8, 9.6, 2.4, 3.4);
+  }
+
+  return ctx.getImageData(0, 0, size, size);
+}
+
+function registerResupplyIcons(map: MapLibreMapType): void {
+  for (const kind of ['shop', 'fuel', 'post', 'hut'] as const) {
+    const image = drawResupplyIcon(kind);
+    if (image) map.addImage(`resupply-${kind}`, image, { pixelRatio: RESUPPLY_ICON_SCALE });
+  }
+}
+
 function resupplyLayers(): StyleLayers {
   return [
     {
@@ -197,12 +282,45 @@ function resupplyLayers(): StyleLayers {
       type: 'circle',
       source: 'resupply',
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 3.5, 10, 5, 15, 7],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4.5, 10, 7, 15, 10],
         'circle-color': resupplyColor(),
         // A point that is not food is hollow: the visual is the honesty rule.
         'circle-opacity': ['case', ['==', ['get', 'usable'], true], 1, 0.4],
         'circle-stroke-color': ['case', ['==', ['get', 'usable'], true], '#06100f', '#f2fffc'],
         'circle-stroke-width': ['case', ['==', ['get', 'usable'], true], 1.6, 1.8],
+      },
+    },
+    {
+      // The glyph carries the kind; the disc under it carries the colour. A hut
+      // and a supermarket are different things on the ground, and a coloured dot
+      // was asking the user to remember a legend that does not exist.
+      id: 'resupply-icons',
+      type: 'symbol',
+      source: 'resupply',
+      layout: {
+        'icon-image': [
+          'match',
+          ['get', 'kind'],
+          'hut',
+          'resupply-hut',
+          'fuel',
+          'resupply-fuel',
+          'post',
+          'resupply-post',
+          'parcel',
+          'resupply-post',
+          'resupply-shop',
+        ],
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 10, 0.75, 15, 1],
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+      },
+      paint: {
+        // Same honesty rule as the disc: a point that is not food is drawn
+        // hollow, so a white glyph on a 40 % tint is unreadable. Tint it dark
+        // instead, which also makes "not food" visible at a glance.
+        'icon-color': ['case', ['==', ['get', 'usable'], true], '#f7fffd', '#1b2a28'],
+        'icon-opacity': 1,
       },
     },
   ];
@@ -431,6 +549,7 @@ export class MapController {
 
     map.on('load', () => {
       this.ready = true;
+      registerResupplyIcons(map);
       if (options.sky !== false) this.applySky();
       void this.probeTerrain();
       this.wireResupplyInteraction();
@@ -922,7 +1041,14 @@ export class MapController {
   }
 
   private wireResupplyInteraction(): void {
-    const layer = 'resupply-points';
+    // The symbol layer is on top of the disc, so the pointer meets whichever is
+    // drawn last: listen on both.
+    const layers = ['resupply-icons', 'resupply-points'].filter((id) => this.map.getLayer(id));
+    if (layers.length === 0) return;
+    for (const layer of layers) this.wireResupplyLayer(layer);
+  }
+
+  private wireResupplyLayer(layer: string): void {
     if (!this.map.getLayer(layer)) return;
     this.map.on('click', layer, (event) => {
       const id = event.features?.[0]?.properties?.id;

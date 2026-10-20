@@ -16,7 +16,8 @@ weather the walk will face.
   trail connects them, the app says so instead of drawing a line.
 - **Elevation.** From Kartverket's national 1 m terrain model, sampled live:
   profile, ascent, descent, grade and walking time.
-- **Resupply.** Shops, fuel, post points and huts along the corridor, with the
+- **Resupply.** Shops, fuel, post points and huts along the corridor, drawn on the
+  map by kind, with the
   distance along the route, the detour, and the gap to the next usable point.
 - **Energy.** Calories as a range, the intake ceiling, the food mass per leg and
   the projected weight change. When the deficit cannot be eaten away, it says so.

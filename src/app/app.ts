@@ -282,7 +282,7 @@ export class App {
     profileStatus: 'empty',
     profileError: null,
     profileErrorMessage: '',
-    progress: { done: 0, total: 0 },
+    progress: { done: 0, total: 0, phase: 'download' },
     terrain: { status: 'probing' },
     basemap: { status: 'ok' },
     fatal: null,
@@ -1524,8 +1524,13 @@ export class App {
 
   /**
    * The route, the profile or the trip changed. The energy panel is cheap and
-   * is always re-rendered; the corridor query is only repeated when something
-   * it depends on actually changed (and only while the panel is open).
+   * is always re-rendered; the corridor query is repeated when something it
+   * depends on actually changed.
+   *
+   * It runs whether or not the panel is open, because the points are drawn on
+   * the map: a shop or a hut the user never sees because the panel is closed is
+   * not a resupply point they can plan around. A closed panel asks with
+   * `force = false`, so the service's own cache answers a repeat route.
    */
   private invalidateSupply(): void {
     const signature = this.supplySignature();
@@ -1534,8 +1539,9 @@ export class App {
       return;
     }
     this.supplySig = signature;
-    if (this.supplyPanel?.isOpen) void this.refreshSupply(true);
-    else this.renderEnergy();
+    // The signature changed, so a cached "ready" plan describes a different
+    // route. Ask with force: the service still answers repeats from its cache.
+    void this.refreshSupply(true);
   }
 
   // --- editor --------------------------------------------------------------
@@ -1967,7 +1973,7 @@ export class App {
     this.state.profileStatus = 'loading';
     this.state.profileError = null;
     this.state.profileErrorMessage = '';
-    this.state.progress = { done: 0, total: 0 };
+    this.state.progress = { done: 0, total: 0, phase: 'download' };
     this.state.cursorDistance = null;
     this.state.cursorSource = 'map';
     this.showEmptyState(false);
@@ -2264,7 +2270,7 @@ export class App {
     this.state.profileStatus = 'loading';
     this.state.profileError = null;
     this.state.profileErrorMessage = '';
-    this.state.progress = { done: 0, total: 0 };
+    this.state.progress = { done: 0, total: 0, phase: 'download' };
     this.state.cursorDistance = null;
     this.state.cursorSource = 'map';
 
@@ -2299,7 +2305,7 @@ export class App {
 
   private sampleRoute(route: Route): void {
     this.state.profileStatus = 'loading';
-    this.state.progress = { done: 0, total: 0 };
+    this.state.progress = { done: 0, total: 0, phase: 'download' };
     this.renderProfilePanel();
     this.renderStats();
     // Route-level banners describe the previous route until this one answers.
@@ -2315,9 +2321,15 @@ export class App {
     this.job = job;
 
     job.promise
-      .then((elevations) => {
+      .then(async (elevations) => {
         if (this.job !== job) return;
         this.job = null;
+        // The download is over; the profile maths is next. Paint that once, so a
+        // long route does not appear to hang on "downloading" after the last tile.
+        this.state.progress = { done: this.state.progress.done, total: this.state.progress.total, phase: 'compute' };
+        this.renderProfilePanel();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        if (this.job !== null) return;
         let profile: Profile;
         try {
           profile = buildProfile(route.points, Array.from(elevations));
@@ -2506,7 +2518,18 @@ export class App {
     }
 
     if (profileStatus === 'loading') {
-      const { done, total } = progress;
+      const { done, total, phase } = progress;
+      // Two different waits, and only one of them is on the network: say which.
+      // "Downloading" names the source and counts the windows; "calculating" has
+      // no progress to report, so it must not pretend to.
+      if (phase === 'compute') {
+        this.elements.profileStatus.textContent = this.i18n.t('profile.computing');
+        title.textContent = this.i18n.t('profile.computing');
+        detail.textContent = '';
+        progressBar.hidden = true;
+        setOverlay(true);
+        return;
+      }
       this.elements.profileStatus.textContent =
         total > 0
           ? this.i18n.t('profile.loading', {

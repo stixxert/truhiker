@@ -1501,7 +1501,9 @@ input {
   margin-right: 6px;
   border-radius: 50%;
   background: currentColor;
-  vertical-align: 0.05em;
+  /* Middle of the line box, not 0.05em above the baseline: at 11 px that put the
+     dot visibly high against the label it is supposed to sit beside. */
+  vertical-align: middle;
   opacity: 0.9;
 }
 

@@ -18,7 +18,7 @@
  */
 
 import type { LonLat } from '../core/geo';
-import { formatClock, formatDay, type I18n, type MessageKey } from '../i18n';
+import { formatDay, type I18n, type MessageKey } from '../i18n';
 import type { ResupplyCandidate, ResupplyLeg, ResupplyPlan } from '../resupply';
 
 /** Everything a successful corridor query produced, plus its provenance. */
@@ -101,7 +101,6 @@ export interface ResupplyViewModel {
   readonly statusLine: string;
   /** Provenance line for the index ("OSM extract …, 8 571 points, ODbL"). */
   readonly indexLabel: string | null;
-  readonly fetchedLabel: string | null;
   /** Visible, translated note about the huts that could not be fetched. */
   readonly hutsError: string | null;
   readonly rows: readonly ResupplyRowView[];
@@ -226,7 +225,6 @@ export function buildResupplyView(
     action,
     statusLine: '',
     indexLabel: null,
-    fetchedLabel: null,
     hutsError: null,
     rows: [],
     legs: [],
@@ -287,7 +285,6 @@ function buildReady(
     rows.length === 1 ? 'supply.countOne' : 'supply.countMany',
     { count: i18n.format.number(rows.length, { maximumFractionDigits: 0 }) },
   );
-  const fetchedTime = formatClock(data.fetchedAt, i18n.locale);
 
   const indexDate = formatDay(data.indexBuiltAt, i18n.locale);
   const indexLabel = i18n.t('supply.indexLine', {
@@ -310,7 +307,6 @@ function buildReady(
     action: 'retry',
     statusLine: pointsLabel,
     indexLabel,
-    fetchedLabel: fetchedTime ? i18n.t('supply.fetched', { time: fetchedTime }) : null,
     hutsError: data.hutsError
       ? i18n.t('supply.hutsFailed', { message: firstLine(data.hutsError) })
       : null,

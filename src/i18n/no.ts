@@ -70,8 +70,12 @@ export const no = {
   'profile.title': 'Høydeprofil',
   'profile.empty': 'Ingen rute lastet',
   'profile.emptyHint': 'Slipp en GPX-fil på kartet for å se høydeprofilen.',
-  'profile.loading': 'Henter høydedata … {done} av {total} fliser',
-  'profile.loadingShort': 'Henter høydedata …',
+  'profile.loading':
+    'Henter høydedata fra Kartverket … {done} av {total} fliser',
+  'profile.loadingShort':
+    'Henter høydedata fra Kartverket …',
+  'profile.computing':
+    'Nedlastet — beregner profilen …',
   'profile.unavailable': 'Høydedata utilgjengelig',
   'profile.unavailableDetail':
     'Kartverkets høydedata (DTM) kunne ikke hentes. Høyde, stigning, nedstigning og gangtid er slått av – ikke satt til null.',
@@ -451,7 +455,6 @@ export const no = {
   'supply.planFailed': 'Forsyningsplanen kunne ikke bygges ({message}).',
   'supply.countOne': '{count} punkt langs ruten',
   'supply.countMany': '{count} punkter langs ruten',
-  'supply.fetched': 'hentet {time}',
   'supply.indexLine': 'OpenStreetMap-uttrekk {date} · {count} punkter · ODbL 1.0',
   'supply.mailDrop':
     'Pakke til {name}: ankomst {arrival}, send mellom {notBefore} og {shipBy} (hentefrist {window} døgn).',

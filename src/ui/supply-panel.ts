@@ -332,7 +332,7 @@ export class SupplyPanel {
     this.actionKind = view.action;
     this.root.dataset.resupplyState = view.state;
 
-    this.resupplyStatus.textContent = [view.fetchedLabel, view.statusLine]
+    this.resupplyStatus.textContent = [view.statusLine]
       .filter((part): part is string => typeof part === 'string' && part.length > 0)
       .join(' · ');
     this.indexLabel.textContent = view.indexLabel ?? '';
