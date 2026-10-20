@@ -138,6 +138,9 @@ try {
   // 4. Weather — give the trip a start date and a daily distance so the app
   //    actually attempts a forecast; otherwise it legitimately asks for one.
   const today = new Date().toISOString().slice(0, 10);
+  // Settings lives behind the bar's overflow menu, so reaching it is a two-step
+  // gesture: the disclosure first, then the row.
+  await page.click('.tb-menu-toggle').catch(() => {});
   await page.click('#btn-settings').catch(() => problems.push('the settings dialog could not be opened'));
   await page.waitForSelector('#settings-dialog[open]', { timeout: 5000 }).catch(() => {});
   await page.fill('#settings-start-date', today).catch(() => {});

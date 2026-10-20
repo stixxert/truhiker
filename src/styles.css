@@ -309,20 +309,6 @@ button {
   color: var(--text);
 }
 
-.btn-open {
-  background: var(--panel-2);
-  border-color: var(--line-strong);
-  color: var(--text);
-}
-
-.btn-open .i {
-  color: var(--muted);
-}
-
-.btn-open:hover:not(:disabled) .i {
-  color: var(--text);
-}
-
 .btn-icon {
   width: 32px;
   padding: 0;
@@ -519,8 +505,12 @@ button {
   align-items: center;
   gap: var(--s-2);
   min-width: 0;
-  padding-left: var(--s-2);
-  margin-left: var(--s-1);
+}
+
+/* The row's one rule is the boundary between what the bar is about (identity)
+   and what it does (actions), not a wall inside the identity block: brand and
+   route name are one thing and need no hairline between them. */
+.topbar-actions {
   border-left: 1px solid var(--line);
 }
 
@@ -659,34 +649,257 @@ button {
   color: var(--dim);
 }
 
-/* Identity left, tools right: the empty space belongs inside the bar, between
-   the two clusters, where it reads as a decision rather than as a missing item. */
+/* One cluster from the left edge: everything in the bar acts on the open trip,
+   so it sits with the trip instead of being split across a 1440 px row. Save
+   follows the two ways in; the analysis toggles and the library come after. */
 .topbar-actions {
-  /* Left, after Import/New: the actions that act on the open trip belong beside
-     its name, not in the far corner of a 1440 px bar. */
-  margin-left: 0 !important;
   display: flex;
   align-items: center;
-  gap: var(--s-2);
-  margin-left: auto;
-  padding-left: 0;
-  border-left: 0;
+  gap: var(--s-3);
+  margin-left: var(--s-1);
+  /* Air, not alignment: the tiers are held apart by space. 12 px inside the
+     cluster, 24 px between the identity block and the first action. */
+  padding-left: var(--s-3);
   flex-wrap: nowrap;
+  min-width: 0;
 }
 
+/* Five weights, four tiers, one cluster anchored at the left edge:
+
+     1. identity   brand, route name, source chip     (left edge, fixed)
+     2. route      Importer GPX, Ny rute              (quiet words)
+     3. commit     state glyph + word, then Lagre     (the one toned control)
+     4. analysis   Forsyning, Vær                     (quiet icons)
+     5. library    Turer, ⋯                           (quiet icons)
+
+   The row used to be eleven controls of near-equal weight, left-aligned in a
+   clump. Tiers are held apart by air — 24 px from the identity rule to the first
+   action, 12 px between tiers, 6 px inside a pair — so proximity says what
+   belongs to what and nothing has to be hidden or pushed to the far corner. */
 .tb-group {
   display: flex;
   align-items: center;
   gap: var(--s-1);
+  flex: none;
 }
 
-.tb-group + .tb-group {
-  margin-left: var(--s-2);
+/* Two ways in, one weight: both quiet, both secondary to saving. 6 px inside
+   the pair, so the two ways in stop reading as one split button. */
+.tb-group--route {
+  gap: 6px;
+  order: 1;
+  margin-left: var(--s-3);
 }
 
+/* Commit follows the route material it commits, not the far corner. */
 .tb-group--save {
-  margin-left: var(--s-2);
+  order: 2;
+}
+
+/* `.topbar-more-body` is `display: contents` on a desktop, so an `order` on the
+   wrapper is dropped and its children would default to 0 and paint before the
+   route group. The order lives on the groups themselves. */
+.tb-group--analysis {
+  order: 3;
+}
+
+.tb-group--nav {
+  order: 4;
+}
+
+/* The commit zone is one object: what the trip's state is, and the action that
+   changes it. Inside the left cluster a rule would be a wall between friends, so
+   the toned button alone marks it. */
+.tb-group--save {
   gap: var(--s-2);
+}
+
+/* JS toggles `hidden` on this wrapper, so it stays a flex container. It may
+   give width back to the bar (the status is the only elastic thing inside it),
+   which is what keeps a long failure sentence from pushing the row into
+   horizontal overflow. */
+.save-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* The state, in one line: a glyph whose outline says which state, and the word
+   the session already prints. One step below the bar's text, tabular figures so
+   "lagret 14:32" does not shuffle when the minute changes.
+
+   Every state keeps its words. A long failure sentence is clipped by the same
+   ellipsis as any other runtime string (the full text stays in the element, so
+   the live region and the banner carry it whole) — it is never visually hidden,
+   because the two states that matter most must not be a 10 px glyph alone. */
+.save-status {
+  font-size: var(--t-1);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* The cap is a phone measure; on the horizontal bar the desktop rule below
+     removes it and the status yields only under genuine pressure. */
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 14ch;
+}
+
+.save-status:empty {
+  display: none;
+}
+
+/* One glyph per state, chosen by the `data-kind` the session writes. The shape
+   carries the meaning — open ring, quarter arc, check, struck circle, triangle —
+   so colour is never the only cue, and an unknown state can only ever look like
+   "not written".
+
+   The glyph is a sibling of #save-status rather than a child: JS owns that
+   element's textContent, and a child element would be erased by the next write. */
+.save-state {
+  display: none;
+  order: -2;
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.save-status[data-kind='dirty'] ~ .save-state[data-state='dirty'],
+.save-status[data-kind='saving'] ~ .save-state[data-state='saving'],
+.save-status[data-kind='saved'] ~ .save-state[data-state='saved'],
+.save-status[data-kind='unavailable'] ~ .save-state[data-state='unavailable'],
+.save-status[data-kind='error'] ~ .save-state[data-state='error'] {
+  display: block;
+}
+
+.save-state[data-state='dirty'] {
+  color: var(--muted);
+}
+
+/* In flight: a ring with a bite out of it plus one lit quarter. The shape is the
+   first cue and motion is the second, so the state still reads at 1x and with
+   reduced motion — it is not the same closed ring as "not saved". */
+.save-state[data-state='saving'] {
+  color: var(--muted);
+  animation: status-turn 1.5s linear infinite;
+}
+
+.save-state[data-state='saved'] {
+  color: var(--data);
+}
+
+.save-state[data-state='unavailable'] {
+  color: var(--dim);
+}
+
+.save-state[data-state='error'] {
+  color: var(--error);
+}
+
+@keyframes status-turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* The elevation source badge's dot breathes while a source is being read. */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Save is routine in a local-first tool: the trip already lives in this browser
+   and writing it is not an event. So the commit action is toned, not filled —
+   the bar's own surface, an accent edge, the accent disk — and it still reads as
+   the action of the bar because it is the only toned control and the last thing
+   in the row. */
+.btn-save {
+  height: 34px;
+  /* Equal sides: the disk is a glyph, not extra padding, so the pair sits
+     optically centred instead of leaning right. */
+  padding: 0 var(--s-3);
+  gap: 6px;
+  border: 1px solid rgba(232, 167, 92, 0.4);
+  background: rgba(232, 167, 92, 0.12);
+  color: var(--text);
+  font-size: var(--t-3);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.btn-save .i {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+}
+
+.btn-save:hover:not(:disabled) {
+  background: rgba(232, 167, 92, 0.19);
+  border-color: rgba(232, 167, 92, 0.62);
+}
+
+.btn-save:active:not(:disabled) {
+  background: rgba(232, 167, 92, 0.26);
+}
+
+/* Nothing to save: no fill, no edge, no pretence — the same rule as .btn:disabled. */
+.btn-save:disabled {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ghost);
+}
+
+.btn-save:disabled .i {
+  color: var(--ghost);
+}
+
+/* "Cannot" and "failed" are not live actions. The pill loses its tone and its
+   disk — amber is the colour of the action this button can no longer perform —
+   and keeps only its word, next to the state glyph that says why. The error case
+   keeps a colour, because it *is* a problem: the error hue, not the action hue. */
+.save-status[data-kind='unavailable'] ~ .btn-save {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.save-status[data-kind='error'] ~ .btn-save {
+  background: var(--error-soft);
+  border-color: rgba(238, 139, 129, 0.42);
+  color: var(--error);
+}
+
+.save-status[data-kind='unavailable'] ~ .btn-save .i,
+.save-status[data-kind='error'] ~ .btn-save .i {
+  display: none;
+}
+
+.save-status[data-kind='unavailable'] ~ .btn-save:hover,
+.save-status[data-kind='error'] ~ .btn-save:hover {
+  background: var(--panel-2);
+  border-color: var(--line-strong);
+}
+
+.save-status[data-kind='error'] ~ .btn-save:hover {
+  background: var(--error-soft);
+  border-color: var(--error);
+}
+
+.save-status[data-kind='unavailable'] ~ .btn-save:disabled {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ghost);
 }
 
 /* Icon sprite: one definition of each glyph, sized by CSS. */
@@ -769,6 +982,20 @@ button {
   background: var(--panel-3);
 }
 
+/* A menu row that keeps the glyph it wore in the row: Turinnstillinger was
+   demoted to overflow, not to an anonymous line of text. */
+.menu-item--icon .i {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin-right: 8px;
+  color: var(--dim);
+}
+
+.menu-item--icon:hover .i {
+  color: var(--text);
+}
+
 .menu-item:disabled {
   color: var(--ghost);
   cursor: default;
@@ -790,101 +1017,6 @@ button {
 .topbar-more-label.btn,
 .topbar-more-body {
   display: contents;
-}
-
-/* The save group: a state word and the action it belongs to. */
-.save-group {
-  /* Save leads the cluster, immediately after Ny rute. */
-  order: -2;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  flex: none;
-}
-
-/* Saved trips are route material too: they follow Save, ahead of the analysis
-   toggles. */
-.tb-group--nav {
-  order: -1;
-}
-
-.topbar .btn-save {
-  padding: 0 var(--s-3);
-  font-size: var(--t-2);
-  min-width: 0;
-}
-
-.save-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--t-1);
-  font-weight: 500;
-  line-height: 1.25;
-  color: var(--dim);
-  max-width: 18ch;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.save-status::before {
-  content: '';
-  display: inline-block;
-  flex: none;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.9;
-}
-
-.save-status:empty {
-  display: none;
-}
-
-.save-status[data-kind='dirty'] {
-  color: var(--muted);
-}
-
-.save-status[data-kind='dirty']::before {
-  background: var(--warn);
-}
-
-.save-status[data-kind='saving'] {
-  color: var(--muted);
-}
-
-.save-status[data-kind='saving']::before {
-  background: var(--warn);
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-.save-status[data-kind='saved'] {
-  color: var(--muted);
-}
-
-.save-status[data-kind='saved']::before {
-  background: var(--data);
-}
-
-.save-status[data-kind='error'] {
-  color: var(--error);
-  max-width: 24ch;
-}
-
-.save-status[data-kind='unavailable'] {
-  color: var(--muted);
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.3;
-  }
-  50% {
-    opacity: 1;
-  }
 }
 
 /* Banners --------------------------------------------------------------- */
@@ -1100,35 +1232,142 @@ button {
 
 /* Map controls ------------------------------------------------------------- */
 
-/* Floating pills over the map: the same surface and radius as a panel, one step
-   down in elevation. Nothing on the map wears a 1 px frame. */
-.map-controls {
+/* Map furniture is one docked object in the map's bottom-right corner: the
+   basemap switch (what you are looking at) and the zoom / compass / fit strip
+   (how you move it) are two halves of one job, so they share one surface, one
+   radius, one inset, one shadow and one 4-cell rhythm. Being one container is
+   also what makes them structurally unable to overlap each other.
+
+   Both rows live in ONE grid, and each row is a subgrid of it, so a basemap cell
+   sits in the same track as the strip cell below it: one inset (the dock's own
+   border), one row height (`--dock-row`), and columns sized by the words rather
+   than by an arbitrary quarter — which is what evens out the gap between "Grå"
+   and "Flyfoto" against the gap between "Topo" and "Grå".
+
+   It is anchored to the map, not to the drawer: the route rail grows from the
+   top-left and the readout from the bottom, so nothing it does moves this. The
+   analysis panel docks right, and the whole dock steps left of it as one rigid
+   block — that panel is what moved, and the furniture keeps its shape. */
+.map-dock {
   position: absolute;
-  /* Right-hand corner: the route drawer owns the left edge and grows downward,
-     and it used to end up sitting on top of the zoom bar. */
-  bottom: calc(var(--stack) + 34px);
   right: var(--s-3);
-  left: auto;
+  bottom: calc(var(--stack) + 40px);
   z-index: 6;
-  display: flex;
-  flex-direction: row;
-  border-radius: var(--r-2);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, auto));
+  /* One row height for both halves, at both sizes. */
+  --dock-row: 34px;
+  border-radius: var(--r-3);
   border: 1px solid var(--line-soft);
   background: var(--panel);
-  box-shadow: var(--e-2);
+  box-shadow: var(--e-2), var(--edge);
   overflow: hidden;
+  /* Never wider than the map it floats on. */
+  max-width: calc(100% - 2 * var(--s-3));
 }
 
-/* 34 + 1 px of border = 36: the control bar and the basemap pill are the same
-   height, so the two corners of the map are one family. */
+/* Both rows are the same four tracks, so the two halves line up cell for cell. */
+.map-style,
+.map-controls {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-auto-rows: var(--dock-row);
+  align-items: stretch;
+}
+
+/* The top row carries no vertical rule. The basemap well does the separating
+   instead: its three words sit on --panel-2 while the 3D toggle keeps the
+   dock's own surface. A surface step, not a hairline, so the two rows cannot
+   disagree about where a rule goes — the strip below has none either. A live
+   toggle in muted ink next to full-strength labels would still read as
+   disabled, so the 3D word keeps the row's full ink. */
+.map-style {
+  background: transparent;
+}
+
+/* The basemap switch keeps the segmented idiom: one well, one raised thumb. The
+   well is the row's surface; the thumb is inset inside its own track, so the
+   cell keeps the track's centre. The thumb takes the one inner radius step
+   (12 → 4), so the dock's corner is a single curve, not a curve inside a curve. */
+.map-style .seg {
+  grid-column: 1 / 4;
+  display: grid;
+  grid-template-columns: subgrid;
+  /* Stretch, not centre: the thumb fills its cell's height, and the cell keeps
+     the track's centre either way. */
+  align-items: stretch;
+  gap: 0;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: var(--panel-2);
+  border-radius: 0;
+}
+
+.map-style .seg-btn {
+  height: auto;
+  margin: 3px 2px;
+  padding: 0 10px;
+  border-radius: var(--r-1);
+  font-size: var(--t-2);
+  color: var(--text);
+}
+
+/* 3D is a toggle, not a fourth basemap: it owns a full-height cell on the
+   dock's surface, and the well's edge (not a rule) separates it from the three
+   words. It is a word, not a word plus a glyph: a compound mark cannot sit on
+   the cell's centre, and this cell has to sit over the fit mark below it. */
+.map-style .btn {
+  grid-column: 4;
+  height: auto;
+  /* 12 px, the same ink-to-edge inset the first basemap word gets from the
+     well's 2 px margin plus its 10 px padding, so the row is symmetric. */
+  padding: 0 12px;
+  font-size: var(--t-2);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.map-style .seg-btn[aria-pressed='true'] {
+  background: var(--panel-3);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.map-style .btn-toggle[aria-pressed='true'] {
+  background: var(--panel-3);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.map-style .btn:hover:not([aria-pressed='true']):not(:disabled) {
+  background: var(--panel-3);
+  color: var(--text);
+}
+
+.map-style .btn-toggle:not([aria-pressed='true']) {
+  background: transparent;
+}
+
+/* The button strip: 34 px targets sharing the dock's tracks. No vertical rule:
+   the top row has none either, and a 2|2 split here would sit at a different
+   column from the top row's 3|1 split and read as a second, misaligned
+   control. The strip is one row of view actions; proximity and the shared
+   surface carry the grouping. */
+.map-controls {
+  border-top: 1px solid var(--line);
+}
+
 .map-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 34px;
+  width: 100%;
+  height: 100%;
   border: 0;
-  border-right: 1px solid var(--line);
   background: transparent;
   color: var(--text);
   line-height: 1;
@@ -1138,10 +1377,8 @@ button {
     color 120ms ease;
 }
 
-.map-btn:last-child {
-  border-right: 0;
-}
-
+/* No divider inside the strip: the row above uses a surface, not a rule, so
+   this row does too (see .map-controls). */
 .map-btn:hover {
   background: var(--panel-3);
 }
@@ -1149,67 +1386,6 @@ button {
 .map-btn svg {
   width: 16px;
   height: 16px;
-}
-
-/* Basemap switch: a property of what you are looking at, so it lives on the map
-   and follows the same thumb-in-a-track idiom as every other segmented control. */
-.map-style {
-  /* Top right: the zoom bar owns the bottom-right corner, and the two were
-     landing on top of each other, which made the basemap options partially
-     obscured (an a11y target-size failure) as well as unusable. */
-  position: absolute;
-  top: 62px;
-  bottom: auto;
-  right: var(--s-3);
-  z-index: 6;
-  display: flex;
-  align-items: center;
-  gap: var(--s-1);
-  padding: 3px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-3);
-  background: var(--panel);
-  box-shadow: var(--e-2);
-}
-
-.map-style .seg {
-  height: 28px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.map-style .seg-btn {
-  height: 100%;
-  padding: 0 10px;
-  font-size: var(--t-2);
-}
-
-.map-style .btn {
-  height: 28px;
-  padding: 0 9px;
-  font-size: var(--t-2);
-  border-color: transparent;
-  background: transparent;
-  color: var(--muted);
-}
-
-.map-style .seg-btn[aria-pressed='true'],
-.map-style .btn-toggle[aria-pressed='true'] {
-  background: var(--panel-3);
-  color: var(--text);
-  box-shadow: none;
-}
-
-.map-style .btn:hover:not([aria-pressed='true']):not(:disabled) {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-}
-
-.map-style .btn-toggle:not([aria-pressed='true']) {
-  background: transparent;
 }
 
 /* Attribution: a licence line, not a control. It keeps the map's own contrast
@@ -3311,16 +3487,24 @@ button {
     flex-wrap: nowrap;
   }
 
+  /* A failure sentence is prose, not an abbreviation: on the bar the status
+     takes the width its words need instead of stopping at 14ch. `min-width: 0`
+     above still lets it yield when the row is genuinely full, so it can never
+     push the bar into overflow — it elides with a real ellipsis instead. */
+  .save-status {
+    max-width: none;
+  }
+
   .route-meta {
     flex: 0 1 auto;
   }
 
-  /* Eleven text items in a 48 px strip is a wall of words. The analysis toggles
-     keep the icon; the tooltip and the accessible name carry the word. */
+  /* The words that survive are the two ways a route gets here. Eleven text items
+     in a 48 px strip was a wall of words; the analysis and library tiers keep
+     the icon, and the tooltip and the accessible name carry the word. */
   #btn-supply .btn-label,
   #btn-weather .btn-label,
-  #btn-trips .btn-label,
-  #btn-settings .btn-label {
+  #btn-trips .btn-label {
     display: none;
   }
 
@@ -3331,26 +3515,20 @@ button {
     padding: 0;
   }
 
-  .topbar .btn-open,
-  .topbar .topbar-new {
+  .topbar .tb-group--route .btn {
     width: auto;
     height: 34px;
     padding: 0 var(--s-3);
-  }
-
-  .topbar .btn-save {
-    height: 34px;
-    padding: 0 var(--s-4);
-    font-size: var(--t-3);
   }
 
   .editor-column {
     max-width: calc(100% - 24px);
   }
 
-  /* The dock owns the right edge, so the map's own chrome steps around it. */
-  .map-wrap:has(.side-panel:not([hidden])) .map-style,
-  .map-wrap:has(.weather-panel:not([hidden])) .map-style,
+  /* The dock owns the right edge, so the map's own chrome steps around it — as
+     one block, keeping its shape. */
+  .map-wrap:has(.side-panel:not([hidden])) .map-dock,
+  .map-wrap:has(.weather-panel:not([hidden])) .map-dock,
   .map-wrap:has(.side-panel:not([hidden])) .map-attrib,
   .map-wrap:has(.weather-panel:not([hidden])) .map-attrib {
     right: calc(var(--dock-w) + var(--s-6));
@@ -3362,6 +3540,19 @@ button {
   }
 }
 
+/* 1180 px is where the row starts to feel like a queue: "Ny rute" gives up its
+   word first, because the plus is unambiguous next to the folder's text. */
+@media (min-width: 761px) and (max-width: 1180px) {
+  .topbar .tb-group--route .topbar-new {
+    width: 34px;
+    padding: 0;
+  }
+
+  .topbar-new .btn-label {
+    display: none;
+  }
+}
+
 /* The route name is the first thing that goes: it is in the tab title and in the
    drawer. What must never happen is a second row. */
 /* 1024 px is a laptop with room to spare: hiding the route name there while the
@@ -3369,6 +3560,16 @@ button {
 @media (min-width: 761px) and (max-width: 900px) {
   .route-meta {
     display: none;
+  }
+
+  /* With the identity block gone the action tiers can close up one step, which
+     buys the commit word the 24 px it needs to fit whole at 761 px. */
+  .topbar-actions {
+    gap: var(--s-2);
+  }
+
+  .tb-group--route {
+    margin-left: 0;
   }
 }
 
@@ -3396,14 +3597,10 @@ button {
   }
 }
 
-/* On a narrow desktop the save word is the first thing to go: the button that
-   acts on it is right beside it, and the word is one more thing competing with
-   the route identity. Labels stay — an unlabelled folder icon is a guess. */
-@media (min-width: 761px) and (max-width: 1060px) {
-  .save-group .save-status {
-    display: none;
-  }
-}
+/* The commit zone is never reduced on a desktop: a state glyph with no word
+   beside it is a puzzle, and the whole point is that the state reads at a glance.
+   At 761 px the bar still fits it, because the route name has already stepped
+   aside (below) and the icon tiers carry no words. */
 
 /* --------------------------------------------------------------------------
    Responsive — phone: the drawer and the dock are sheets, the readout is two
@@ -3471,23 +3668,47 @@ button {
     order: 3;
     flex: none;
     margin-left: auto;
-    gap: 6px;
+    /* The identity rule is a desktop boundary; on a phone the row is four
+       objects wide and a hairline there would read as part of the ⋯ chip. */
+    padding-left: 0;
+    border-left: 0;
+    gap: var(--s-3);
+  }
+
+  /* Both ways in are hidden in the header row on a phone (Import GPX pins into
+     the sheet), so the group gives up its box instead of leaving two empty gaps
+     between ⋯ and the state. */
+  .tb-group--route {
+    display: contents;
+  }
+
+  /* One commit zone, and the thumb corner belongs to it: the disclosure steps in
+     front of the state so Save stays the last, largest thing on the row. */
+  .topbar-actions > .topbar-more-label {
+    order: -1;
   }
 
   .topbar .btn-quiet,
-  .topbar .btn-icon,
-  .topbar .btn-save,
-  .topbar .btn-open {
+  .topbar .btn-icon {
     height: 40px;
   }
 
   .topbar .btn-save {
-    padding: 0 var(--s-4);
+    height: 40px;
+    padding: 0 var(--s-3);
     font-size: var(--t-3);
   }
 
+  /* The state owns its glyph: 4 px to the mark it belongs to, so it is not
+     equidistant between ⋯ and Save and does not read as either one's label. */
   .save-group {
-    gap: 6px;
+    gap: var(--s-1);
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .save-status {
+    max-width: 12ch;
   }
 
   /* Import GPX keeps a full-width row of its own inside the sheet: the map still
@@ -3496,7 +3717,7 @@ button {
     display: none;
   }
 
-  .topbar-more-toggle:checked ~ #btn-open {
+  .topbar-more-toggle:checked ~ .topbar-actions #btn-open {
     display: inline-flex;
     position: absolute;
     top: calc(100% + 14px);
@@ -3510,6 +3731,8 @@ button {
   .topbar-more-toggle {
     display: block;
     position: absolute;
+    top: 0;
+    left: 0;
     width: 1px;
     height: 1px;
     margin: 0;
@@ -3524,8 +3747,17 @@ button {
     width: 40px;
     height: 40px;
     padding: 0;
+    /* Quiet, like every other icon in the bar: a bordered, filled 40 px chip is
+       not a disclosure triangle, it is the second loudest box on the row. */
+    border-color: transparent;
+    background: transparent;
+    color: var(--muted);
   }
 
+  .topbar-more-label.btn:hover {
+    background: var(--panel-2);
+    color: var(--text);
+  }
   .topbar-more-toggle:focus-visible ~ .topbar-actions .topbar-more-label {
     outline: 2px solid var(--focus);
     outline-offset: 2px;
@@ -3589,8 +3821,7 @@ button {
     height: 40px;
   }
 
-  .topbar-more-body .btn-icon .btn-label,
-  #btn-settings .btn-label {
+  .topbar-more-body .btn-icon .btn-label {
     display: inline;
   }
 
@@ -3661,45 +3892,29 @@ button {
     max-height: min(70vh, 460px);
   }
 
-  /* --- Map chrome on a phone: the corners, not the middle -------------- */
+  /* --- Map chrome: same corner, same object, one size up ------------------ */
 
-  .map-controls {
-    bottom: calc(var(--stack) + 34px);
-    left: var(--s-2);
-    flex-direction: row;
-    border-radius: var(--r-2);
-  }
-
-  .map-btn {
-    width: 40px;
-    height: 40px;
-    border-bottom: 0;
-    border-right: 1px solid var(--line);
-  }
-
-  .map-btn:last-child {
-    border-right: 0;
-  }
-
-  .map-style {
-    bottom: calc(var(--stack) + 34px);
+  /* The phone keeps the dock in the map's bottom-right corner above the readout
+     sheet, where a thumb reaches it, and gives every cell a 30 px minimum. It
+     used to be pinned to the top of the map (under the route sheet) and the
+     basemap pill 119 px below it, which is why it was invisible and untappable. */
+  .map-dock {
     right: var(--s-2);
+    bottom: calc(var(--stack) + 40px);
+    max-width: calc(100% - 2 * var(--s-2));
+    /* The same dock, one size up: both rows are 40 px, so the two halves still
+       agree about the grid (the top row used to be 42 px over a 40 px strip). */
+    --dock-row: 40px;
   }
 
-  .map-style .seg {
-    height: 34px;
-  }
-
+  /* One inset, one row height, at both sizes: only the thumb's air changes. */
   .map-style .seg-btn {
-    height: 100%;
-    min-width: 34px;
-    padding: 0 9px;
+    margin: 4px 2px;
+    padding: 0 10px;
   }
 
   .map-style .btn {
-    height: 34px;
-    min-width: 34px;
-    padding: 0 var(--s-2);
+    padding: 0 12px;
   }
 
   .map-attrib {
@@ -3709,10 +3924,13 @@ button {
     max-width: calc(100% - 120px);
   }
 
+  /* Above the dock rather than beside it: the dock owns this corner now, and a
+     hint that overlapped it would be the same bug it is warning about. */
   .terrain-hint {
     left: var(--s-2);
-    bottom: calc(var(--stack) + 80px);
-    max-width: calc(100% - 60px);
+    right: var(--s-2);
+    bottom: calc(var(--stack) + 132px);
+    max-width: none;
   }
 
   .banners {
@@ -3738,13 +3956,15 @@ button {
 
   /* --- Sheets ---------------------------------------------------------- */
 
+  /* The route sheet stops above the dock: the furniture is behind the map's
+     bottom-right corner, and a sheet that grew into it would cover it. */
   .editor-column {
     top: var(--s-2);
     left: var(--s-2);
     right: var(--s-2);
     width: auto;
     max-width: none;
-    max-height: calc(100% - var(--stack) - 16px);
+    max-height: calc(100% - var(--stack) - 140px);
   }
 
   .editor-panel {
@@ -3860,8 +4080,8 @@ button {
      never covered by the row it came from. */
   .app:has(.side-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-body,
   .app:has(.weather-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-body,
-  .app:has(.side-panel:not([hidden])) .topbar-more-toggle:checked ~ #btn-open,
-  .app:has(.weather-panel:not([hidden])) .topbar-more-toggle:checked ~ #btn-open {
+  .app:has(.side-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions #btn-open,
+  .app:has(.weather-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions #btn-open {
     display: none;
   }
 
@@ -3872,9 +4092,9 @@ button {
   }
 
   /* The sheet leaves only a strip of map, which is shorter than the control bar
-     is wide — so the bar is not left half-covered by the drawer. */
-  .map-wrap:has(.side-panel:not([hidden])) .map-controls,
-  .map-wrap:has(.weather-panel:not([hidden])) .map-controls {
+     is wide — so the dock is not left half-covered by the drawer. */
+  .map-wrap:has(.side-panel:not([hidden])) .map-dock,
+  .map-wrap:has(.weather-panel:not([hidden])) .map-dock {
     display: none;
   }
 
@@ -4037,20 +4257,6 @@ button {
   }
 }
 
-/* Import GPX and Ny rute are both secondary: one wore a border and the other
-   nothing, 130 px apart. Quiet, both of them. */
-#btn-open {
-  background: transparent;
-  border-color: transparent;
-  color: var(--dim);
-}
-
-#btn-open:hover:not(:disabled) {
-  background: var(--panel-3);
-  border-color: transparent;
-  color: var(--text);
-}
-
 /* The scale bar was the only non-opaque surface in the app. */
 .maplibregl-ctrl-scale {
   background: var(--panel);
@@ -4075,11 +4281,14 @@ button {
 
 
 /* --------------------------------------------------------------------------
- * Phone menu: one row model.
+ * Phone menu: one row model, one rail.
  *
  * The sheet mixed centred icon rows (39 px) with left-aligned text rows (44 px)
  * at four different label origins, so it read as two menus stacked. Every row is
- * now one 44 px line with its label on the same rail, and the toggle shows state.
+ * now one 44 px line whose label sits on a single rail — the icon slot is
+ * reserved whether or not a row wears an icon, and the group label sits on it
+ * too. The pinned "Importer GPX" row is not inside the sheet, so it gets the
+ * same model spelled out instead of inheriting the desktop cell.
  * ------------------------------------------------------------------------ */
 @media (max-width: 760px) {
   .topbar-more-body .btn,
@@ -4090,6 +4299,7 @@ button {
     gap: 12px;
     width: 100%;
     height: 44px;
+    /* 14 px + a 20 px icon slot + a 12 px gap: every label starts at 46. */
     padding: 0 14px;
     font-size: var(--t-3);
     text-align: left;
@@ -4099,15 +4309,60 @@ button {
     color: var(--text);
   }
 
-  .topbar-more-body .btn .i {
+  /* A row without an icon keeps the slot, so the two rails become one. */
+  .topbar-more-body .menu-item:not(.menu-item--icon) {
+    padding-left: 46px;
+  }
+
+  .topbar-more-body .btn .i,
+  .topbar-more-body .menu-item .i {
     width: 20px;
     height: 20px;
+    margin-right: 0;
     color: var(--dim);
   }
 
   .topbar-more-body .btn:hover:not(:disabled),
   .topbar-more-body .menu-item:hover {
     background: var(--panel-3);
+  }
+
+  /* The pinned row: same inset as the sheet's rows, same rail, same height. Its
+     own border is dropped so the icon lands on the same pixel as theirs. */
+  .topbar-more-toggle:checked ~ .topbar-actions #btn-open {
+    left: calc(var(--s-2) + 11px);
+    right: calc(var(--s-2) + 11px);
+    height: 44px;
+    padding: 0 14px;
+    justify-content: flex-start;
+    gap: 12px;
+    border: 0;
+    font-size: var(--t-3);
+  }
+
+  .topbar-more-toggle:checked ~ .topbar-actions #btn-open .i {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Group labels take the rail too, and the language switch starts on it. */
+  .topbar .tb-menu-body .menu-section {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .topbar .tb-menu-body .menu-label {
+    padding-left: 46px;
+  }
+
+  /* The language switch starts on the rail and stops at the rows' right inset,
+     so the band is inset the same way the rows above it are: 46 px from the
+     sheet's left (the icon slot's rail) and 14 px from its right (the rows'
+     padding). It used to run to the sheet's edge, which read as a footer. */
+  .topbar .tb-menu-body .seg {
+    margin: 0 14px 0 46px;
+    width: auto;
+    align-self: stretch;
   }
 
   /* An open sheet must look open. */
@@ -4129,23 +4384,63 @@ button {
 
 
 /* --------------------------------------------------------------------------
- * Phone: the map furniture moves to the top of the map.
+ * Phone: the map furniture is not moved any more.
  *
- * The readout sheet occupies the bottom of a phone screen, and the zoom stack,
- * the basemap pill and the 3D toggle were laid out at the bottom — under it, i.e.
- * unreachable (elementFromPoint at the zoom button returned the sheet's chevron).
+ * It used to be re-positioned to the top of the map (and then hidden entirely)
+ * because the readout sheet occupies the bottom — which put the zoom strip under
+ * the route sheet and made it untappable. One dock, one corner, above the
+ * readout, at every size: nothing to re-position, nothing to hide.
  * ------------------------------------------------------------------------ */
-@media (max-width: 760px) {
-  .map-controls {
-    top: 12px;
-    bottom: auto;
+
+/* --------------------------------------------------------------------------
+ * Phone measures: the readout is taller than the phone constants said.
+ *
+ * `--stack` is the contract between the readout and the map's own chrome: the
+ * number of pixels at the bottom of the map that the readout card covers. The
+ * ≤760 values were measured while the stats readout was still one row of five;
+ * below 640 px it became two tracks and three rows, 50 px taller with no notice
+ * and 108 px taller with one — so the dock, the attribution line and the scale
+ * bar were all sitting under the card. Measured, not guessed:
+ *
+ *              no notice   notice
+ *   expanded        341      444
+ *   collapsed       221      324
+ *
+ * Between 641 and 760 px the wider row still matches the original constants.
+ * ------------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .stage {
+    --stack: 341px;
   }
 
-  /* Below the zoom bar: on a phone the controls are a 370 px horizontal strip, so
-     the pill cannot share the top row with them. */
-  .map-style {
-    top: 119px;
-    bottom: auto;
-    right: 8px;
+  .stage:has(.profile.is-collapsed) {
+    --stack: 221px;
+  }
+
+  .stage:has(.stat-notice:not([hidden])) {
+    --stack: 444px;
+  }
+
+  .stage:has(.profile.is-collapsed):has(.stat-notice:not([hidden])) {
+    --stack: 324px;
+  }
+}
+
+/* A short phone caps the expanded profile, so the readout is 106 px shorter. */
+@media (max-width: 640px) and (max-height: 700px) {
+  .stage {
+    --stack: 235px;
+  }
+
+  .stage:has(.profile.is-collapsed) {
+    --stack: 221px;
+  }
+
+  .stage:has(.stat-notice:not([hidden])) {
+    --stack: 338px;
+  }
+
+  .stage:has(.profile.is-collapsed):has(.stat-notice:not([hidden])) {
+    --stack: 324px;
   }
 }

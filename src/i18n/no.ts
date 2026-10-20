@@ -38,7 +38,7 @@ export const no = {
   'layers.label': 'Kartlag',
   'layers.topo': 'Topo',
   'layers.grey': 'Grå',
-  'layers.aerial': 'Fly',
+  'layers.aerial': 'Flyfoto',
 
   'demo.title': 'Om demoruten',
   'demo.name': 'Rute',
