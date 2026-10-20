@@ -15,6 +15,8 @@
     "verify": "node tools/verify/verify.mjs",
     "cf:dev": "npm run build && npx wrangler dev",
     "deploy": "npm run build && npx wrangler deploy",
+    "deploy:cron": "npx wrangler deploy -c worker/wrangler.jsonc",
+    "refresh:shops": "bash tools/refresh-shops.sh",
     "test": "vitest run --exclude \"**/*.live.test.ts\"",
     "test:watch": "vitest --exclude \"**/*.live.test.ts\"",
     "typecheck": "tsc --noEmit",

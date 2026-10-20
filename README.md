@@ -115,7 +115,10 @@ Two data sets ship with the app:
 - **Demo route** — *Memurubu–Glitterheim* (`jot21`), real trail geometry from
   Kartverket Turrutebasen, CC BY 4.0, maintained by DNT Oslo og omegn.
 - **Resupply points** — a derivative database of OpenStreetMap, served under
-  ODbL 1.0.
+  ODbL 1.0. Refreshed **monthly**: a cron Worker (`worker/`) posts a Cloudflare
+  Deploy Hook, and a Workers Builds job rebuilds `data/shops.osm.bin` from the
+  current Geofabrik extract and redeploys (`npm run refresh:shops` does the same
+  locally). The reasoning and the free-plan arithmetic are in D23.
 
 ## How it was built
 

@@ -1560,13 +1560,11 @@ input {
   top: 12px;
   left: 12px;
   bottom: 12px;
-  width: 320px;
+  width: 330px;
   max-width: calc(100% - 24px);
   display: flex;
   flex-direction: column;
-  gap: 8px;
   z-index: 12;
-  /* The column is mostly empty space over the map; only its cards take input. */
   pointer-events: none;
 }
 
@@ -1574,20 +1572,50 @@ input {
   pointer-events: auto;
 }
 
+/* One card. The bar and the dock used to be two floating boxes with their own
+ * borders, shadows and gaps — the bar reading as a stray strip above the editor
+ * it belongs to. Now the panel is the surface and the bar is its first section. */
 .editor-panel {
   position: static;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px 12px;
+  gap: 10px;
+  padding: 0 12px 12px;
   border-radius: var(--r-panel);
   border: 1px solid var(--line-strong);
-  background: rgba(13, 22, 24, 0.96);
+  background: rgba(13, 22, 24, 0.97);
   box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.editor-panel .panel-head {
+  padding: 10px 0 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.editor-panel .editor-legs {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
+.editor-dock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.editor-dock-head .btn {
+  flex: none;
+  height: 26px;
+  font-size: var(--fs-2);
+  padding: 0 8px;
 }
 
 .editor-trip {
@@ -1637,21 +1665,33 @@ input {
   font-variant-numeric: tabular-nums;
 }
 
+/* View mode: the card is the trip's structure only — no editing sections, and a
+ * shorter list so the map keeps most of the screen. */
+.editor-column:has(.editor-toolbar[data-mode='view']) .editor-settings,
+.editor-column:has(.editor-toolbar[data-mode='view']) .editor-save,
+.editor-column:has(.editor-toolbar[data-mode='view']) .editor-status,
+.editor-column:has(.editor-toolbar[data-mode='view']) .editor-hint,
+.editor-column:has(.editor-toolbar[data-mode='view']) #editor-panel-close {
+  display: none;
+}
+
+.editor-column:has(.editor-toolbar[data-mode='view']) .editor-panel {
+  flex: none;
+  max-height: 46vh;
+}
+
 /* Editor toolbar ----------------------------------------------------------- */
 
 .editor-toolbar {
   position: static;
   width: 100%;
   flex: none;
-  z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 7px 8px;
-  border-radius: var(--r-panel);
-  border: 1px solid var(--line-strong);
-  background: rgba(13, 22, 24, 0.92);
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.38);
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
   font-size: 11.5px;
 }
 
@@ -1691,8 +1731,7 @@ input {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: auto;
-  padding-top: 8px;
+  padding-top: 10px;
   border-top: 1px solid var(--line);
 }
 
@@ -1731,7 +1770,6 @@ input {
 }
 
 .editor-settings {
-  margin-top: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1742,8 +1780,17 @@ input {
 }
 
 .editor-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   font-size: var(--fs-2);
   color: var(--muted-dim);
+  min-width: 0;
+}
+
+.editor-status .snap-indicator {
+  max-width: none;
+  white-space: normal;
 }
 
 .editor-hint {
@@ -1759,7 +1806,34 @@ input {
 }
 
 .editor-column .snap-indicator {
-  max-width: 16ch;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-2);
+  color: var(--muted);
+}
+
+.editor-column .snap-indicator::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.8;
+}
+
+.editor-column .snap-indicator[data-state='ready'],
+.editor-column .snap-indicator[data-state='hit'] {
+  color: var(--data);
+}
+
+.editor-column .snap-indicator[data-state='failed'] {
+  color: var(--error);
+}
+
+.editor-column .snap-indicator[data-state='loading'] {
+  color: var(--warn);
 }
 
 .seg-mode .seg-btn {
@@ -3393,15 +3467,38 @@ input {
   }
 }
 
-/* Between the phone layout and a comfortable desktop the action groups cannot
- * share the row with the route identity. Wrapping the row keeps each group
- * whole (and the whole toolbar on one line) instead of splitting it mid-bar. */
-@media (min-width: 761px) {
+/* Below a comfortable desktop the action groups cannot share the row with the
+ * route identity. The wrap is deliberate rather than a spill: identity on the
+ * first tier, tools on a full-width second tier, so the gap is structured
+ * instead of an accidental hole at the end of row one. */
+@media (min-width: 761px) and (max-width: 1280px) {
   .topbar-row {
     flex-wrap: wrap;
-    row-gap: 7px;
+    row-gap: 6px;
+    column-gap: 10px;
   }
 
+  .topbar-actions {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+  }
+
+  /* The save status is a word; at this width the dot and its title say enough,
+     and the dock carries the words while editing. */
+  .save-group .save-status {
+    max-width: 0;
+    overflow: hidden;
+    padding-left: 0;
+    margin-left: 0;
+  }
+
+  .save-group {
+    gap: 4px;
+  }
+}
+
+@media (min-width: 761px) {
   .topbar-actions {
     flex-wrap: nowrap;
   }

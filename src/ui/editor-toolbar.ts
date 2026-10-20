@@ -122,7 +122,7 @@ export class EditorToolbar {
     this.legNameInput = required<HTMLInputElement>(dock, 'leg-name');
     this.renameButton = required<HTMLButtonElement>(dock, 'editor-rename-apply');
     this.legNameField = this.legNameInput.closest('.leg-name') ?? this.legNameInput;
-    this.snapIndicator = required(root, 'snap-indicator');
+    this.snapIndicator = required(dock, 'snap-indicator');
     this.offTrail = required(dock, 'offtrail-legend');
     this.hint = required(dock, 'editor-hint');
     this.count = required(dock, 'editor-count');
@@ -206,8 +206,9 @@ export class EditorToolbar {
     if (rename) visibleActions += 1;
     this.actionsRow.hidden = visibleActions === 0;
 
-    this.snapIndicator.textContent = model.snapIndicator;
-    // The bar truncates it; the full sentence is one hover away.
+    // The bar shows a state word; the sentence belongs in the title. A truncated
+    // sentence ("loading the trail net…") reads as broken chrome, not as status.
+    this.snapIndicator.textContent = this.i18n.t(`editor.snapState.${model.snapState}` as never);
     if (model.snapIndicator) this.snapIndicator.title = model.snapIndicator;
     else this.snapIndicator.removeAttribute('title');
     this.snapIndicator.dataset.state = model.snapState;

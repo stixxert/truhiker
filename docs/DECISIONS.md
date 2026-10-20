@@ -482,3 +482,54 @@ the fix; more buttons was the disease.
   <norway-latest.osm.pbf> --out data`. The checksum, the per-kind counts and the
   coordinate bounds are pinned by a validation test, so a stale or corrupted
   artefact cannot ship quietly.
+
+## D23. The resupply artefact refreshes monthly from a cron Worker, and the build runs in a build container
+
+**Question.** The OSM extract is served by us (D22), so it ages. Who refreshes it,
+and does that fit the free plan?
+
+**Decision.** A cron Worker posts a Cloudflare **Deploy Hook**; the build runs on
+Workers Builds. The Worker is the trigger, never the builder.
+
+**Why the Worker cannot build it.** The source is `norway-latest.osm.pbf` (1.38 GB)
+read twice, which wants ~1.4 GB of heap. A Worker has 128 MB of memory and, on the
+free plan, 10 ms of CPU per invocation. There is no plan on which a Worker parses
+that file. What a cron invocation can do — POST one URL — costs well under a
+millisecond.
+
+**What the build container gives (free plan).** 3,000 build minutes a month,
+20-minute timeout, 2 vCPU, 8 GB of RAM, deploy hooks at 10 builds/minute per Worker.
+One refresh is a download plus two passes: minutes, not hours, so the monthly job
+uses a fraction of a percent of the allowance, with room for retries.
+
+**Wiring.**
+
+- `worker/wrangler.jsonc` — the `truhiker-refresh` Worker: `crons: ["0 4 1 * *",
+  "0 4 4 * *"]` (1st of the month, plus a retry on the 4th in case Geofabrik or
+  the build is temporarily broken). No assets, no routes, so the site's
+  static-only contract in `wrangler.jsonc` is untouched and the hosting gate still
+  has nothing to waive.
+- `worker/cron.ts` — `scheduled()` POSTs `env.DEPLOY_HOOK_URL` and logs the hook's
+  status. A rejected hook returns 502 and says so in the log: a silent success
+  would look like a refresh that happened. `POST /trigger` with an
+  `x-trigger-key` header (secret `TRIGGER_KEY`) is the manual pull after an outage.
+- Workers Builds job: build `npm ci && bash tools/refresh-shops.sh`, deploy
+  `npx wrangler deploy`. The deploy ships the freshly built `data/shops.osm.bin`.
+- `tools/refresh-shops.sh` — downloads with `curl -fL --retry` (an HTML error page
+  must not be parsed as a PBF), refuses a file under 500 MB (a truncated extract
+  parses as "no POIs", the worst failure: an empty index would ship silently),
+  builds with `--max-old-space-size=3072` inside the container's 8 GB, then runs
+  `inspect-shops --verify` so a refresh that breaks the checksum, the counts or the
+  coordinate bounds fails the build instead of deploying. The temp PBF is deleted
+  in the same run: the container's disk holds the extract (1.4 GB), `node_modules`
+  and `dist` at once, and nothing more is needed.
+
+**Consequence, stated plainly.** The deployed artefact can be newer than the
+committed one. The committed file is the build input and the reproducible fallback,
+pinned by the checksum test; committing a refresh is still wanted, but the site no
+longer depends on someone remembering. `<meta>`/`About data` report the extract date
+of whichever file is actually served, so the UI cannot claim freshness it does not
+have.
+
+**Manual paths.** `npm run refresh:shops` locally, and
+`npm run deploy:cron` to publish the trigger Worker.

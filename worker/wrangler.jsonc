@@ -1,0 +1,24 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "truhiker-refresh",
+  "main": "cron.ts",
+  "compatibility_date": "2026-10-01",
+
+  // Monthly resupply refresh, and one retry three days later in case the first
+  // build fails (Geofabrik mirror hiccup, or a transient Workers Builds error).
+  // Cron invocations are ordinary Worker invocations: free plan, 10 ms CPU — and
+  // this one only POSTs a Deploy Hook, which is well under a millisecond of CPU.
+  "triggers": {
+    "crons": ["0 4 1 * *", "0 4 4 * *"]
+  },
+
+  // Logs are how a rejected hook becomes visible. Free plan retains three days;
+  // a monthly cron needs longer than that to be diagnosable, so it is on.
+  "observability": {
+    "enabled": true
+  },
+
+  // No routes, no assets, no bindings: a deploy hook URL and a trigger key, both
+  // secrets (`wrangler secret put -c worker/wrangler.jsonc`).
+  "vars": {}
+}

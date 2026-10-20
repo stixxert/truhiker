@@ -89,7 +89,6 @@ import { buildTripLibraryView } from '../ui/trip-library-view';
 import type { WeatherPanelState } from '../ui/weather-view';
 import { MemoryWeatherCache } from '../lib/weather-cache';
 import { findLeg, flattenTrip } from '../lib/trip-route';
-import { defaultProfile, emptyTrip } from '../store/trip';
 import { loadTrailNetwork, type TrailNetworkFailureCode } from '../route/trail-network';
 import {
   routeBetweenLines,
@@ -352,7 +351,6 @@ export class App {
     paceError: HTMLElement;
     paceHint: HTMLElement;
     toast: HTMLElement;
-    newRouteButton: HTMLButtonElement;
     saveButton: HTMLButtonElement;
     saveStatus: HTMLElement;
     downloadGpxButton: HTMLButtonElement;
@@ -363,9 +361,11 @@ export class App {
     editorToolbar: HTMLElement;
     weatherPanel: HTMLElement;
     editorPanel: HTMLElement;
+    editorPanelTitle: HTMLElement;
     editorTrip: HTMLElement;
     editorLegs: HTMLElement;
     editorPanelClose: HTMLButtonElement;
+    editorNew: HTMLButtonElement;
     editorSave: HTMLButtonElement;
     editorSaveStatus: HTMLElement;
     saveGroup: HTMLElement;
@@ -425,7 +425,6 @@ export class App {
       paceError: byId('pace-error'),
       paceHint: byId('pace-hint'),
       toast: byId('toast'),
-      newRouteButton: byId<HTMLButtonElement>('btn-new'),
       saveButton: byId<HTMLButtonElement>('btn-save'),
       saveStatus: byId('save-status'),
       tripsButton: byId<HTMLButtonElement>('btn-trips'),
@@ -435,9 +434,11 @@ export class App {
       editorToolbar: byId('editor-toolbar'),
       weatherPanel: byId('weather-panel'),
       editorPanel: byId('editor-panel'),
+      editorPanelTitle: byId('editor-panel-title'),
       editorTrip: byId('editor-trip'),
       editorLegs: byId('editor-legs'),
       editorPanelClose: byId<HTMLButtonElement>('editor-panel-close'),
+      editorNew: byId<HTMLButtonElement>('editor-new'),
       editorSave: byId<HTMLButtonElement>('editor-save'),
       editorSaveStatus: byId('editor-save-status'),
       saveGroup: this.doc.querySelector<HTMLElement>('.save-group') as HTMLElement,
@@ -1082,46 +1083,6 @@ export class App {
     );
   }
 
-  /**
-   * Start from nothing: an empty trip that keeps the current profile, in Draw
-   * mode, with the first map click creating the first point. Before this, the
-   * only ways into the app were a file and the demo — a new route was not a thing
-   * the product could do.
-   */
-  private newRoute(): void {
-    const session = this.session;
-    if (!session || !this.engines) return;
-    const profile = session.trip?.profile ?? defaultProfile();
-    const trip = emptyTrip(this.i18n.t('route.untitled'), profile);
-    session.adopt(trip, { save: 'manual' });
-    this.editorUi = setMode(
-      initialEditorState(trip, this.editorUi.snapping),
-      'draw',
-      trip,
-    );
-    this.overlay?.setTrip(trip);
-    this.overlay?.setMode('draw');
-    this.overlay?.setSelection(null);
-    this.showEmptyState(false);
-    this.state.route = null;
-    this.state.profile = null;
-    this.state.profileStatus = 'empty';
-    this.state.cursorDistance = null;
-    this.job?.cancel();
-    this.job = null;
-    this.chart.setProfile(null);
-    this.map?.setRoute(null);
-    this.updateRouteMeta();
-    this.renderProfilePanel();
-    this.renderStats();
-    this.renderReadout(null);
-    this.renderEditor();
-    this.renderSaveStatus();
-    this.renderTrips();
-    this.resetWeatherForTrip();
-    this.showToast(this.i18n.t('route.created', { name: trip.name }));
-  }
-
   private async importTripFile(file: File): Promise<void> {
     const session = this.session;
     if (!session) {
@@ -1208,8 +1169,9 @@ export class App {
     this.job?.cancel();
     this.job = null;
     session.adopt(trip, { save: 'manual' });
-    this.editorUi = this.editorStateFor(trip);
+    this.editorUi = setMode(this.editorStateFor(trip), 'draw', trip);
     this.overlay?.setTrip(trip);
+    this.overlay?.setMode('draw');
     this.overlay?.setSelection(null);
     this.state.route = null;
     this.state.profile = null;
@@ -2222,7 +2184,11 @@ export class App {
    */
   private renderEditorPanel(trip: Trip | null): void {
     const panel = this.elements.editorPanel;
-    const open = trip !== null && (this.editorUi.mode === 'draw' || this.editorUi.mode === 'edit');
+    // The card is the route's structure, so it is there whenever a route is:
+    // in View it is a short, read-only list; Draw and Edit grow the sections that
+    // only make sense while editing. The mode switch lives here, so it cannot be
+    // hidden behind the very mode it selects.
+    const open = trip !== null;
     panel.hidden = !open;
     if (!open || !trip) {
       this.map?.setLegHighlight(null);
@@ -2230,6 +2196,13 @@ export class App {
       this.renderSaveStatus();
       return;
     }
+    this.elements.editorPanelTitle.textContent = this.i18n.t(
+      this.editorUi.mode === 'draw'
+        ? 'editor.panelTitleDraw'
+        : this.editorUi.mode === 'edit'
+          ? 'editor.panelTitle'
+          : 'editor.panelTitleView',
+    );
 
     const flat = flattenTrip(trip);
     this.elements.editorTrip.textContent =
@@ -3076,9 +3049,8 @@ export class App {
     const openButton = byId<HTMLButtonElement>('btn-open');
     openButton.addEventListener('click', () => this.openFilePicker());
 
-    this.elements.newRouteButton.addEventListener('click', () => this.newRoute());
-
     this.elements.editorPanelClose.addEventListener('click', () => this.switchMode('view'));
+    this.elements.editorNew.addEventListener('click', () => this.startNewTrip());
     this.elements.editorSave.addEventListener('click', () => void this.saveTrip());
 
     this.elements.fileInput.addEventListener('change', () => {

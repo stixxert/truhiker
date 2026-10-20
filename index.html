@@ -232,10 +232,6 @@
             <span data-i18n="action.importGpx">Importer GPX</span>
           </button>
 
-          <button class="btn btn-open" id="btn-new" type="button" data-i18n-aria-label="action.newRoute">
-            <svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>
-            <span data-i18n="action.newRoute">New route</span>
-          </button>
 
           <div class="topbar-actions">
             <label class="topbar-more-label btn btn-icon" for="topbar-more" aria-hidden="true">
@@ -433,6 +429,18 @@
           </div>
 
           <div class="editor-column" id="editor-column">
+            <aside class="editor-panel" id="editor-panel" hidden aria-labelledby="editor-panel-title">
+              <header class="panel-head">
+                <h2 id="editor-panel-title" data-i18n="editor.panelTitle">Edit route</h2>
+                <button
+                  class="icon-btn"
+                  id="editor-panel-close"
+                  type="button"
+                  data-i18n-aria-label="editor.closePanel"
+                >
+                  <svg class="i" aria-hidden="true"><use href="#i-close" /></svg>
+                </button>
+              </header>
             <div class="editor-toolbar" id="editor-toolbar" hidden>
               <div class="editor-row editor-row--main">
                 <div class="seg seg-mode" role="group" data-i18n-aria-label="editor.mode">
@@ -464,23 +472,13 @@
                 >
                   <svg class="i" aria-hidden="true"><use href="#i-redo" /></svg>
                 </button>
-                <span class="snap-indicator" id="snap-indicator" role="status" aria-live="polite"></span>
               </div>
             </div>
 
-            <aside class="editor-panel" id="editor-panel" hidden aria-labelledby="editor-panel-title">
-              <header class="panel-head">
-                <h2 id="editor-panel-title" data-i18n="editor.panelTitle">Edit route</h2>
-                <button
-                  class="icon-btn"
-                  id="editor-panel-close"
-                  type="button"
-                  data-i18n-aria-label="editor.closePanel"
-                >
-                  <svg class="i" aria-hidden="true"><use href="#i-close" /></svg>
-                </button>
-              </header>
-              <p class="editor-trip" id="editor-trip"></p>
+              <div class="editor-dock-head">
+                <p class="editor-trip" id="editor-trip"></p>
+                <button class="btn btn-small" id="editor-new" type="button" data-i18n="action.newRoute">Ny rute</button>
+              </div>
               <div class="editor-legs" id="editor-legs" data-i18n-aria-label="editor.legsTitle" role="list"></div>
 
               <div class="editor-inspector" id="editor-actions" hidden>
@@ -544,6 +542,7 @@
               </div>
 
               <div class="editor-status">
+                <span class="snap-indicator" id="snap-indicator" role="status" aria-live="polite"></span>
                 <span class="offtrail-legend" id="offtrail-legend"></span>
               </div>
             </aside>
