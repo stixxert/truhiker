@@ -133,12 +133,30 @@ export function timeLabel(iso: string | undefined, locale: string): string {
  * with a statement in the user's language; `HTTP 404` and similar stay as-is,
  * because they are the actionable part.
  */
+/**
+ * Upstream reasons are machine states, not sentences.
+ *
+ * `src/weather/met.ts` reports "requested time 2026-10-20T10:00:00.000Z precedes
+ * MET's series, which starts ..." — English, with two ISO timestamps, in a 209 px
+ * cell of a Norwegian UI. Every known reason maps to product copy; an unknown one
+ * says only that the forecast is unavailable, because a raw string is never the
+ * right answer and silence would be dishonest.
+ */
 function reasonLabel(reason: string | undefined, i18n: WeatherI18n): string | null {
   if (!reason) return null;
   if (/failed to fetch|networkerror|load failed|network request failed/i.test(reason)) {
     return i18n.t('weather.networkError');
   }
-  return reason;
+  if (/precedes .*series|before .*series/i.test(reason)) {
+    return i18n.t('weather.beforeSeries');
+  }
+  if (/past .*series|beyond .*series|horizon/i.test(reason)) {
+    return i18n.t('weather.afterSeries');
+  }
+  // A short machine token ("HTTP 404") is information a hiker can report; a
+  // sentence with an ISO timestamp is not. Only the former survives as-is.
+  if (reason.length <= 40 && !/\d{4}-\d{2}-\d{2}T/.test(reason)) return reason;
+  return i18n.t('weather.failed');
 }
 
 function temperatureLabel(tempC: number | undefined, i18n: WeatherI18n): string | null {
