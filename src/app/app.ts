@@ -812,8 +812,10 @@ export class App {
     else dockStatus.removeAttribute('title');
     this.elements.editorSave.disabled = !session?.trip;
     this.elements.editorSave.setAttribute('aria-busy', String(isPendingSave(status)));
-    const editing = this.session?.trip !== null && this.editorUi.mode !== 'view';
-    this.elements.saveGroup.hidden = Boolean(editing);
+    // Save is the same control in every mode. Hiding it while editing and showing
+    // the drawer's copy moved the primary action under the pointer as soon as you
+    // switched from Vis to Tegn — one action, one place.
+    this.elements.saveGroup.hidden = false;
 
     if (status.kind === 'error') {
       const signature = `${status.code ?? ''}:${status.message ?? ''}`;

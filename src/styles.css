@@ -662,6 +662,9 @@ button {
 /* Identity left, tools right: the empty space belongs inside the bar, between
    the two clusters, where it reads as a decision rather than as a missing item. */
 .topbar-actions {
+  /* Left, after Import/New: the actions that act on the open trip belong beside
+     its name, not in the far corner of a 1440 px bar. */
+  margin-left: 0 !important;
   display: flex;
   align-items: center;
   gap: var(--s-2);
@@ -791,10 +794,24 @@ button {
 
 /* The save group: a state word and the action it belongs to. */
 .save-group {
+  /* Save leads the cluster, immediately after Ny rute. */
+  order: -2;
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
   flex: none;
+}
+
+/* Saved trips are route material too: they follow Save, ahead of the analysis
+   toggles. */
+.tb-group--nav {
+  order: -1;
+}
+
+.topbar .btn-save {
+  padding: 0 var(--s-3);
+  font-size: var(--t-2);
+  min-width: 0;
 }
 
 .save-status {
@@ -1087,8 +1104,11 @@ button {
    down in elevation. Nothing on the map wears a 1 px frame. */
 .map-controls {
   position: absolute;
+  /* Right-hand corner: the route drawer owns the left edge and grows downward,
+     and it used to end up sitting on top of the zoom bar. */
   bottom: calc(var(--stack) + 34px);
-  left: var(--s-3);
+  right: var(--s-3);
+  left: auto;
   z-index: 6;
   display: flex;
   flex-direction: row;
@@ -1134,8 +1154,12 @@ button {
 /* Basemap switch: a property of what you are looking at, so it lives on the map
    and follows the same thumb-in-a-track idiom as every other segmented control. */
 .map-style {
+  /* Top right: the zoom bar owns the bottom-right corner, and the two were
+     landing on top of each other, which made the basemap options partially
+     obscured (an a11y target-size failure) as well as unusable. */
   position: absolute;
-  bottom: calc(var(--stack) + 40px);
+  top: 62px;
+  bottom: auto;
   right: var(--s-3);
   z-index: 6;
   display: flex;
@@ -4006,7 +4030,7 @@ button {
   }
 
   .stats .stat-value,
-  .stats .stat:nth-child(-n + 2) .stat-value {
+  .stats .stat:nth-child(-n+2) .stat-value {
     font-size: var(--t-4);
     font-weight: 600;
     white-space: nowrap;
@@ -4117,8 +4141,11 @@ button {
     bottom: auto;
   }
 
+  /* Below the zoom bar: on a phone the controls are a 370 px horizontal strip, so
+     the pill cannot share the top row with them. */
   .map-style {
-    top: 12px;
+    top: 119px;
     bottom: auto;
+    right: 8px;
   }
 }
