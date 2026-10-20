@@ -17,6 +17,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { startRuntime } from './runtime.mjs';
+import { stubDem } from './dem-stub.mjs';
 
 const PORT = 4193;
 
@@ -69,6 +70,10 @@ async function step(name, run) {
 
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 page.on('pageerror', (error) => pageErrors.push(`[pageerror] ${error.message}`));
+// Elevation comes from a synthetic DEM: hoydedata.no is a live service, and a
+// live service must not be able to decide this gate (it has answered 503 for
+// hours, which silently empties the profile and the energy panel).
+await stubDem(page);
 
 // Deterministic WFS: one hut on the demo route, plus a connected trail grid that
 // covers the map. Grid lines are sampled at every crossing, so they share

@@ -8,8 +8,9 @@ Build and verification tooling. None of this ships to the browser.
 | `inspect-shops.mjs` | decodes the extract: `--stats`, `--verify`, `--near LAT,LON` |
 | `verify/verify.mjs` | the gate: types, tests, build, bundle, runtime render, e2e, a11y, failure paths, i18n, licences, hosting |
 | `verify/visual-check.mjs [--runtime]` | headless Chromium check of both breakpoints under the real CSP; `--runtime` serves through `wrangler dev` (the default via `npm run visual-check`), the bare form uses the static server (`npm run visual-check:static`) |
-| `verify/e2e.mjs` | the scripted journey: load → resupply → energy → weather → save → reload, in workerd (huts from a fixture, not the live WFS) |
+| `verify/e2e.mjs` | the scripted journey: load → resupply → energy → weather → save → reload, in workerd (huts from a fixture, not the live WFS; elevation from a synthetic DEM) |
 | `verify/a11y.mjs` | axe at 1440 and 390, plus a keyboard-only journey, in workerd |
+| `verify/dem-stub.mjs` | a synthetic float32 GeoTIFF for the browser gates, so hoydedata.no being down cannot fail them |
 | `verify/failure-paths.mjs` | every live source blocked: DEM, basemap, terrain and weather must degrade visibly |
 | `verify/perf.mjs` | FCP, map-interactive and transfer budget under throttled Slow 4G |
 | `verify/check-i18n.mjs` | NO/EN key and placeholder parity, no Nynorsk, no hardcoded UI text |

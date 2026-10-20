@@ -22,6 +22,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { startRuntime } from './runtime.mjs';
+import { stubDem } from './dem-stub.mjs';
 
 const ROOT = process.cwd();
 const PORT = 4195;
@@ -114,6 +115,7 @@ try {
     const context = await browser.newContext({ viewport });
     const page = await context.newPage();
     page.on('pageerror', (error) => pageErrors.push(`[${viewport.name}] ${error.message}`));
+    await stubDem(page);
     await page.goto(`${runtime.origin}/`, { waitUntil: 'domcontentloaded' });
     await waitForApp(page);
     await scan(page, viewport.name);
@@ -125,6 +127,7 @@ try {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const page = await context.newPage();
     page.on('pageerror', (error) => pageErrors.push(`[keyboard] ${error.message}`));
+    await stubDem(page);
     await page.goto(`${runtime.origin}/`, { waitUntil: 'domcontentloaded' });
     await waitForApp(page);
 
@@ -222,6 +225,7 @@ try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await context.newPage();
     page.on('pageerror', (error) => pageErrors.push(`[profile] ${error.message}`));
+    await stubDem(page);
     await page.goto(`${runtime.origin}/`, { waitUntil: 'domcontentloaded' });
     await waitForApp(page);
 
