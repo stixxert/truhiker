@@ -351,7 +351,8 @@ input {
      accessible name still carry the label. */
   #btn-supply .btn-label,
   #btn-weather .btn-label,
-  #btn-trips .btn-label {
+  #btn-trips .btn-label,
+  #btn-settings .btn-label {
     display: none;
   }
 }
@@ -871,9 +872,17 @@ input {
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
+/* Hover is the lighter cue. `[aria-pressed]` has to out-weigh it or the pointer
+   position *is* the selection — measured fill was 38,37,35 on hover against
+   34,32,29 on the selected chip, i.e. inverted. */
 .map-style .seg-btn:hover:not([aria-pressed='true']),
 .map-style .btn:hover:not([aria-pressed='true']):not(:disabled) {
-  background: rgba(255, 255, 255, 0.055);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.map-style .seg-btn[aria-pressed='true'],
+.map-style .btn-toggle[aria-pressed='true'] {
+  background: rgba(201, 138, 63, 0.16);
 }
 
 .map-style .seg-btn[aria-pressed='true']:hover,
@@ -1000,6 +1009,39 @@ input {
   /* An unlabelled glyph among four labelled rows reads as a rendering fault. */
   .topbar-more-body .btn-icon .btn-label {
     display: inline;
+  }
+
+  #btn-settings .btn-label {
+    display: inline;
+  }
+
+  .topbar-more-body .btn-icon {
+    width: auto;
+    padding: 0 8px;
+  }
+
+  /* The nested disclosure is a block inside the sheet, not a zero-height
+     `display: contents`: its four rows were overflowing a fixed-height box and
+     were unclickable. */
+  .topbar .tb-menu {
+    display: block;
+  }
+
+  .topbar .tb-menu > .tb-menu-body {
+    display: flex !important;
+    height: auto;
+  }
+
+  .topbar-more-body {
+    height: auto;
+    max-height: calc(100dvh - 70px);
+    overflow-y: auto;
+  }
+
+  /* The hint wraps instead of truncating mid-word. */
+  .profile-status {
+    white-space: normal;
+    overflow: visible;
   }
 
   .topbar-more-body .tb-group > .btn,
@@ -3896,5 +3938,51 @@ input {
 
   .save-group {
     gap: 4px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * The phone sheet, last word.
+ *
+ * These rules live at the end of the file on purpose: the desktop `.tb-menu`
+ * dropdown is declared later than the responsive block above, so a rule inside
+ * that block lost to it and the menu's four rows were laid out absolutely,
+ * outside the sheet's height budget — clipped and unclickable. Specificity plus
+ * position settles it: in the sheet the disclosure is not a dropdown.
+ * ------------------------------------------------------------------------ */
+@media (max-width: 760px) {
+  .topbar .topbar-actions .tb-menu {
+    display: block;
+    height: auto;
+  }
+
+  .topbar .topbar-actions .tb-menu > summary {
+    display: none;
+  }
+
+  .topbar .topbar-actions .tb-menu-body {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    background: transparent;
+  }
+
+  .topbar .topbar-actions .tb-menu-body .menu-item {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .topbar .topbar-actions .topbar-more-body {
+    height: auto;
+    max-height: calc(100dvh - 70px);
+    overflow-y: auto;
   }
 }

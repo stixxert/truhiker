@@ -3046,6 +3046,18 @@ export class App {
   // -------------------------------------------------------------------------
 
   private wireControls(): void {
+    // On a phone the ⋯ sheet shows the "mer" menu's items inline, so that
+    // disclosure has to be open there — a closed <details> lays its content out
+    // but hides it from both paint and hit testing, which left About/Share/
+    // Download GPX as invisible rows under the canvas. Desktop keeps its dropdown.
+    const menu = document.querySelector<HTMLDetailsElement>('.tb-menu');
+    const phone = window.matchMedia('(max-width: 760px)');
+    const syncMenuOpenness = () => {
+      if (menu) menu.open = phone.matches;
+    };
+    syncMenuOpenness();
+    phone.addEventListener('change', syncMenuOpenness);
+
     const openButton = byId<HTMLButtonElement>('btn-open');
     openButton.addEventListener('click', () => this.openFilePicker());
 
