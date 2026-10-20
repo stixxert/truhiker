@@ -325,6 +325,28 @@ class BundledShopIndex implements ShopIndex {
     return out.sort(compareAlongRoute);
   }
 
+  /**
+   * Every point inside a bounding box, for the map's "what is around me" layer.
+   *
+   * The index is a flat, in-memory array: this is a scan of 8 571 records, which
+   * costs nothing next to a tile request. `limit` keeps a zoomed-out view from
+   * pushing the whole national extract into a GeoJSON source.
+   */
+  within(
+    bounds: { west: number; south: number; east: number; north: number },
+    limit = 2_000,
+  ): ResupplyCandidate[] {
+    const out: ResupplyCandidate[] = [];
+    for (let i = 0; i < this.count && out.length < limit; i += 1) {
+      const lat = this.records.lats[i] / 1e6;
+      if (lat < bounds.south || lat > bounds.north) continue;
+      const lon = this.records.lons[i] / 1e6;
+      if (lon < bounds.west || lon > bounds.east) continue;
+      out.push(this.candidateAt(i, 0, 0));
+    }
+    return out;
+  }
+
   near(point: LonLat, radiusM: number): ResupplyCandidate[] {
     if (!(radiusM >= 0) || Number.isNaN(radiusM)) {
       throw new RangeError(`invalid radius: ${radiusM}`);

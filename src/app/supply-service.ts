@@ -11,8 +11,9 @@
  *    fail independently. A failed hut query is a *partial* result with the
  *    reason attached, never a blank panel.
  *
- * The index is only fetched when the panel is first opened, so a user who never
- * asks for resupply never downloads the 175 KB file.
+ * The index is fetched the first time the map needs places — which is when it
+ * first settles on a view, because the shops are drawn whether or not the panel
+ * is open (D20). It is 175 KB, loaded once, then served from memory.
  */
 
 import type { LonLat } from '../core/geo';
@@ -37,6 +38,26 @@ interface SupplyResult {
   readonly fetchedAt: string;
 }
 
+/** What the map needs for "show me the shops and huts around here". */
+export interface ViewBounds {
+  readonly west: number;
+  readonly south: number;
+  readonly east: number;
+  readonly north: number;
+  readonly zoom: number;
+}
+
+export interface PlacesResult {
+  /** Points inside the box. `alongRouteM` is 0: there is no route in play. */
+  readonly places: readonly ResupplyCandidate[];
+  readonly hutsError: string | null;
+}
+
+/** Huts are live WFS: only ask once the view is small enough to be worth it. */
+export const HUT_VIEW_MIN_ZOOM = 12;
+/** A hut answer is reused for this long before the box is asked again. */
+const VIEW_HUTS_TTL_MS = 5 * 60_000;
+
 interface SupplyDeps {
   readonly fetchImpl: typeof fetch;
   /** Injectable for tests and for a different data file. */
@@ -52,6 +73,11 @@ export class SupplyService {
   private readonly deps: SupplyDeps;
   private index: ShopIndex | null = null;
   private pending: Promise<ShopIndex> | null = null;
+  /** Hut answers per rounded view box, so a pan back and forth is free. */
+  private readonly viewHuts = new Map<
+    string,
+    { at: number; huts: ResupplyCandidate[]; error: string | null }
+  >();
 
   constructor(deps: SupplyDeps) {
     this.deps = deps;
@@ -88,6 +114,46 @@ export class SupplyService {
       },
     );
     return this.pending;
+  }
+
+  /**
+   * Places inside the current view, route or no route.
+   *
+   * Shops come from the bundled index and are complete for Norway — the scan is
+   * local and instant. Huts are a live WFS query, so they are only asked for at
+   * `HUT_VIEW_MIN_ZOOM` and above, where the box is small; below that the map
+   * shows shops only, and the panel still has the route's own hut query.
+   */
+  async placesIn(bounds: ViewBounds): Promise<PlacesResult> {
+    const index = await this.shopIndex();
+    const places: ResupplyCandidate[] = index.within(bounds);
+    if (bounds.zoom < HUT_VIEW_MIN_ZOOM) return { places, hutsError: null };
+
+    const cacheKey = `${bounds.west.toFixed(2)},${bounds.south.toFixed(2)},${bounds.east.toFixed(2)},${bounds.north.toFixed(2)}`;
+    const cached = this.viewHuts.get(cacheKey);
+    const nowMs = (this.deps.now ? this.deps.now() : new Date()).getTime();
+    if (cached && nowMs - cached.at < VIEW_HUTS_TTL_MS) {
+      return { places: [...places, ...cached.huts], hutsError: cached.error };
+    }
+
+    const loadHuts = this.deps.loadHuts ?? fetchHutsAlong;
+    let huts: ResupplyCandidate[] = [];
+    let hutsError: string | null = null;
+    try {
+      // Two opposite corners are a route as far as the tiler is concerned: it
+      // pads and tiles the box, with the same request cap as a corridor query.
+      huts = await loadHuts(
+        [
+          { lon: bounds.west, lat: bounds.south },
+          { lon: bounds.east, lat: bounds.north },
+        ],
+        { radiusM: 1_000, fetchImpl: this.deps.fetchImpl },
+      );
+    } catch (error) {
+      hutsError = error instanceof Error ? error.message : String(error);
+    }
+    this.viewHuts.set(cacheKey, { at: nowMs, huts, error: hutsError });
+    return { places: [...places, ...huts], hutsError };
   }
 
   /**

@@ -31,6 +31,7 @@ function index(candidates: readonly ResupplyCandidate[]): ShopIndex {
     builtAt: '2026-10-19T13:41:49.167Z',
     alongRoute: () => [...candidates],
     near: () => [...candidates],
+    within: () => [...candidates],
   };
 }
 

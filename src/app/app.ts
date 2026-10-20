@@ -60,10 +60,13 @@ import { loadPace, savePace } from '../ui/pace-store';
 import { ProfileChart, type CursorSource } from '../ui/profile-chart';
 import { StatsBar } from '../ui/stats';
 import { WeatherPanel } from '../ui/weather-panel';
-import { SupplyPanel, buildResupplyCard, type SupplyTab } from '../ui/supply-panel';
+import { SupplyPanel, buildPlaceCard, buildResupplyCard, type SupplyTab } from '../ui/supply-panel';
 import {
   DEFAULT_RADIUS_M,
   buildResupplyView,
+  candidateKey,
+  countsAsFoodPlace,
+  placeCardModel,
   type ResupplyPanelState,
   type ResupplyRowView,
 } from '../ui/resupply-view';
@@ -76,7 +79,7 @@ import {
   type EnergyPanelState,
 } from '../ui/energy-view';
 import { SupplyService } from './supply-service';
-import { loadShopIndex, planResupplyForTrip } from '../resupply';
+import { loadShopIndex, planResupplyForTrip, type ResupplyCandidate } from '../resupply';
 import { TripLibraryDialog } from '../ui/trip-library';
 import { TripSettingsDialog } from '../ui/trip-settings';
 import { EditorToolbar, type EditorAction } from '../ui/editor-toolbar';
@@ -262,6 +265,10 @@ export class App {
   private energyEdited = false;
   /** Signature of the trip/route the current resupply plan was built against. */
   private supplySig = '';
+  /** Places in the current view (shops always, huts at zoom >= 12). */
+  private places: readonly ResupplyCandidate[] = [];
+  private placesToken = 0;
+  private placesTimer: number | null = null;
   private horizonDays = DOCUMENTED_HORIZON_DAYS;
   private readonly weatherCache = new MemoryWeatherCache();
   private weatherToken = 0;
@@ -1410,21 +1417,60 @@ export class App {
   private renderSupplyMap(): void {
     const map = this.map;
     if (!map) return;
-    map.setResupplyPoints(
-      this.supplyRows.map((row) => ({
-        id: row.id,
-        kind: row.kind,
-        position: row.point,
-        usable: row.countsAsFood,
-      })),
-    );
+    const corridor = this.supplyRows.map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      position: row.point,
+      usable: row.countsAsFood,
+    }));
+    const onRoute = new Set(corridor.map((point) => point.id));
+    // Everything else in view: the map shows the country, not just this route.
+    const aroundHere = this.places
+      .map((candidate) => ({
+        id: candidateKey(candidate),
+        kind: candidate.kind,
+        position: candidate.point,
+        usable: countsAsFoodPlace(candidate),
+      }))
+      .filter((point) => !onRoute.has(point.id));
+    map.setResupplyPoints([...corridor, ...aroundHere]);
     map.setResupplyHandlers({
-      onSelect: (id) => this.selectSupplyRow(id),
+      onSelect: (id) => {
+        if (onRoute.has(id)) this.selectSupplyRow(id);
+      },
       cardFor: (id) => {
         const row = this.supplyRows.find((candidate) => candidate.id === id);
-        return row ? buildResupplyCard(this.doc, row, this.i18n) : null;
+        if (row) return buildResupplyCard(this.doc, row, this.i18n);
+        const place = this.places.find((candidate) => candidateKey(candidate) === id);
+        return place ? buildPlaceCard(this.doc, placeCardModel(place, this.i18n)) : null;
       },
     });
+  }
+
+  /** Ask the service what is around the current view, once the map settles. */
+  private schedulePlaces(): void {
+    if (this.placesTimer !== null) window.clearTimeout(this.placesTimer);
+    this.placesTimer = window.setTimeout(() => {
+      this.placesTimer = null;
+      void this.refreshPlaces();
+    }, 450);
+  }
+
+  private async refreshPlaces(): Promise<void> {
+    const map = this.map;
+    const service = this.supplyService;
+    if (!map || !service) return;
+    const token = ++this.placesToken;
+    const bounds = map.getViewBounds();
+    try {
+      const result = await service.placesIn(bounds);
+      if (token !== this.placesToken) return;
+      this.places = result.places;
+      this.renderSupplyMap();
+    } catch {
+      // Orientation only: keep the markers that are already there rather than
+      // blanking the map because a live source was slow.
+    }
   }
 
   /**
@@ -2414,6 +2460,8 @@ export class App {
     // Editing needs trails for the viewport the user is looking at, not the one
     // they started in. Prefetch is debounced; the cache makes repeats free.
     if (this.editorUi.mode !== 'view' && this.editorUi.snapping) this.scheduleSnapPrefetch();
+    // The shops and huts on screen follow the view, not the route.
+    this.schedulePlaces();
     if (!this.state.route || this.state.profileStatus !== 'ready') return;
     const nearest = nearestRoutePoint(this.state.route, info.center, info.zoom);
     if (!nearest) return;

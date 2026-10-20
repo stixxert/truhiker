@@ -244,10 +244,40 @@ function drawResupplyIcon(kind: IconKind): ImageData | null {
   return ctx.getImageData(0, 0, size, size);
 }
 
+const CLUSTER_STEPS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100] as const;
+
+/** A count badge for a cluster, with the number drawn in. */
+function drawClusterBadge(count: number): ImageData | null {
+  const size = 26 * 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.scale(2, 2);
+  ctx.beginPath();
+  ctx.arc(13, 13, 12, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(12, 26, 26, 0.92)';
+  ctx.fill();
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = '#8fe3d4';
+  ctx.stroke();
+  ctx.fillStyle = '#f2fffc';
+  ctx.font = `600 ${count >= 100 ? 9 : 10.5}px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(count >= 100 ? '99+' : String(count), 13, 13.5);
+  return ctx.getImageData(0, 0, size, size);
+}
+
 function registerResupplyIcons(map: MapLibreMapType): void {
   for (const kind of ['shop', 'fuel', 'post', 'hut'] as const) {
     const image = drawResupplyIcon(kind);
     if (image) map.addImage(`resupply-${kind}`, image, { pixelRatio: RESUPPLY_ICON_SCALE });
+  }
+  for (const count of CLUSTER_STEPS) {
+    const badge = drawClusterBadge(count);
+    if (badge) map.addImage(`cluster-${count}`, badge, { pixelRatio: 2 });
   }
 }
 
@@ -257,7 +287,7 @@ function resupplyLayers(): StyleLayers {
       id: 'resupply-ring',
       type: 'circle',
       source: 'resupply',
-      filter: ['==', ['get', 'id'], '__none__'],
+      filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'id'], '__none__']],
       paint: {
         'circle-radius': 14,
         'circle-color': '#f2fffc',
@@ -270,7 +300,7 @@ function resupplyLayers(): StyleLayers {
       id: 'resupply-halo',
       type: 'circle',
       source: 'resupply',
-      filter: ['==', ['get', 'usable'], true],
+      filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'usable'], true]],
       paint: {
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 8, 10, 11, 15, 15],
         'circle-color': resupplyColor(),
@@ -281,6 +311,7 @@ function resupplyLayers(): StyleLayers {
       id: 'resupply-points',
       type: 'circle',
       source: 'resupply',
+      filter: ['!', ['has', 'point_count']],
       paint: {
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4.5, 10, 7, 15, 10],
         'circle-color': resupplyColor(),
@@ -291,12 +322,62 @@ function resupplyLayers(): StyleLayers {
       },
     },
     {
+      id: 'resupply-cluster',
+      type: 'circle',
+      source: 'resupply',
+      filter: ['has', 'point_count'],
+      paint: {
+        'circle-radius': ['step', ['get', 'point_count'], 18, 10, 21, 100, 25],
+        'circle-color': 'rgba(12, 26, 26, 0.0)',
+        'circle-stroke-width': 0,
+      },
+    },
+    {
+      id: 'resupply-cluster-count',
+      type: 'symbol',
+      source: 'resupply',
+      filter: ['has', 'point_count'],
+      layout: {
+        'icon-image': [
+          'step',
+          ['get', 'point_count'],
+          'cluster-2',
+          3,
+          'cluster-3',
+          4,
+          'cluster-4',
+          5,
+          'cluster-5',
+          6,
+          'cluster-6',
+          7,
+          'cluster-7',
+          8,
+          'cluster-8',
+          9,
+          'cluster-9',
+          10,
+          'cluster-10',
+          20,
+          'cluster-20',
+          50,
+          'cluster-50',
+          100,
+          'cluster-100',
+        ],
+        'icon-size': ['step', ['get', 'point_count'], 0.85, 10, 1, 50, 1.15],
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
+      },
+    },
+    {
       // The glyph carries the kind; the disc under it carries the colour. A hut
       // and a supermarket are different things on the ground, and a coloured dot
       // was asking the user to remember a legend that does not exist.
       id: 'resupply-icons',
       type: 'symbol',
       source: 'resupply',
+      filter: ['!', ['has', 'point_count']],
       layout: {
         'icon-image': [
           'match',
@@ -365,7 +446,14 @@ function buildStyle(): StyleSpecification {
       },
       route: { type: 'geojson', data: EMPTY_LINE },
       'route-endpoints': { type: 'geojson', data: EMPTY_POINTS },
-      resupply: { type: 'geojson', data: EMPTY_POINTS },
+      resupply: {
+        type: 'geojson',
+        data: EMPTY_POINTS,
+        // "Compacted when zoomed out": one badge instead of forty glyphs.
+        cluster: true,
+        clusterRadius: 48,
+        clusterMaxZoom: 12,
+      },
       'route-cursor': { type: 'geojson', data: EMPTY_POINTS },
     },
     layers: [
@@ -687,6 +775,18 @@ export class MapController {
   // -------------------------------------------------------------------------
   // Basemap
   // -------------------------------------------------------------------------
+
+  /** The current viewport, for asking "what is around here". */
+  getViewBounds(): { west: number; south: number; east: number; north: number; zoom: number } {
+    const bounds = this.map.getBounds();
+    return {
+      west: bounds.getWest(),
+      south: bounds.getSouth(),
+      east: bounds.getEast(),
+      north: bounds.getNorth(),
+      zoom: this.map.getZoom(),
+    };
+  }
 
   get basemapKind(): BasemapKind {
     return this.basemap;
@@ -1041,6 +1141,27 @@ export class MapController {
   }
 
   private wireResupplyInteraction(): void {
+    // A cluster is a group, not a place: clicking it zooms to where it breaks up.
+    if (this.map.getLayer('resupply-cluster-count')) {
+      this.map.on('click', 'resupply-cluster-count', (event) => {
+        const feature = event.features?.[0];
+        const clusterId = feature?.properties?.cluster_id;
+        if (typeof clusterId !== 'number') return;
+        const source = this.map.getSource('resupply') as
+          | { getClusterExpansionZoom(id: number): Promise<number> }
+          | undefined;
+        void source?.getClusterExpansionZoom(clusterId).then((zoom) => {
+          const [lon, lat] = (feature?.geometry as GeoJSON.Point).coordinates;
+          this.map.easeTo({ center: [lon, lat], zoom, duration: this.reducedMotion ? 0 : 400 });
+        });
+      });
+      this.map.on('mousemove', 'resupply-cluster-count', () => {
+        this.map.getCanvas().style.cursor = 'zoom-in';
+      });
+      this.map.on('mouseleave', 'resupply-cluster-count', () => {
+        this.map.getCanvas().style.cursor = '';
+      });
+    }
     // The symbol layer is on top of the disc, so the pointer meets whichever is
     // drawn last: listen on both.
     const layers = ['resupply-icons', 'resupply-points'].filter((id) => this.map.getLayer(id));

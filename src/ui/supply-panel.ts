@@ -15,7 +15,7 @@
 
 import type { I18n } from '../i18n';
 import type { EnergyAssumptions, EnergyViewModel, MassPoint } from './energy-view';
-import type { ResupplyRowView, ResupplyViewModel } from './resupply-view';
+import type { PlaceCardModel, ResupplyRowView, ResupplyViewModel } from './resupply-view';
 import { RADIUS_OPTIONS_M } from './resupply-view';
 
 export type SupplyTab = 'resupply' | 'energy';
@@ -772,6 +772,41 @@ export function buildResupplyCard(
   const provenance = document_.createElement('span');
   provenance.className = 'map-card-provenance';
   provenance.textContent = row.provenanceLabel;
+  card.append(provenance);
+  return card;
+}
+
+/**
+ * A hover card for a place the route does not use: name, kind, the same honesty
+ * badges, and where the fact came from. No distance along a route it is not on.
+ */
+export function buildPlaceCard(
+  document_: Document,
+  model: PlaceCardModel,
+): HTMLElement {
+  const card = document_.createElement('div');
+  card.className = 'map-card';
+
+  const title = document_.createElement('strong');
+  title.className = 'map-card-title';
+  title.textContent = model.name;
+  card.append(title);
+
+  const kind = document_.createElement('span');
+  kind.className = 'map-card-line';
+  kind.textContent = model.kindLabel;
+  card.append(kind);
+
+  if (model.badges.length > 0) {
+    const badges = document_.createElement('span');
+    badges.className = 'map-card-badges';
+    badges.textContent = model.badges.join(' · ');
+    card.append(badges);
+  }
+
+  const provenance = document_.createElement('span');
+  provenance.className = 'map-card-provenance';
+  provenance.textContent = model.provenanceLabel;
   card.append(provenance);
   return card;
 }

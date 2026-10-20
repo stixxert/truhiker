@@ -388,9 +388,17 @@ invisible scrollbar, is failing at the one thing the panel is for.
 **Default: the shops, fuel, post points and huts in the corridor are drawn as soon
 as a route is known — panel open or not — and each kind has its own glyph.**
 
-- The corridor query runs when the route or the profile changes, not when the
-  panel is opened. A shop the user never sees because a panel is closed is not a
-  point they can plan around.
+- The map layer is **viewport-scoped, not route-scoped**: the bundled shop index
+  is queried for the current view (a local scan of 8 571 records), so shops and
+  fuel stations are on the map anywhere in Norway, route or no route. Huts are the
+  live half, so they are asked for only at zoom ≥ 12, where the box is small, with
+  a five-minute cache per rounded box and the same request cap as a corridor query.
+- Below the cluster threshold they **compact into one count badge** per group
+  (`cluster: true`, radius 48, breaking up at z12): a screen of 250 glyphs is not
+  readable, a badge saying "99+" is. Clicking a badge zooms to where it splits.
+- The corridor query still runs when the route or the profile changes, so the
+  route's own points carry their plan numbers (distance, gap, detour). A point in
+  view that is also on the route is drawn once, from the corridor row.
 - A point that counts as food is a filled disc with a white glyph; anything that
   is not confirmed food (huts, unmanned fuel) is hollow with a dark glyph, so
   "not food" is visible without reading the card. Kind is carried by the glyph

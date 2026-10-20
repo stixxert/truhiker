@@ -73,6 +73,11 @@ export interface ShopIndex {
   alongRoute(points: readonly LonLat[], radiusM: number): ResupplyCandidate[];
   /** Candidates within `radiusM` of a point, sorted by distance. */
   near(point: LonLat, radiusM: number): ResupplyCandidate[];
+  /** Candidates inside a bounding box, for the map's "around here" layer. */
+  within(
+    bounds: { west: number; south: number; east: number; north: number },
+    limit?: number,
+  ): ResupplyCandidate[];
 }
 
 export {

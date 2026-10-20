@@ -134,7 +134,7 @@ const KIND_KEYS: Record<ResupplyCandidate['kind'], MessageKey> = {
 };
 
 /** Two rows are the same point when kind, name and position agree. */
-function candidateKey(candidate: ResupplyCandidate): string {
+export function candidateKey(candidate: ResupplyCandidate): string {
   const { lat, lon } = candidate.point;
   return `${candidate.kind}:${candidate.name}@${lat.toFixed(6)},${lon.toFixed(6)}`;
 }
@@ -175,6 +175,35 @@ function badgesFor(candidate: ResupplyCandidate, i18n: ViewI18n): string[] {
     );
   }
   return badges;
+}
+
+/** What a hover card says about a place the route does not pass. */
+export interface PlaceCardModel {
+  readonly name: string;
+  readonly kindLabel: string;
+  readonly badges: readonly string[];
+  readonly provenanceLabel: string;
+}
+
+export function placeCardModel(
+  candidate: ResupplyCandidate,
+  i18n: ViewI18n,
+): PlaceCardModel {
+  return {
+    name: candidate.name,
+    kindLabel: i18n.t(KIND_KEYS[candidate.kind]),
+    badges: badgesFor(candidate, i18n),
+    provenanceLabel: provenanceOf(candidate, i18n),
+  };
+}
+
+/** True when this kind can close a resupply gap (D1/D13: a hut never does). */
+export function countsAsFoodPlace(candidate: ResupplyCandidate): boolean {
+  if (candidate.kind === 'hut' || candidate.kind === 'post' || candidate.kind === 'parcel') {
+    return false;
+  }
+  if (candidate.kind === 'fuel' && candidate.unmanned === true) return false;
+  return true;
 }
 
 const DNT_HUTS_URL = 'https://www.dnt.no/hytter/';
