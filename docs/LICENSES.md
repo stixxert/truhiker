@@ -49,7 +49,7 @@ is never merged with non-ODbL data in one file.
 | **Geonorge WMS** `wms.topo` | base map fallback | CC BY 4.0 | `©Kartverket` |
 | **Kartverket Turrutebasen** (WFS) | trail geometry, hut points | CC BY 4.0 (metadata says "no conditions"; we take the stricter reading) | `©Kartverket` |
 | **hoydedata.no** (Kartverket DTM ImageServer) | elevation profiles | CC BY 4.0 | `©Kartverket`, source shown with the profile |
-| **EOX Cloudless** — WMTS `s2cloudless-2017_3857` | aerial basemap (optional layer) | CC BY 4.0 | `Sentinel-2 cloudless 2017 © EOX IT Services GmbH (CC BY 4.0)`, linked in **About data** |
+| **Kartverket** — WMS `wms.sentinel2` (Sentinel-2 cloud-free mosaic, 2025) | aerial basemap (optional layer) | Open data ("no conditions apply"); credit required | `Copernicus Sentinel-2 (2025) / Kartverket` in the map footer and **About data** |
 | **Mapterhorn** | 3D terrain tiles | derived from Kartverket and others; see its attribution file | `Mapterhorn` in the map footer |
 | **MET Norway** (Locationforecast 2.0) | weather | NLOD / CC BY 4.0 | `MET Norway`, issue time shown |
 

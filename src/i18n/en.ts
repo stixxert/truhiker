@@ -398,9 +398,9 @@ export const en: Record<MessageKey, string> = {
   'about.dataTitle': 'Data sources',
   'about.kartverket': 'Basemap and elevation: Kartverket (topo, DTM), CC BY 4.0.',
   'attrib.kartverket': '©Kartverket',
-  'attrib.eox': 'Sentinel-2 © EOX (CC BY 4.0)',
-  'about.eox':
-    'Aerial: Sentinel-2 cloudless 2017, © EOX IT Services GmbH, CC BY 4.0.',
+  'attrib.sentinel2': 'Copernicus Sentinel-2 · Kartverket',
+  'about.sentinel2':
+    'Aerial: Copernicus Sentinel-2 (2025), cloud-free mosaic processed by Kartverket. Open data.',
   'about.mapterhorn': '3D terrain: Mapterhorn, derived from Kartverket elevation data.',
   'about.turrutebasen': 'Demo route: Kartverket Turrutebasen (jot21), CC BY 4.0.',
   'about.maplibre': 'The map engine is MapLibre GL JS (BSD-3).',

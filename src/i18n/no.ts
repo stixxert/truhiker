@@ -402,9 +402,9 @@ export const no = {
   'about.dataTitle': 'Datakilder',
   'about.kartverket': 'Bakgrunnskart og høydedata: Kartverket (topo, DTM), CC BY 4.0.',
   'attrib.kartverket': '©Kartverket',
-  'attrib.eox': 'Sentinel-2 © EOX (CC BY 4.0)',
-  'about.eox':
-    'Flyfoto: Sentinel-2 cloudless 2017, © EOX IT Services GmbH, CC BY 4.0.',
+  'attrib.sentinel2': 'Copernicus Sentinel-2 · Kartverket',
+  'about.sentinel2':
+    'Flyfoto: Copernicus Sentinel-2 (2025), skyfri mosaikk prosessert av Kartverket. Åpne data.',
   'about.mapterhorn': '3D-terreng: Mapterhorn, avledet av Kartverkets høydedata.',
   'about.turrutebasen': 'Demorute: Kartverket Turrutebasen (jot21), CC BY 4.0.',
   'about.maplibre': 'Kartmotoren er MapLibre GL JS (BSD-3).',

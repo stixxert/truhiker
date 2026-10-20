@@ -256,19 +256,30 @@ fallback for Topo/Grå, never as a button.**
 
 ### Flyfoto: which aerial actually shipped, and why that one
 
-**Sentinel-2 cloudless 2017 by EOX**, `s2cloudless-2017_3857`:
+**Kartverket's Sentinel-2 cloud-free mosaic**, `wms.geonorge.no/skwms1/wms.sentinel2`,
+layer `2025`:
 
-- `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2017_3857/default/g/{z}/{y}/{x}.jpg`
-  — note `{z}/{y}/{x}` (row before column), 256 px, JPEG.
-- **CC BY 4.0**, per the layer's abstract in the live WMTS capabilities
-  (`…released under Creative Commons Attribution 4.0 International License`).
-  Attribution shown in the map footer while the layer is active, and listed in
-  **About data** and `docs/LICENSES.md`.
-- **10 m native**, so `maxzoom: 14`: past that MapLibre overzooms the z14 tile
-  instead of requesting an interpolation the service would serve anyway. The
-  button is for orientation, not for reading ground detail — Topo is for that.
-- 2017 is deliberate. Every later year (2018–2025) is **CC BY-NC-SA 4.0**, which
-  forbids commercial use; 2017 is the last version under plain CC BY 4.0.
+- **Open data**: the Geonorge metadata says *Tilgangsrestriksjon: Åpne data* and
+  *"No conditions apply to access and use"*, with one credit condition: the mosaic
+  is processed Copernicus Sentinel-2 data and must be credited as
+  `Copernicus Sentinel-2 data (year) / processed by the Norwegian Mapping Authority`.
+  Shown in the map footer while the layer is active, in **About data** and in
+  `docs/LICENSES.md`.
+- **Same 10 m source as any Sentinel-2 mosaic.** This does not raise the
+  resolution — nothing key-free does (see the table below). What it changes is
+  provenance, currency (2025, updated annually) and cost: it is a Norwegian
+  official service on `wms.geonorge.no`, an origin already allowed for the topo
+  fallback, so the layer adds **no third-party host** and no second licence.
+- The service renders tiles per request rather than serving a CDN cache, so the
+  useful zoom stops at **z13** (10 m native at 61°N) and MapLibre overzooms past
+  it. That is what keeps the per-view request count and render cost down.
+- It replaced the EOX `s2cloudless-2017` WMTS that shipped first: same 10 m class
+  of imagery, older (2017), murkier colour, a third-party host, and every later
+  EOX year is CC BY-NC-SA (non-commercial), so 2017 was the only lawful EOX
+  option. Kartverket's own mosaic is simply the better version of the same data.
+- Known limitation: August composites still carry snow on the high plateaus, so
+  Jotunheimen's summits read white. That is the imagery, not a rendering bug, and
+  it is why Topo remains the layer for ground detail.
 
 ### Aerial options that were rejected (verified, so nobody re-litigates)
 

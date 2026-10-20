@@ -35,13 +35,21 @@ const WMS_URL =
   '&width=256&height=256&bbox={bbox-epsg-3857}';
 const MAPTERHORN_TILEJSON = 'https://tiles.mapterhorn.com/tilejson.json';
 /**
- * Sentinel-2 cloudless 2017 by EOX — the one key-free aerial mosaic that is
- * openly licensed for commercial use (CC BY 4.0). Tile order is {z}/{y}/{x},
- * 10 m native, so z14 is the last real level and MapLibre overzooms past it.
+ * Sentinel-2 cloud-free mosaic (yearly composite) from Kartverket, via Geonorge.
+ * Open data, same 10 m source as any Sentinel-2 mosaic, but Norwegian, current
+ * (2025) and served from the origin already allowed for the topo fallback — so
+ * the aerial layer costs no third-party host. The service renders tiles per
+ * request; at 10 m native the useful zoom stops at z13 and MapLibre overzooms.
+ *
+ * Credit required by the metadata: "Copernicus Sentinel-2 data (year) / processed
+ * by the Norwegian Mapping Authority".
  */
+const AERIAL_LAYER_YEAR = '2025';
 const AERIAL_URL =
-  'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2017_3857/default/g/{z}/{y}/{x}.jpg';
-const AERIAL_MAX_ZOOM = 14;
+  'https://wms.geonorge.no/skwms1/wms.sentinel2?service=WMS&version=1.3.0&request=GetMap' +
+  `&layers=${AERIAL_LAYER_YEAR}&styles=&format=image/jpeg&transparent=false&crs=EPSG:3857` +
+  '&width=256&height=256&bbox={bbox-epsg-3857}';
+const AERIAL_MAX_ZOOM = 13;
 
 /**
  * What the user can choose. The Geonorge WMS renders the *same* cartography and
@@ -227,7 +235,7 @@ function buildStyle(): StyleSpecification {
         tileSize: 256,
         minzoom: 0,
         maxzoom: AERIAL_MAX_ZOOM,
-        attribution: 'Sentinel-2 cloudless 2017 © EOX IT Services GmbH (CC BY 4.0)',
+        attribution: 'Copernicus Sentinel-2 (2025) / Kartverket',
       },
       'basemap-wms': {
         type: 'raster',
@@ -648,7 +656,7 @@ export class MapController {
             tileSize: 256,
             minzoom: 0,
             maxzoom: AERIAL_MAX_ZOOM,
-            attribution: 'Sentinel-2 cloudless 2017 © EOX IT Services GmbH (CC BY 4.0)',
+            attribution: 'Copernicus Sentinel-2 (2025) / Kartverket',
           }
         : {
             type: 'raster',

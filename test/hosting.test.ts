@@ -26,14 +26,13 @@ describe('static hosting contract', () => {
       'https://wfs.geonorge.no',
       'https://hoydedata.no',
       'https://api.met.no',
-      'https://tiles.maps.eox.at',
     ]) {
       expect(connect).toContain(host);
     }
     for (const host of [
       'https://cache.kartverket.no',
+      'https://wms.geonorge.no',
       'https://tiles.mapterhorn.com',
-      'https://tiles.maps.eox.at',
     ]) {
       expect(img).toContain(host);
     }

@@ -89,7 +89,7 @@ for (const file of [...walk(join(ROOT, 'src')), join(ROOT, 'index.html')]) {
 // ---------------------------------------------------------------------------
 
 /** Words that are the same in both languages: names, URLs, units, symbols. */
-const NEUTRAL = /^(?:TruHiker|Kartverket|Mapterhorn|Turrutebasen|MET Norway|OpenStreetMap|MapLibre GL JS|EOX Cloudless|CC BY 4\.0|ODbL 1\.0|m|km|°C)$/;
+const NEUTRAL = /^(?:TruHiker|Kartverket|Mapterhorn|Turrutebasen|MET Norway|OpenStreetMap|MapLibre GL JS|EOX Cloudless|Sentinel-2|CC BY 4\.0|ODbL 1\.0|m|km|°C)$/;
 const URLISH = /^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?$/i;
 const HAS_LETTERS = /[A-Za-zÆØÅæøå]/;
 

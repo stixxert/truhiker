@@ -3094,10 +3094,10 @@ export class App {
     // licence line for a basemap that is not displayed is not attribution.
     const aerial = current === 'aerial';
     this.elements.attribBasemap.href = aerial
-      ? 'https://cloudless.eox.at'
+      ? 'https://kartkatalog.geonorge.no/metadata/38a52b73-2ffb-47cc-9ecd-147ee18f62be'
       : 'https://www.kartverket.no';
     this.elements.attribBasemap.textContent = this.i18n.t(
-      aerial ? 'attrib.eox' : 'attrib.kartverket',
+      aerial ? 'attrib.sentinel2' : 'attrib.kartverket',
     );
   }
 
