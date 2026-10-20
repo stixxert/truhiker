@@ -74,8 +74,10 @@ input {
   display: none !important;
 }
 
+/* Focus is a neutral ring. Amber is the primary action's colour; a focused
+ * secondary button wearing it pretends to be the CTA. */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text);
   outline-offset: 2px;
 }
 
@@ -102,8 +104,10 @@ input {
 .topbar-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 9px 14px;
+  /* One gap for every cluster, and the same 12 px rail the map overlays use —
+     the bar had 13/8/22/6 gap values and three left origins. */
+  gap: 8px;
+  padding: 8px 12px;
   min-height: 50px;
 }
 
@@ -288,6 +292,8 @@ input {
      Save — the thing you reach for while editing — in the far corner from the
      route name and the route actions. */
   margin-left: 0;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
   flex-wrap: wrap;
   row-gap: 6px;
   justify-content: flex-end;
@@ -305,8 +311,14 @@ input {
 .tb-group + .tb-group,
 .topbar-more-body + .tb-group {
   border-left: 1px solid var(--line);
-  margin-left: 2px;
-  padding-left: 12px;
+  padding-left: 8px;
+}
+
+/* The save group used a bare rule while its neighbours used a bordered group:
+   two separator idioms 20 px apart. One of them. */
+.tb-group--save {
+  border-left: 1px solid var(--line);
+  padding-left: 8px;
 }
 
 /* Above the mobile breakpoint the ⋯ disclosure is not in play: its body lays out
@@ -484,7 +496,12 @@ input {
 }
 
 .btn:disabled {
-  opacity: 0.45;
+  /* A disabled control is a word that is not available yet, not a ghost
+     rectangle that still looks pressable: drop the fill and the border. */
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted-dim);
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
@@ -573,16 +590,19 @@ input {
   border: 1px solid var(--line-strong);
   background: var(--panel-2);
   border-radius: var(--r-ctl);
+  padding: 2px;
+  gap: 2px;
   overflow: hidden;
   height: 32px;
 }
 
 .seg-btn {
   border: 0;
+  border-radius: 4px;
   background: transparent;
   color: var(--muted);
-  padding: 0 11px;
-  font-size: var(--fs-3);
+  padding: 0 10px;
+  font-size: var(--fs-2);
   font-weight: 500;
   cursor: pointer;
   transition:
@@ -797,7 +817,8 @@ input {
   padding: 3px;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-ctl);
-  background: rgba(13, 22, 24, 0.94);
+  /* Same surface as the sheet and the map controls: the chrome has one colour. */
+  background: var(--panel);
   box-shadow: var(--shadow);
 }
 
@@ -814,10 +835,13 @@ input {
   border-color: transparent;
 }
 
-/* Inside the pill the segment is one surface: clip the fills to its corners and
- * drop the table-like dividers between options. */
+/* Inside the pill the segment is one surface: no second frame, no table-like
+ * dividers, fills clipped to a small corner. Nesting a bordered group inside a
+ * bordered pill inside a bordered cell is three edges in a 40 px control. */
 .map-style .seg {
-  border-radius: calc(var(--r-ctl) - 4px);
+  border: 0;
+  background: transparent;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -838,20 +862,41 @@ input {
 
 .map-style .seg-btn[aria-pressed='true'],
 .map-style .btn-toggle[aria-pressed='true'] {
-  background: var(--sel);
+  background: var(--panel-2);
   color: var(--text);
-  /* No weight change: a heavier label is a wider label. */
+  /* No weight change: a heavier label is a wider label. Selection is an amber
+     underline rather than another 6 % fill, which hover already uses — the
+     selected option and the hovered one were the same colour. */
   font-weight: 500;
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.map-style .seg-btn:hover:not([aria-pressed='true']),
+.map-style .btn:hover:not([aria-pressed='true']):not(:disabled) {
+  background: rgba(255, 255, 255, 0.055);
 }
 
 .map-style .seg-btn[aria-pressed='true']:hover,
 .map-style .btn-toggle[aria-pressed='true']:hover {
-  background: var(--sel);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* The 3D toggle sat 2 px below the segment because the two boxes were sized from
+   different rules; both are now 26 px on the same flex line. */
+.map-style .btn {
+  align-self: center;
 }
 
 /* The planning group: the mode switch and "new route" are the same thought, and
  * they are only meaningful together. */
+/* Creating a route and saving it are header actions. The drawer repeated both —
+ * and the two save rows even ordered status and button differently — so each fact
+ * now has exactly one owner. */
+.editor-dock-head #editor-new,
+.editor-panel .editor-save {
+  display: none;
+}
+
 .editor-dock-head .seg-mode {
   flex: 0 0 auto;
 }
@@ -889,6 +934,143 @@ input {
   .topbar-new {
     display: none;
   }
+
+  /* A 340 px drawer on a 390 px screen leaves the map — the thing you are told to
+     click — as a 50 px strip. Phones get the full width. Two classes: a later
+     `.editor-column` rule re-declared the desktop width and won. */
+  .map-wrap .editor-column {
+    width: 100%;
+    max-width: 100%;
+    max-height: 62%;
+  }
+
+  /* No pointer, so the hover readout is meaningless — and it was painting over
+     the Distanse/Stigning labels in a 38 px head. */
+  .profile-readout {
+    display: none;
+  }
+
+  /* The demo tag holds ~74 px of a 148 px meta row, truncating the route name to
+     "Memurub…". The name is the identity; the tag is the footnote. */
+  .route-meta .demo-details {
+    display: none;
+  }
+
+  /* One divider, not two: the actions wrapper and the save group each drew one. */
+  .topbar-actions {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  /* Creating a route is a header action on a desktop and a drawer action on a
+     phone, where the header has no room for it. The drawer is open by default. */
+  .editor-dock-head #editor-new {
+    display: inline-flex;
+  }
+
+  /* 40 px toggle beside a 32 px Save is two control sizes in one row. */
+  .topbar-more-label.btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* The disclosure body is the phone's menu: a sheet with its own scroll, a
+     full-width Import GPX at the top, and the nested "more" menu flowing inside it
+     instead of hanging 149 px past the frame. */
+  .topbar .topbar-actions .topbar-more-body {
+    height: auto;
+    max-height: min(66vh, 420px);
+    overflow-y: auto;
+    padding: 10px;
+    gap: 10px;
+  }
+
+  /* One column of full-width rows: a 2-up grid turned the sheet into a jumble of
+     half-width buttons with clipped outlines, and the design note above already
+     says a single column reads better on a phone. */
+  .topbar-more-body .tb-group {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  /* An unlabelled glyph among four labelled rows reads as a rendering fault. */
+  .topbar-more-body .btn-icon .btn-label {
+    display: inline;
+  }
+
+  .topbar-more-body .tb-group > .btn,
+  .topbar-more-body .tb-group > .seg,
+  .topbar-more-body .seg-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .topbar-more-toggle:checked ~ #btn-open {
+    position: absolute;
+    top: calc(100% + 14px);
+    left: 16px;
+    right: 16px;
+    width: auto;
+    margin: 0;
+    height: 36px;
+  }
+
+  /* The sheet already has a reserved row for Import GPX; keep that reservation
+     even when the groups wrap, or the button lands on top of them. */
+  .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-body {
+    padding-top: 60px;
+  }
+
+  /* The nested disclosure was a dropdown laid out at x=339–539 on a 390 px
+     screen. In the sheet it is not a disclosure at all: its items join the grid,
+     so About/Share/Download are one tap away instead of two. */
+  .topbar .tb-menu {
+    display: contents;
+  }
+
+  .topbar .tb-menu > summary {
+    display: none;
+  }
+
+  /* Two classes: the base `.tb-menu-body` is absolutely positioned further down
+     the file, and this block sits earlier, so one class lost to it. */
+  .topbar .tb-menu-body {
+    position: static;
+    width: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    background: transparent;
+  }
+
+  .topbar .tb-menu-body .menu-item {
+    justify-content: flex-start;
+  }
+
+  /* Anchored to the demo tag, `left: 0` put a 340 px panel's right edge at 462 px
+     on a 390 px screen. On a phone it is a sheet under the bar, not a popover
+     hanging off its trigger. */
+  .route-popover {
+    position: fixed;
+    top: 52px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-height: min(70vh, 460px);
+  }
+
+  /* The readout was clipped mid-number ("1 176 m oh · +0,") because it was one
+     nowrap line in a narrow box. Wrapping keeps every digit honest. */
+  .profile-readout {
+    white-space: normal;
+  }
 }
 
 @media (min-width: 761px) and (max-width: 1200px) {
@@ -904,11 +1086,18 @@ input {
   z-index: 6;
   display: flex;
   flex-direction: column;
-  background: rgba(13, 22, 24, 0.9);
+  background: var(--panel);
   border: 1px solid var(--line-strong);
-  border-radius: var(--r-card);
+  /* Same radius token as the style pill beside it: two overlays 30 px apart with
+     8 px and 6 px corners is the detail that reads as "assembled". */
+  border-radius: var(--r-ctl);
   overflow: hidden;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* The zoom pair is one control. A hairline between + and − cuts it in two. */
+.map-btn + .map-btn {
+  border-top: 0;
 }
 
 .map-btn {
@@ -1141,8 +1330,9 @@ input {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 38px;
-  padding: 0 12px 0 6px;
+  min-height: 38px;
+  flex-wrap: wrap;
+  padding: 0 12px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1306,8 +1496,11 @@ input {
 .stats {
   flex: none;
   display: grid;
+  /* Stretched, not fixed: five 152 px tracks stopped at x=904 of 1440 and left
+     the notice card ending mid-screen. Even tracks with a real gap fill the band
+     and keep every value on the same rhythm. */
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 14px;
+  gap: 24px;
   padding: 9px 16px calc(9px + env(safe-area-inset-bottom));
   background: var(--panel);
   border-top: 1px solid var(--line);
@@ -1344,6 +1537,15 @@ input {
   align-items: center;
   gap: 6px;
   min-width: 0;
+}
+
+.stat-value-row .btn {
+  align-self: center;
+}
+
+.stat-value-row .i {
+  width: 14px;
+  height: 14px;
 }
 
 .source-badge {
@@ -1750,17 +1952,21 @@ input {
   flex-direction: column;
   gap: 10px;
   padding: 0 12px 12px;
-  border-radius: 0 0 var(--r-panel) 0;
+  /* One rounded corner on a panel that is flush on two edges is neither a card
+     nor a drawer. Flush means flush: square, and opaque — a 97 % surface over a
+     detailed basemap reads as permanent smudge, and alpha without blur is the
+     tell. */
+  border-radius: 0;
   border: 1px solid var(--line-strong);
   border-top: 0;
   border-left: 0;
-  background: rgba(13, 22, 24, 0.97);
+  background: var(--panel);
   box-shadow: var(--shadow);
   overflow: hidden;
 }
 
 .editor-panel .panel-head {
-  padding: 10px 0 8px;
+  padding: 10px 12px 8px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -2054,7 +2260,14 @@ input {
 }
 
 .snap-toggle input {
-  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--text);
+}
+
+.snap-toggle {
+  gap: 7px;
 }
 
 .snap-radius input {
@@ -2215,8 +2428,10 @@ input {
   margin: 0 -13px;
   padding: 12px 13px 10px;
   border-bottom: 1px solid var(--line);
-  border-radius: var(--r-panel) var(--r-panel) 0 0;
-  background: var(--dock);
+  /* A rounded notch at the screen corner and a cool band over a warm panel read
+     as two components sharing a name. The head is the panel, not a card on it. */
+  border-radius: 0;
+  background: transparent;
 }
 
 .panel-head::after {
