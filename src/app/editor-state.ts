@@ -311,3 +311,19 @@ export function insertionIndexForClick(
   }
   return best;
 }
+
+/** What a bare key does to the editor, if anything. Pure, so it is testable. */
+export type EditorKeyAction = 'leave-mode' | 'undo' | 'delete-selection' | null;
+
+export function editorKeyAction(
+  mode: InteractionMode,
+  key: string,
+  options: { typing?: boolean; routePick?: boolean; panelOpen?: boolean } = {},
+): EditorKeyAction {
+  if (options.typing || options.panelOpen) return null;
+  if (mode === 'view') return null;
+  if (key === 'Escape') return options.routePick ? null : 'leave-mode';
+  if (key === 'Backspace' && mode === 'draw') return 'undo';
+  if (key === 'Delete' && mode === 'edit') return 'delete-selection';
+  return null;
+}

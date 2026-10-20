@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Leg, Trip } from '../src/contracts';
+import { defaultProfile, emptyTrip } from '../src/store/trip';
 import {
   DEFAULT_SNAP_RADIUS_M,
   availableCommands,
@@ -8,6 +9,7 @@ import {
   deleteLegCommand,
   deleteVertexCommand,
   drawPointCommand,
+  editorKeyAction,
   initialEditorState,
   insertionIndexForClick,
   moveVertexCommand,
@@ -230,5 +232,34 @@ describe('editor state', () => {
     // Near the last segment → insert at index 3.
     expect(insertionIndexForClick(line, { lon: 8.0029, lat: 61 }, project)).toBe(3);
     expect(insertionIndexForClick([], { lon: 8, lat: 61 }, project)).toBe(0);
+  });
+});
+
+describe('a new trip', () => {
+  it('starts empty, in draw mode, with no active leg until the first point', () => {
+    const trip = emptyTrip('Untitled route', defaultProfile());
+    expect(trip.legs).toEqual([]);
+
+    const state = setMode(initialEditorState(trip), 'draw', trip);
+    expect(state.mode).toBe('draw');
+    // Nothing to act on yet: the first map click creates the leg (drawPoint).
+    expect(state.activeLegId).toBeNull();
+    expect(availableCommands(state, trip).canDeleteLeg).toBe(false);
+  });
+});
+
+describe('keyboard contract', () => {
+  it('maps Escape, Backspace and Delete to the mode they belong to', () => {
+    expect(editorKeyAction('draw', 'Escape')).toBe('leave-mode');
+    expect(editorKeyAction('edit', 'Escape')).toBe('leave-mode');
+    expect(editorKeyAction('draw', 'Backspace')).toBe('undo');
+    expect(editorKeyAction('edit', 'Backspace')).toBeNull();
+    expect(editorKeyAction('edit', 'Delete')).toBe('delete-selection');
+    expect(editorKeyAction('draw', 'Delete')).toBeNull();
+    // View mode has no editor keys, and typing or an open panel swallows them all.
+    expect(editorKeyAction('view', 'Escape')).toBeNull();
+    expect(editorKeyAction('draw', 'Backspace', { typing: true })).toBeNull();
+    expect(editorKeyAction('draw', 'Escape', { panelOpen: true })).toBeNull();
+    expect(editorKeyAction('draw', 'Escape', { routePick: true })).toBeNull();
   });
 });

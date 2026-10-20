@@ -89,6 +89,7 @@ import { buildTripLibraryView } from '../ui/trip-library-view';
 import type { WeatherPanelState } from '../ui/weather-view';
 import { MemoryWeatherCache } from '../lib/weather-cache';
 import { findLeg, flattenTrip } from '../lib/trip-route';
+import { defaultProfile, emptyTrip } from '../store/trip';
 import { loadTrailNetwork, type TrailNetworkFailureCode } from '../route/trail-network';
 import {
   routeBetweenLines,
@@ -105,12 +106,14 @@ import {
   deleteLegCommand,
   deleteVertexCommand,
   drawPointCommand,
+  editorKeyAction,
   initialEditorState,
   insertVertexCommand,
   moveVertexCommand,
   noteDrawnPoint,
   renameCommand,
   reverseCommand,
+  selectLeg,
   selectVertex,
   setMode,
   setRadius,
@@ -246,6 +249,13 @@ export class App {
   private trips: TripLibraryDialog | null = null;
   private settings: TripSettingsDialog | null = null;
   private editorUi: EditorUiState = initialEditorState(null);
+  /**
+   * The mode is the user's until they change it. Trip-state resets (adopting a
+   * saved trip, re-reading one after a save, the routing flow) rebuild the
+   * editor state from scratch; without this, any of them could silently drop a
+   * user out of Draw or Edit mid-task.
+   */
+  private editorMode: InteractionMode = 'view';
   private snapTrackerLine: string | null = null;
   private routePick: { start: LonLat | null; busy: boolean } | null = null;
   private snapIndicatorSnap: SnapResult | null = null;
@@ -342,6 +352,7 @@ export class App {
     paceError: HTMLElement;
     paceHint: HTMLElement;
     toast: HTMLElement;
+    newRouteButton: HTMLButtonElement;
     saveButton: HTMLButtonElement;
     saveStatus: HTMLElement;
     downloadGpxButton: HTMLButtonElement;
@@ -351,6 +362,13 @@ export class App {
     settingsButton: HTMLButtonElement;
     editorToolbar: HTMLElement;
     weatherPanel: HTMLElement;
+    editorPanel: HTMLElement;
+    editorTrip: HTMLElement;
+    editorLegs: HTMLElement;
+    editorPanelClose: HTMLButtonElement;
+    editorSave: HTMLButtonElement;
+    editorSaveStatus: HTMLElement;
+    saveGroup: HTMLElement;
     supplyPanel: HTMLElement;
     tripsDialog: HTMLDialogElement;
     settingsDialog: HTMLDialogElement;
@@ -407,6 +425,7 @@ export class App {
       paceError: byId('pace-error'),
       paceHint: byId('pace-hint'),
       toast: byId('toast'),
+      newRouteButton: byId<HTMLButtonElement>('btn-new'),
       saveButton: byId<HTMLButtonElement>('btn-save'),
       saveStatus: byId('save-status'),
       tripsButton: byId<HTMLButtonElement>('btn-trips'),
@@ -415,6 +434,13 @@ export class App {
       settingsButton: byId<HTMLButtonElement>('btn-settings'),
       editorToolbar: byId('editor-toolbar'),
       weatherPanel: byId('weather-panel'),
+      editorPanel: byId('editor-panel'),
+      editorTrip: byId('editor-trip'),
+      editorLegs: byId('editor-legs'),
+      editorPanelClose: byId<HTMLButtonElement>('editor-panel-close'),
+      editorSave: byId<HTMLButtonElement>('editor-save'),
+      editorSaveStatus: byId('editor-save-status'),
+      saveGroup: this.doc.querySelector<HTMLElement>('.save-group') as HTMLElement,
       supplyPanel: byId('supply-panel'),
       tripsDialog: byId<HTMLDialogElement>('trips-dialog'),
       settingsDialog: byId<HTMLDialogElement>('settings-dialog'),
@@ -546,7 +572,7 @@ export class App {
       onRedo: () => this.redoEdit(),
       onAction: (action) => this.runEditorAction(action),
       onRename: (name) => this.renameLeg(name),
-    });
+    }, this.elements.editorPanel);
     this.toolbar.setVisible(true);
 
     this.weatherPanel = new WeatherPanel(this.elements.weatherPanel, this.i18n, {
@@ -753,6 +779,20 @@ export class App {
     // a second save: the session queues them.
     this.elements.saveButton.setAttribute('aria-busy', String(isPendingSave(status)));
 
+    // The dock carries the same action while editing, because saving belongs next
+    // to the work; the top bar keeps it for every other mode, and never both.
+    const text = saveStatusText(status, this.i18n);
+    const dockStatus = this.elements.editorSaveStatus;
+    dockStatus.textContent = text;
+    dockStatus.dataset.kind = status.kind;
+    dockStatus.hidden = text.length === 0;
+    if (detail) dockStatus.title = detail;
+    else dockStatus.removeAttribute('title');
+    this.elements.editorSave.disabled = !session?.trip;
+    this.elements.editorSave.setAttribute('aria-busy', String(isPendingSave(status)));
+    const editing = this.session?.trip !== null && this.editorUi.mode !== 'view';
+    this.elements.saveGroup.hidden = Boolean(editing);
+
     if (status.kind === 'error') {
       const signature = `${status.code ?? ''}:${status.message ?? ''}`;
       if (this.lastSaveBanner !== signature) {
@@ -776,9 +816,18 @@ export class App {
 
   // --- trips ---------------------------------------------------------------
 
+  /**
+   * Reset the editor for a trip, keeping the current mode when it is the *same*
+   * trip. A save round-trip or a re-adopt must not throw a user out of Draw or
+   * Edit: the mode is theirs until they change it or open another trip.
+   */
+  private editorStateFor(trip: Trip | null): EditorUiState {
+    return { ...initialEditorState(trip, this.editorUi.snapping), mode: this.editorMode };
+  }
+
   private adoptTrip(trip: Trip, options: { save?: 'now' | 'deferred' | 'manual' } = {}): void {
     this.session?.adopt(trip, { save: options.save ?? 'deferred' });
-    this.editorUi = initialEditorState(trip, this.editorUi.snapping);
+    this.editorUi = this.editorStateFor(trip);
     this.overlay?.setTrip(trip);
     this.overlay?.setMode(this.editorUi.mode);
     this.overlay?.setSelection(null);
@@ -902,7 +951,7 @@ export class App {
       return;
     }
     this.trips?.close();
-    this.editorUi = initialEditorState(trip, this.editorUi.snapping);
+    this.editorUi = this.editorStateFor(trip);
     this.overlay?.setTrip(trip);
     this.overlay?.setMode(this.editorUi.mode);
     this.overlay?.setSelection(null);
@@ -1033,6 +1082,46 @@ export class App {
     );
   }
 
+  /**
+   * Start from nothing: an empty trip that keeps the current profile, in Draw
+   * mode, with the first map click creating the first point. Before this, the
+   * only ways into the app were a file and the demo — a new route was not a thing
+   * the product could do.
+   */
+  private newRoute(): void {
+    const session = this.session;
+    if (!session || !this.engines) return;
+    const profile = session.trip?.profile ?? defaultProfile();
+    const trip = emptyTrip(this.i18n.t('route.untitled'), profile);
+    session.adopt(trip, { save: 'manual' });
+    this.editorUi = setMode(
+      initialEditorState(trip, this.editorUi.snapping),
+      'draw',
+      trip,
+    );
+    this.overlay?.setTrip(trip);
+    this.overlay?.setMode('draw');
+    this.overlay?.setSelection(null);
+    this.showEmptyState(false);
+    this.state.route = null;
+    this.state.profile = null;
+    this.state.profileStatus = 'empty';
+    this.state.cursorDistance = null;
+    this.job?.cancel();
+    this.job = null;
+    this.chart.setProfile(null);
+    this.map?.setRoute(null);
+    this.updateRouteMeta();
+    this.renderProfilePanel();
+    this.renderStats();
+    this.renderReadout(null);
+    this.renderEditor();
+    this.renderSaveStatus();
+    this.renderTrips();
+    this.resetWeatherForTrip();
+    this.showToast(this.i18n.t('route.created', { name: trip.name }));
+  }
+
   private async importTripFile(file: File): Promise<void> {
     const session = this.session;
     if (!session) {
@@ -1051,7 +1140,7 @@ export class App {
       text = await file.text();
       const trip = await session.importFile(text, file.name);
       this.banners.dismiss('import-failed');
-      this.editorUi = initialEditorState(trip, this.editorUi.snapping);
+      this.editorUi = this.editorStateFor(trip);
       this.overlay?.setTrip(trip);
       this.overlay?.setMode(this.editorUi.mode);
       this.overlay?.setSelection(null);
@@ -1119,7 +1208,7 @@ export class App {
     this.job?.cancel();
     this.job = null;
     session.adopt(trip, { save: 'manual' });
-    this.editorUi = initialEditorState(trip, this.editorUi.snapping);
+    this.editorUi = this.editorStateFor(trip);
     this.overlay?.setTrip(trip);
     this.overlay?.setSelection(null);
     this.state.route = null;
@@ -1592,7 +1681,20 @@ export class App {
 
   // --- editor --------------------------------------------------------------
 
+  /**
+   * Delete what is selected. A single vertex goes through the undoable command;
+   * a span is left to the inspector's explicit "Trim to span" / "Delete span",
+   * because a silent multi-vertex delete is one keystroke away from a disaster.
+   */
+  private deleteSelection(): void {
+    const selection = this.editorUi.selection;
+    if (!selection) return;
+    if (selection.to !== null && selection.to !== selection.from) return;
+    this.runEditorAction('delete-vertex');
+  }
+
   private switchMode(mode: InteractionMode): void {
+    this.editorMode = mode;
     if (!this.engines || !this.session?.trip) return;
     this.cancelRoute();
     this.editorUi = setMode(this.editorUi, mode, this.session.trip);
@@ -2099,9 +2201,81 @@ export class App {
     });
   }
 
+  /**
+   * The editor dock: the trip, its legs, and (from R3) what can be done to the
+   * selection. The leg list is the thing the old bar never had — the object the
+   * verbs act on, visible and clickable.
+   */
+  private renderEditorPanel(trip: Trip | null): void {
+    const panel = this.elements.editorPanel;
+    const open = trip !== null && (this.editorUi.mode === 'draw' || this.editorUi.mode === 'edit');
+    panel.hidden = !open;
+    if (!open || !trip) {
+      this.map?.setLegHighlight(null);
+      // Leaving the dock puts the trip-level Save back in the bar.
+      this.renderSaveStatus();
+      return;
+    }
+
+    const flat = flattenTrip(trip);
+    this.elements.editorTrip.textContent =
+      trip.legs.length === 0
+        ? this.i18n.t('editor.noLegs')
+        : this.i18n.t(
+            trip.legs.length === 1 ? 'editor.tripSummaryOne' : 'editor.tripSummaryMany',
+            {
+            legs: this.i18n.format.number(trip.legs.length, { maximumFractionDigits: 0 }),
+            distance: this.i18n.format.distance(flat.distanceM),
+            points: this.i18n.format.number(flat.points.length, { maximumFractionDigits: 0 }),
+          },
+          );
+
+    const rows = trip.legs.map((leg, index) => {
+      const button = this.doc.createElement('button');
+      button.type = 'button';
+      button.className = 'leg-row';
+      button.dataset.legId = leg.id;
+      button.setAttribute('role', 'listitem');
+      button.setAttribute('aria-current', String(leg.id === this.editorUi.activeLegId));
+
+      const name = this.doc.createElement('span');
+      name.className = 'leg-row-name';
+      name.textContent =
+        leg.name?.trim() || this.i18n.t('editor.legRowName', { n: String(index + 1) });
+
+      const meta = this.doc.createElement('span');
+      meta.className = 'leg-row-meta';
+      meta.textContent = this.i18n.t('editor.legRowMeta', {
+        distance: leg.distanceM === null ? '—' : this.i18n.format.distance(leg.distanceM),
+        points: this.i18n.format.number(leg.points.length, { maximumFractionDigits: 0 }),
+      });
+
+      button.append(name, meta);
+      button.addEventListener('click', () => this.selectLegInPanel(leg.id));
+      return button;
+    });
+    this.elements.editorLegs.replaceChildren(...rows);
+    this.renderSaveStatus();
+  }
+
+  /** A leg row: make it the active leg, frame it on the map, show it in the dock. */
+  private selectLegInPanel(legId: string): void {
+    const trip = this.session?.trip ?? null;
+    const leg = findLeg(trip, legId);
+    this.editorUi = selectLeg(this.editorUi, legId);
+    this.overlay?.setSelection(null);
+    this.overlay?.setMode(this.editorUi.mode);
+    this.renderEditor();
+    if (!leg || !this.map) return;
+    const points = leg.points.map((point) => ({ lon: point.lon, lat: point.lat }));
+    this.map.setLegHighlight(points);
+    this.map.fitToPoints(points);
+  }
+
   private renderEditor(): void {
     if (!this.toolbar) return;
     const trip = this.session?.trip ?? null;
+    this.renderEditorPanel(trip);
     const available = this.engines !== null && trip !== null;
     const legId = this.editorUi.selection?.legId ?? this.editorUi.activeLegId;
     const leg = findLeg(trip, legId);
@@ -2558,9 +2732,15 @@ export class App {
     progressBar.hidden = true;
 
     if (profileStatus === 'empty') {
-      this.elements.profileStatus.textContent = this.i18n.t('profile.empty');
-      title.textContent = this.i18n.t('profile.empty');
-      detail.textContent = this.i18n.t('profile.emptyHint');
+      // An empty trip in Draw mode is not "no route loaded": it is waiting for the
+      // first click, and the overlay should say so.
+      const drawing = this.editorUi.mode === 'draw';
+      const message = drawing ? this.i18n.t('profile.drawStart') : this.i18n.t('profile.empty');
+      this.elements.profileStatus.textContent = message;
+      title.textContent = message;
+      detail.textContent = drawing
+        ? this.i18n.t('profile.drawStartHint')
+        : this.i18n.t('profile.emptyHint');
       setOverlay(true);
       return;
     }
@@ -2643,15 +2823,20 @@ export class App {
 
   private updateRouteMeta(): void {
     const { route, fatal, demoMeta } = this.state;
+    const trip = this.session?.trip ?? null;
     // There is nothing to download without a route, and a menu entry that does
     // nothing is worse than one that is visibly unavailable.
     this.elements.downloadGpxButton.disabled = route === null;
     if (!route) {
-      this.elements.routeMeta.hidden = fatal === null;
+      // An empty trip still has a name worth showing — and no origin tag, because
+      // nothing has been drawn or imported yet.
+      const showName = trip !== null || fatal !== null;
+      this.elements.routeMeta.hidden = !showName;
       this.elements.demoDetails.hidden = true;
       this.elements.routeTag.hidden = true;
-      if (fatal === null) return;
-      this.elements.routeName.textContent = this.i18n.t('route.none');
+      if (!showName) return;
+      this.elements.routeName.textContent = trip?.name ?? this.i18n.t('route.none');
+      this.doc.title = `${trip?.name ?? this.i18n.t('route.none')} · ${this.i18n.t('app.name')}`;
       return;
     }
     this.elements.routeMeta.hidden = false;
@@ -2877,6 +3062,11 @@ export class App {
     const openButton = byId<HTMLButtonElement>('btn-open');
     openButton.addEventListener('click', () => this.openFilePicker());
 
+    this.elements.newRouteButton.addEventListener('click', () => this.newRoute());
+
+    this.elements.editorPanelClose.addEventListener('click', () => this.switchMode('view'));
+    this.elements.editorSave.addEventListener('click', () => void this.saveTrip());
+
     this.elements.fileInput.addEventListener('change', () => {
       const file = this.elements.fileInput.files?.[0];
       if (file) void this.loadFile(file);
@@ -2958,6 +3148,31 @@ export class App {
       if (event.key !== 'Escape' || !this.routePick) return;
       event.preventDefault();
       this.cancelRoute();
+    });
+
+    // The mode has a keyboard contract, and it is stated in the hint line:
+    // Escape leaves drawing/editing, Backspace takes back the last edit while
+    // drawing, Delete removes the current selection while editing.
+    this.doc.addEventListener('keydown', (event) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      // A handler that already consumed this key (the route-pick Escape, a dialog)
+      // has decided what it meant; do not act on the same press twice.
+      if (event.defaultPrevented) return;
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target?.isContentEditable === true;
+      const action = editorKeyAction(this.editorUi.mode, event.key, {
+        typing,
+        routePick: this.routePick !== null,
+        panelOpen: this.elements.demoDetails.open,
+      });
+      if (action === null) return;
+      event.preventDefault();
+      if (action === 'leave-mode') this.switchMode('view');
+      else if (action === 'undo') this.undoEdit();
+      else this.deleteSelection();
     });
 
     // Ctrl/Cmd+S saves the open trip even when no editor field has focus.

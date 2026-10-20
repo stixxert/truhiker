@@ -232,6 +232,11 @@
             <span data-i18n="action.importGpx">Importer GPX</span>
           </button>
 
+          <button class="btn btn-open" id="btn-new" type="button" data-i18n-aria-label="action.newRoute">
+            <svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>
+            <span data-i18n="action.newRoute">New route</span>
+          </button>
+
           <div class="topbar-actions">
             <label class="topbar-more-label btn btn-icon" for="topbar-more" aria-hidden="true">
               <svg class="i" aria-hidden="true"><use href="#i-more" /></svg>
@@ -427,54 +432,102 @@
             </button>
           </div>
 
-          <div class="editor-toolbar" id="editor-toolbar" hidden>
-            <div class="editor-row editor-row--main">
-              <div class="seg seg-mode" role="group" data-i18n-aria-label="editor.mode">
-                <button class="seg-btn" type="button" data-mode="view" aria-pressed="true" data-i18n="editor.view">
-                  Vis
+          <div class="editor-column" id="editor-column">
+            <div class="editor-toolbar" id="editor-toolbar" hidden>
+              <div class="editor-row editor-row--main">
+                <div class="seg seg-mode" role="group" data-i18n-aria-label="editor.mode">
+                  <button class="seg-btn" type="button" data-mode="view" aria-pressed="true" data-i18n="editor.view">
+                    Vis
+                  </button>
+                  <button class="seg-btn" type="button" data-mode="draw" aria-pressed="false" data-i18n="editor.draw">
+                    Tegn
+                  </button>
+                  <button class="seg-btn" type="button" data-mode="edit" aria-pressed="false" data-i18n="editor.edit">
+                    Rediger
+                  </button>
+                </div>
+                <button
+                  class="btn btn-small"
+                  id="btn-undo"
+                  type="button"
+                  data-i18n-aria-label="editor.undo"
+                  data-i18n-title="editor.undo"
+                >
+                  <svg class="i" aria-hidden="true"><use href="#i-undo" /></svg>
                 </button>
-                <button class="seg-btn" type="button" data-mode="draw" aria-pressed="false" data-i18n="editor.draw">
-                  Tegn
+                <button
+                  class="btn btn-small"
+                  id="btn-redo"
+                  type="button"
+                  data-i18n-aria-label="editor.redo"
+                  data-i18n-title="editor.redo"
+                >
+                  <svg class="i" aria-hidden="true"><use href="#i-redo" /></svg>
                 </button>
-                <button class="seg-btn" type="button" data-mode="edit" aria-pressed="false" data-i18n="editor.edit">
-                  Rediger
+                <span class="snap-indicator" id="snap-indicator" role="status" aria-live="polite"></span>
+              </div>
+            </div>
+
+            <aside class="editor-panel" id="editor-panel" hidden aria-labelledby="editor-panel-title">
+              <header class="panel-head">
+                <h2 id="editor-panel-title" data-i18n="editor.panelTitle">Edit route</h2>
+                <button
+                  class="icon-btn"
+                  id="editor-panel-close"
+                  type="button"
+                  data-i18n-aria-label="editor.closePanel"
+                >
+                  <svg class="i" aria-hidden="true"><use href="#i-close" /></svg>
+                </button>
+              </header>
+              <p class="editor-trip" id="editor-trip"></p>
+              <div class="editor-legs" id="editor-legs" data-i18n-aria-label="editor.legsTitle" role="list"></div>
+
+              <div class="editor-inspector" id="editor-actions" hidden>
+                <span class="editor-selection" id="editor-selection"></span>
+                <label class="leg-name">
+                  <span data-i18n="editor.legName">Etappenavn</span>
+                  <input id="leg-name" type="text" maxlength="120" />
+                </label>
+                <button class="btn btn-small" id="editor-rename-apply" type="button" data-i18n="editor.renameApply">
+                  Lagre navn
+                </button>
+                <button class="btn btn-small" id="btn-vertex-delete" type="button" data-i18n="editor.deleteVertex">
+                  Slett punkt
+                </button>
+                <button class="btn btn-small" id="btn-split" type="button" data-i18n="editor.split">
+                  Del etappe
+                </button>
+                <button class="btn btn-small" id="btn-trim" type="button" data-i18n="editor.trim">
+                  Klipp til
+                </button>
+                <button class="btn btn-small" id="btn-reverse" type="button" data-i18n="editor.reverse">
+                  Snu etappe
+                </button>
+                <button
+                  class="btn btn-small btn-reroute"
+                  id="btn-reroute"
+                  type="button"
+                  data-i18n="editor.reroute"
+                  data-i18n-title="editor.rerouteHint"
+                >
+                  Reroute
+                </button>
+                <button class="btn btn-small" id="btn-route" type="button" data-i18n="editor.route" data-i18n-title="editor.routeHint">
+                  Rute
+                </button>
+                <button class="btn btn-small" id="btn-leg-delete" type="button" data-i18n="editor.deleteLeg">
+                  Slett etappe
                 </button>
               </div>
-              <button
-                class="btn btn-small"
-                id="btn-undo"
-                type="button"
-                data-i18n-aria-label="editor.undo"
-                data-i18n-title="editor.undo"
-              >
-                <svg class="i" aria-hidden="true"><use href="#i-undo" /></svg>
-              </button>
-              <button
-                class="btn btn-small"
-                id="btn-redo"
-                type="button"
-                data-i18n-aria-label="editor.redo"
-                data-i18n-title="editor.redo"
-              >
-                <svg class="i" aria-hidden="true"><use href="#i-redo" /></svg>
-              </button>
-              <label class="snap-toggle">
-                <input type="checkbox" id="snap-enabled" checked data-i18n-aria-label="editor.snap" />
-                <span data-i18n="editor.snap">Snapp</span>
-              </label>
-              <!-- Mobile-only disclosure: radius and the point count stay reachable
-                   without spending a second row of map. CSS-only, as in the header. -->
-              <input
-                type="checkbox"
-                id="editor-more"
-                class="editor-more-toggle"
-                aria-label="Mer"
-                data-i18n-aria-label="action.more"
-              />
-              <label class="editor-more-label btn btn-small" for="editor-more">
-                <svg class="i" aria-hidden="true"><use href="#i-more" /></svg>
-              </label>
-              <div class="editor-more-body">
+
+              <p class="editor-hint" id="editor-hint"></p>
+
+              <div class="editor-settings">
+                <label class="snap-toggle">
+                  <input type="checkbox" id="snap-enabled" checked data-i18n-aria-label="editor.snap" />
+                  <span data-i18n="editor.snap">Snapp</span>
+                </label>
                 <label class="snap-radius">
                   <span data-i18n="editor.radius">Radius</span>
                   <input id="snap-radius" type="number" min="20" max="300" step="5" value="75" inputmode="numeric" />
@@ -482,51 +535,18 @@
                 </label>
                 <span class="editor-count" id="editor-count"></span>
               </div>
-            </div>
 
-            <div class="editor-row editor-row--actions" id="editor-actions" hidden>
-              <span class="editor-selection" id="editor-selection"></span>
-              <button class="btn btn-small" id="btn-vertex-delete" type="button" data-i18n="editor.deleteVertex">
-                Slett punkt
-              </button>
-              <button class="btn btn-small" id="btn-split" type="button" data-i18n="editor.split">
-                Del etappe
-              </button>
-              <button class="btn btn-small" id="btn-reverse" type="button" data-i18n="editor.reverse">
-                Snu etappe
-              </button>
-              <button class="btn btn-small" id="btn-trim" type="button" data-i18n="editor.trim">
-                Klipp til
-              </button>
-              <button class="btn btn-small" id="btn-leg-delete" type="button" data-i18n="editor.deleteLeg">
-                Slett etappe
-              </button>
-              <label class="leg-name">
-                <span data-i18n="editor.legName">Etappenavn</span>
-                <input id="leg-name" type="text" maxlength="120" />
-              </label>
-              <button class="btn btn-small" id="editor-rename-apply" type="button" data-i18n="editor.renameApply">
-                Lagre navn
-              </button>
-              <button
-                class="btn btn-small btn-reroute"
-                id="btn-reroute"
-                type="button"
-                data-i18n="editor.reroute"
-                data-i18n-title="editor.rerouteHint"
-              >
-                Reroute
-              </button>
-              <button class="btn btn-small" id="btn-route" type="button" data-i18n="editor.route" data-i18n-title="editor.routeHint">
-                Rute
-              </button>
-            </div>
+              <div class="editor-save">
+                <button class="btn btn-primary btn-small" id="editor-save" type="button" data-i18n="action.save">
+                  Lagre
+                </button>
+                <span class="editor-save-state" id="editor-save-status" role="status" aria-live="polite"></span>
+              </div>
 
-            <div class="editor-row editor-row--hints">
-              <span class="snap-indicator" id="snap-indicator" role="status" aria-live="polite"></span>
-              <span class="offtrail-legend" id="offtrail-legend"></span>
-              <span class="editor-hint" id="editor-hint"></span>
-            </div>
+              <div class="editor-status">
+                <span class="offtrail-legend" id="offtrail-legend"></span>
+              </div>
+            </aside>
           </div>
 
           <aside class="weather-panel" id="weather-panel" hidden aria-labelledby="weather-title">

@@ -98,30 +98,40 @@ export class EditorToolbar {
   private readonly hint: HTMLElement;
   private readonly count: HTMLElement;
 
-  constructor(root: HTMLElement, i18n: I18n, handlers: EditorToolbarHandlers) {
+  /**
+   * @param dock The editor dock, when the actions live there rather than in the
+   *   bar. The bar keeps modes, history and the snap controls; the dock holds
+   *   what can be done to the selected object.
+   */
+  constructor(
+    root: HTMLElement,
+    i18n: I18n,
+    handlers: EditorToolbarHandlers,
+    dock: HTMLElement = root,
+  ) {
     this.root = root;
     this.i18n = i18n;
     this.handlers = handlers;
     this.modeButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-mode]')];
-    this.snapToggle = required<HTMLInputElement>(root, 'snap-enabled');
-    this.radius = required<HTMLInputElement>(root, 'snap-radius');
+    this.snapToggle = required<HTMLInputElement>(dock, 'snap-enabled');
+    this.radius = required<HTMLInputElement>(dock, 'snap-radius');
     this.undo = required<HTMLButtonElement>(root, 'btn-undo');
     this.redo = required<HTMLButtonElement>(root, 'btn-redo');
-    this.actionsRow = required(root, 'editor-actions');
-    this.selectionLabel = required(root, 'editor-selection');
-    this.legNameInput = required<HTMLInputElement>(root, 'leg-name');
-    this.renameButton = required<HTMLButtonElement>(root, 'editor-rename-apply');
+    this.actionsRow = required(dock, 'editor-actions');
+    this.selectionLabel = required(dock, 'editor-selection');
+    this.legNameInput = required<HTMLInputElement>(dock, 'leg-name');
+    this.renameButton = required<HTMLButtonElement>(dock, 'editor-rename-apply');
     this.legNameField = this.legNameInput.closest('.leg-name') ?? this.legNameInput;
     this.snapIndicator = required(root, 'snap-indicator');
-    this.offTrail = required(root, 'offtrail-legend');
-    this.hint = required(root, 'editor-hint');
-    this.count = required(root, 'editor-count');
+    this.offTrail = required(dock, 'offtrail-legend');
+    this.hint = required(dock, 'editor-hint');
+    this.count = required(dock, 'editor-count');
 
     this.actionButtons = new Map();
     for (const [action, id] of Object.entries(ACTION_IDS) as Array<
       [Exclude<EditorAction, 'rename'>, string]
     >) {
-      const button = required<HTMLButtonElement>(root, id);
+      const button = required<HTMLButtonElement>(dock, id);
       this.actionButtons.set(action, button);
       button.addEventListener('click', () => this.handlers.onAction(action));
     }
@@ -197,6 +207,9 @@ export class EditorToolbar {
     this.actionsRow.hidden = visibleActions === 0;
 
     this.snapIndicator.textContent = model.snapIndicator;
+    // The bar truncates it; the full sentence is one hover away.
+    if (model.snapIndicator) this.snapIndicator.title = model.snapIndicator;
+    else this.snapIndicator.removeAttribute('title');
     this.snapIndicator.dataset.state = model.snapState;
     this.offTrail.replaceChildren();
     if (model.offTrailSpans.length === 0) {

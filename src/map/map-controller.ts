@@ -445,6 +445,7 @@ function buildStyle(): StyleSpecification {
         attribution: '©Kartverket',
       },
       route: { type: 'geojson', data: EMPTY_LINE },
+      'leg-highlight': { type: 'geojson', data: EMPTY_LINE },
       'route-endpoints': { type: 'geojson', data: EMPTY_POINTS },
       resupply: {
         type: 'geojson',
@@ -516,6 +517,17 @@ function buildStyle(): StyleSpecification {
           'line-color': '#4fae9c',
           'line-opacity': 0.95,
           'line-width': ['interpolate', ['linear'], ['zoom'], 3, 1.4, 8, 2.2, 13, 3.4, 16, 4.4],
+        },
+      },
+      {
+        id: 'leg-highlight',
+        type: 'line',
+        source: 'leg-highlight',
+        layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+        paint: {
+          'line-color': '#e0a45a',
+          'line-opacity': 0.9,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 3, 4, 8, 6, 13, 9, 16, 12],
         },
       },
       {
@@ -1004,6 +1016,52 @@ export class MapController {
   // -------------------------------------------------------------------------
   // Route, cursor, camera
   // -------------------------------------------------------------------------
+
+  /**
+   * Draw one leg on top of the route, so the leg selected in the trip list is
+   * also the leg you can see. `null` clears it.
+   */
+  setLegHighlight(points: readonly LonLat[] | null): void {
+    const source = this.map.getSource('leg-highlight');
+    if (source && 'setData' in source) {
+      (source as { setData(data: GeoJSON.GeoJSON): void }).setData({
+        type: 'FeatureCollection',
+        features:
+          points && points.length >= 2
+            ? [
+                {
+                  type: 'Feature',
+                  properties: {},
+                  geometry: { type: 'LineString', coordinates: points.map((p) => [p.lon, p.lat]) },
+                },
+              ]
+            : [],
+      });
+    }
+    if (this.map.getLayer('leg-highlight')) {
+      this.map.setLayoutProperty('leg-highlight', 'visibility', points ? 'visible' : 'none');
+    }
+  }
+
+  /** Frame a set of points, or do nothing when there is nothing to frame. */
+  fitToPoints(points: readonly LonLat[]): void {
+    if (points.length === 0) return;
+    let west = points[0].lon;
+    let east = points[0].lon;
+    let south = points[0].lat;
+    let north = points[0].lat;
+    for (const point of points) {
+      if (point.lon < west) west = point.lon;
+      if (point.lon > east) east = point.lon;
+      if (point.lat < south) south = point.lat;
+      if (point.lat > north) north = point.lat;
+    }
+    this.map.fitBounds([west, south, east, north], {
+      padding: 80,
+      duration: this.reducedMotion ? 0 : 400,
+      maxZoom: 15,
+    });
+  }
 
   setRoute(route: Route | null, options: { fit: boolean } = { fit: true }): void {
     const coordinates = route ? displayCoordinates(route.points) : [];

@@ -9,9 +9,10 @@ weather the walk will face.
 
 ## What it does
 
-- **Routes.** Import GPX or GeoJSON, or draw on the map. Move, insert, split,
-  reverse, trim, merge and undo. Snapping follows mapped trails; where no trail is
-  near, the line is dashed and marked off-trail.
+- **Routes.** Start a new route, import GPX or GeoJSON, or draw on the map. The
+  editor shows the trip and its legs, and only the actions that apply to what you
+  have selected: move, insert, split, reverse, trim, merge, undo. Snapping follows
+  mapped trails; where no trail is near, the line is dashed and marked off-trail.
 - **Routing.** Pick two points and follow mapped Turrutebasen trails. Where no
   trail connects them, the app says so instead of drawing a line.
 - **Elevation.** From Kartverket's national 1 m terrain model, sampled live:

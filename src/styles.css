@@ -403,21 +403,8 @@ input {
    so the desktop row is laid out exactly as if the wrappers were not there. */
 .topbar-more-toggle,
 .topbar-more-label,
-.editor-more-toggle,
-.editor-more-label {
-  display: none;
-}
-
 .topbar-more-label.btn,
-.editor-more-label.btn {
-  display: none;
-}
-
 .topbar-more-body,
-.editor-more-body {
-  display: contents;
-}
-
 /* Buttons ------------------------------------------------------------------ */
 
 .btn {
@@ -1562,14 +1549,100 @@ input {
   background: rgba(231, 130, 118, 0.12);
 }
 
-/* Editor toolbar ----------------------------------------------------------- */
-
-.editor-toolbar {
+/* Editor column ------------------------------------------------------------ *
+ * The editor is one left rail: the mode bar at the top, then the dock with the
+ * trip, its legs and the actions for what is selected. A single positioned
+ * column means neither part has to guess the other's height, and the map is
+ * never covered by a floating bar plus a floating panel that overlap.
+ */
+.editor-column {
   position: absolute;
   top: 12px;
   left: 12px;
-  width: fit-content;
-  max-width: calc(100% - 78px);
+  bottom: 12px;
+  width: 320px;
+  max-width: calc(100% - 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 12;
+  /* The column is mostly empty space over the map; only its cards take input. */
+  pointer-events: none;
+}
+
+.editor-column > * {
+  pointer-events: auto;
+}
+
+.editor-panel {
+  position: static;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-radius: var(--r-panel);
+  border: 1px solid var(--line-strong);
+  background: rgba(13, 22, 24, 0.96);
+  box-shadow: var(--shadow);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.editor-trip {
+  margin: 0;
+  font-size: var(--fs-2);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.editor-legs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.leg-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--r-ctl);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.leg-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.leg-row[aria-current='true'] {
+  background: var(--sel);
+  border-color: var(--line-strong);
+}
+
+.leg-row-name {
+  font-size: var(--fs-3);
+  font-weight: 600;
+}
+
+.leg-row-meta {
+  font-size: var(--fs-2);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Editor toolbar ----------------------------------------------------------- */
+
+.editor-toolbar {
+  position: static;
+  width: 100%;
+  flex: none;
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -1587,10 +1660,6 @@ input {
 }
 
 /* In view mode the bar is a compact mode switch, not a panel. */
-.editor-toolbar[data-mode='view'] .editor-row--hints {
-  display: none;
-}
-
 .editor-row {
   display: flex;
   align-items: center;
@@ -1599,15 +1668,98 @@ input {
   min-width: 0;
 }
 
-.editor-row--actions {
-  padding-top: 6px;
+.editor-inspector {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
   border-top: 1px solid var(--line);
 }
 
-.editor-row--hints {
-  gap: 10px;
-  font-size: 10.5px;
+.editor-inspector .btn {
+  height: 28px;
+  font-size: var(--fs-3);
+  padding: 0 9px;
+}
+
+.editor-inspector .leg-name {
+  flex: 1 1 100%;
+}
+
+.editor-save {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.editor-save-state {
+  font-size: var(--fs-2);
+  line-height: 1.25;
+  color: var(--muted-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editor-save-state::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+  opacity: 0.9;
+}
+
+.editor-save-state:empty {
+  display: none;
+}
+
+.editor-save-state[data-kind='dirty'] {
+  color: var(--warn);
+}
+
+.editor-save-state[data-kind='saved'] {
+  color: var(--data);
+}
+
+.editor-settings {
+  margin-top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: var(--fs-3);
+}
+
+.editor-status {
+  font-size: var(--fs-2);
+  color: var(--muted-dim);
+}
+
+.editor-hint {
+  margin: 0;
+  font-size: var(--fs-2);
   color: var(--muted);
+  line-height: 1.4;
+}
+
+.editor-inspector .leg-name input {
+  width: 100%;
+  flex: 1;
+}
+
+.editor-column .snap-indicator {
+  max-width: 16ch;
 }
 
 .seg-mode .seg-btn {
@@ -1716,11 +1868,7 @@ input {
 
 .editor-hint {
   color: var(--muted-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1 1 180px;
-  min-width: 0;
+  white-space: normal;
 }
 
 
@@ -2927,13 +3075,8 @@ input {
     padding: 0;
   }
 
-  /* Below 760 px the two disclosure bodies are the popovers and nothing else;
-     the base rule's `display: contents` is desktop-only. */
-  .topbar-more-body,
-  .editor-more-body {
-    display: none;
-  }
-
+  /* Below 760 px the disclosure body is the popover; the base rule's
+     `display: contents` is desktop-only. */
   .topbar-more-toggle:focus-visible ~ .topbar-actions .topbar-more-label {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
@@ -2943,6 +3086,10 @@ input {
     background: var(--sel);
     border-color: transparent;
     color: var(--text);
+  }
+
+  .topbar-more-body {
+    display: none;
   }
 
   /* The popover is a stack of full-width rows: view, panels, library, then the
@@ -2957,7 +3104,7 @@ input {
     right: 8px;
     left: 8px;
     z-index: 30;
-    /* The top padding reserves the pinned "Åpne GPX" row (see #btn-open). */
+    /* The top padding reserves the pinned "Import GPX" row (see #btn-open). */
     padding: 56px 10px 10px;
     border: 1px solid var(--line-strong);
     border-radius: var(--r-panel);
@@ -2967,682 +3114,8 @@ input {
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-
-  .topbar-actions .tb-group {
-    border-left: 0;
-    margin-left: 0;
-    padding-left: 0;
-  }
-
-  .topbar-actions .tb-group + .tb-group {
-    border-top: 1px solid var(--line);
-    padding-top: 8px;
-  }
-
-  .tb-group > .btn,
-  .tb-group > .seg {
-    flex: 1 1 auto;
-  }
-
-  .tb-group > .seg .seg-btn {
-    flex: 1 1 0;
-  }
-
-  .tb-group--save {
-    border-left: 0 !important;
-    margin-left: 0;
-    padding-left: 0;
-  }
-
-  .tb-menu {
-    flex: 1 1 auto;
-  }
-
-  .tb-menu-toggle {
-    width: 100%;
-  }
-
-  .tb-menu-toggle.btn {
-    width: 100%;
-  }
-
-  .tb-menu-body {
-    width: auto;
-    margin-top: 6px;
-  }
-
-  .save-group {
-    order: 1;
-    gap: 6px;
-  }
-
-  .save-status {
-    max-width: 13ch;
-    font-size: var(--fs-2);
-  }
-
-  .save-status[data-kind='error'] {
-    max-width: 18ch;
-  }
-
-  /* -- Touch targets: 40 px or nothing ------------------------------------ */
-
-  .btn {
-    height: 40px;
-    padding: 0 11px;
-    font-size: 12.5px;
-  }
-
-  .btn-icon {
-    width: 40px;
-    height: 40px;
-  }
-
-  .seg {
-    height: 40px;
-  }
-
-  .seg-btn {
-    padding: 0 9px;
-    font-size: 12px;
-  }
-
-  .icon-btn {
-    width: 40px;
-    height: 40px;
-  }
-
-  .banners {
-    padding: 0 10px 8px;
-    max-height: 26vh;
-  }
-
-  .banner-action,
-  .banner-close {
-    min-height: 40px;
-  }
-
-  /* -- Save control: an icon plus the state, never a headline button ------ */
-  /* The word "Lagre" stays in the DOM (and in the accessible name) but is
-     drawn as the icon: `font-size: 0` hides the text without hiding it from
-     assistive technology, and data-i18n-aria-label pins the name. */
-
-  .btn-save {
-    width: 40px;
-    padding: 0;
-    font-size: 0;
-  }
-
-  .btn-save::before {
-    content: '';
-    width: 16px;
-    height: 16px;
-    background-color: currentColor;
-    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4.5 3.5h8.4l2.6 2.6v10.4h-11z' fill='none' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M7.4 3.5v3.9h4.6V3.5M7 16.5v-4h6v4' fill='none' stroke='%23000' stroke-width='1.6'/%3E%3C/svg%3E")
-      center / 16px 16px no-repeat;
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4.5 3.5h8.4l2.6 2.6v10.4h-11z' fill='none' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M7.4 3.5v3.9h4.6V3.5M7 16.5v-4h6v4' fill='none' stroke='%23000' stroke-width='1.6'/%3E%3C/svg%3E")
-      center / 16px 16px no-repeat;
-  }
-
-  /* -- Profile strip and stats ------------------------------------------- */
-
-  .profile {
-    height: 176px;
-  }
-
-  .profile.is-collapsed {
-    height: 44px;
-  }
-
-  .profile-head {
-    height: 44px;
-    gap: 8px;
-    padding: 0 10px 0 4px;
-  }
-
-  .profile-toggle {
-    min-height: 40px;
-    font-size: 12.5px;
-  }
-
-  .profile-readout {
-    display: none;
-  }
-
-  .profile-status {
-    font-size: 12px;
-  }
-
-  .map-controls {
-    top: 8px;
-    right: 8px;
-  }
-
-  .map-btn {
-    width: 40px;
-    height: 40px;
-  }
-
-  /* The editor bar is one row of controls; the zoom stack steps below it
-     instead of competing for the same corner. */
-  .map-wrap:has(.editor-toolbar:not([hidden])) .map-controls {
-    top: 68px;
-  }
-
-  .map-wrap:has(.editor-toolbar[data-mode='draw']:not([hidden])) .map-controls,
-  .map-wrap:has(.editor-toolbar[data-mode='edit']:not([hidden])) .map-controls {
-    top: 96px;
-  }
-
-  .map-attrib {
-    max-width: calc(100% - 76px);
-    font-size: 11px;
-    line-height: 1.35;
-    padding: 3px 7px;
-  }
-
-  .stats {
-    padding: 7px 10px calc(7px + env(safe-area-inset-bottom));
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px 10px;
-  }
-
-  .stat {
-    gap: 1px;
-  }
-
-  .stat-value {
-    font-size: 14px;
-  }
-
-  .stat-label {
-    font-size: 9.5px;
-    letter-spacing: 0.08em;
-  }
-
-  .source-badge {
-    font-size: 12px;
-    padding: 2px 7px;
-  }
-
-  /* -- Editor toolbar: one row of controls, radius/count behind ⋯ --------- */
-
-  .editor-toolbar {
-    top: 8px;
-    left: 8px;
-    width: auto;
-    max-width: calc(100% - 16px);
-    padding: 6px;
-    max-height: none;
-    overflow: visible;
-    z-index: 12;
-  }
-
-  .editor-toolbar[data-mode='view'] {
-    max-width: calc(100% - 16px);
-  }
-
-  .editor-row {
-    gap: 5px;
-  }
-
-  .editor-row--main {
-    flex-wrap: nowrap;
-  }
-
-  .editor-toolbar .btn,
-  .seg-mode .seg-btn {
-    height: 40px;
-    font-size: 12px;
-    padding: 0 7px;
-  }
-
-  .seg-mode .seg-btn {
-    padding: 0 8px;
-  }
-
-  #btn-undo,
-  #btn-redo {
-    min-width: 40px;
-  }
-
-  .snap-toggle {
-    min-height: 40px;
-    padding: 0 2px;
-    gap: 5px;
-    font-size: 12px;
-  }
-
-  .snap-toggle input {
-    width: 18px;
-    height: 18px;
-  }
-
-  .editor-more-toggle {
-    display: block;
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: 0;
-    opacity: 0;
-    pointer-events: none;
-    clip-path: inset(50%);
-  }
-
-  .editor-more-label.btn {
-    display: inline-flex;
-    width: 40px;
-    padding: 0;
-    justify-content: center;
-  }
-
-  .editor-more-toggle:focus-visible ~ .editor-more-label {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-
-  .editor-more-toggle:checked ~ .editor-more-label {
-    background: rgba(79, 174, 156, 0.16);
-    border-color: rgba(79, 174, 156, 0.5);
-    color: var(--accent-strong);
-  }
-
-  .editor-more-toggle:checked ~ .editor-more-body {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    right: 0;
-    z-index: 12;
-    padding: 8px 10px;
-    border: 1px solid var(--line-strong);
-    border-radius: var(--r-panel);
-    background: var(--dock);
-    box-shadow: var(--shadow);
-  }
-
-  .snap-radius {
-    min-height: 40px;
-  }
-
-  .snap-radius input {
-    width: 64px;
-    height: 32px;
-  }
-
-  .editor-count {
-    font-size: 12px;
-  }
-
-  .leg-name input {
-    width: 112px;
-    height: 32px;
-  }
-
-  .snap-indicator {
-    max-width: 100%;
-    white-space: normal;
-  }
-
-  /* Informational, not actionable: the mode and hint already say what to do. */
-  .snap-indicator[data-state='ready'],
-  .snap-indicator[data-state='idle'] {
-    display: none;
-  }
-
-  .editor-row--hints {
-    flex-wrap: nowrap;
-    overflow: hidden;
-    gap: 6px;
-    font-size: 11.5px;
-  }
-
-  /* The instruction line repeats what the map and the mode say. */
-  .editor-hint {
-    display: none;
-  }
-
-  .offtrail-chip {
-    font-size: 11px;
-  }
-
-  /* -- Panels: a bottom sheet with a fixed head -------------------------- */
-
-  .weather-panel,
-  .side-panel {
-    top: auto;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: auto;
-    /* The sheet takes what it needs and always leaves a strip of live map
-       (plus the editor bar) above it; below that it scrolls, never clips. */
-    max-height: min(74vh, calc(100% - 88px));
-    border-radius: var(--r-panel) var(--r-panel) 0 0;
-    border-left: 0;
-    border-right: 0;
-    border-bottom: 0;
-    padding: 0 12px calc(12px + env(safe-area-inset-bottom));
-    box-shadow: 0 -14px 34px rgba(0, 0, 0, 0.52);
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-
-  .panel-head {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    margin: 0 -12px;
-    padding: 10px 12px 8px;
-    border-bottom: 1px solid var(--line);
-    border-radius: var(--r-panel) var(--r-panel) 0 0;
-    background: var(--dock);
-  }
-
-  .panel-head h2 {
-    font-size: 14px;
-  }
-
-  .seg-tabs .seg-btn {
-    height: 40px;
-    font-size: 12.5px;
-  }
-
-  .panel-status {
-    font-size: 12px;
-  }
-
-  .field-hint {
-    font-size: 14px;
-    line-height: 1.45;
-  }
-
-  .panel-note {
-    font-size: 12px;
-  }
-
-  .engine-notes {
-    font-size: 12px;
-  }
-
-  .engine-notes summary {
-    min-height: 40px;
-    display: flex;
-    align-items: center;
-  }
-
-  /* -- Resupply: readable body copy, safety strings at 12 px or more ------ */
-
-  .supply-controls {
-    font-size: 14px;
-  }
-
-  .supply-controls select {
-    height: 40px;
-    font-size: 14px;
-  }
-
-  .supply-huts-error {
-    font-size: 14px;
-  }
-
-  .supply-chip {
-    min-height: 40px;
-    padding: 0 13px;
-    font-size: 13px;
-  }
-
-  .supply-empty {
-    font-size: 14px;
-  }
-
-  .supply-point-main {
-    padding: 10px 11px;
-  }
-
-  .supply-point-name {
-    font-size: 14px;
-  }
-
-  .supply-point-meta,
-  .supply-point-gap {
-    font-size: 12.5px;
-  }
-
-  .supply-provenance {
-    font-size: 12px;
-  }
-
-  .supply-badge,
-  .supply-flag {
-    font-size: 12px;
-    line-height: 1.6;
-  }
-
-  .supply-check {
-    display: inline-flex;
-    align-items: center;
-    min-height: 40px;
-    padding: 0 11px 0 9px;
-    font-size: 13px;
-  }
-
-  .supply-warning {
-    font-size: 14px;
-  }
-
-  .supply-h3 {
-    font-size: 11px;
-  }
-
-  .supply-leg-title {
-    font-size: 14px;
-  }
-
-  .supply-leg-numbers {
-    font-size: 13px;
-  }
-
-  .supply-warning-item {
-    font-size: 13px;
-  }
-
-  .supply-line {
-    font-size: 14px;
-  }
-
-  .energy-headline {
-    font-size: 15px;
-  }
-
-  .energy-body {
-    font-size: 14px;
-  }
-
-  .energy-value {
-    font-size: 14px;
-  }
-
-  .energy-detail {
-    font-size: 13px;
-  }
-
-  .energy-food-mass {
-    font-size: 14px;
-  }
-
-  .energy-field label {
-    font-size: 14px;
-  }
-
-  .energy-field input {
-    height: 40px;
-    font-size: 14px;
-  }
-
-  .energy-assumptions legend {
-    font-size: 11px;
-  }
-
-  .weather-message p {
-    font-size: 14px;
-  }
-
-  .weather-table {
-    font-size: 14px;
-  }
-
-  .weather-table th,
-  .weather-table td {
-    padding: 6px 6px 6px 0;
-  }
-
-  .weather-table thead th {
-    font-size: 10px;
-  }
-
-  .wx-date,
-  .wx-distance {
-    white-space: normal;
-  }
-
-  .wx-conditions {
-    min-width: 110px;
-  }
-
-  .wx-sub {
-    font-size: 12px;
-  }
-
-  .wx-badge {
-    font-size: 12px;
-  }
-
-  .wx-warning {
-    font-size: 13px;
-  }
-
-  .wx-warning a {
-    font-size: 13px;
-  }
-
-  .route-popover {
-    right: auto;
-    left: 10px;
-    width: calc(100vw - 20px);
-  }
-
-  .weather-warnings {
-    font-size: 13px;
-  }
-
-  /* -- Dialogs ------------------------------------------------------------ */
-
-  .dialog {
-    width: calc(100vw - 20px);
-    max-height: 88vh;
-  }
-
-  .dialog-body p,
-  .dialog-body li {
-    font-size: 14px;
-  }
-
-  .field-row label {
-    font-size: 14px;
-  }
-
-  .field-row input {
-    height: 40px;
-    font-size: 14px;
-  }
-
-  .dialog-actions .btn {
-    min-height: 40px;
-  }
-
-  .empty-card {
-    padding: 20px 18px;
-  }
-
-  .empty-card h2 {
-    font-size: 16px;
-  }
-
-  .empty-card p {
-    font-size: 14px;
-  }
-
-  .toast {
-    bottom: calc(10px + env(safe-area-inset-bottom));
-    font-size: 14px;
-  }
-
-  .settings-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .settings-field label {
-    font-size: 14px;
-  }
-
-  .settings-field input,
-  .settings-field select {
-    height: 40px;
-    font-size: 14px;
-  }
-
-  .trip-name {
-    font-size: 14px;
-  }
-
-  .trip-meta,
-  .trip-badge {
-    font-size: 12px;
-  }
-
-  .trip-actions .btn-small {
-    min-height: 40px;
-  }
-
-  .trips-empty,
-  .trips-problem {
-    font-size: 14px;
-  }
-
-  .dialog--wide {
-    width: calc(100vw - 20px);
-  }
 }
 
-@media (max-width: 430px) {
-  .route-tag {
-    max-width: 24vw;
-  }
-
-  .brand-name {
-    font-size: 12.5px;
-  }
-
-  .profile-readout {
-    font-size: 11.5px;
-  }
-
-  .profile-status {
-    display: none;
-  }
-
-  #btn-about {
-    padding: 0 7px;
-  }
-}
-
-/* The narrowest phones: the editor row has to shed the snap *word* (the
-   checkbox keeps its accessible name) and tighten the mode switch. */
 @media (max-width: 360px) {
   .snap-toggle span {
     display: none;
@@ -3713,14 +3186,12 @@ input {
   /* Nothing occupies the top-right on desktop any more, and the dock owns the
      right edge: the bar wraps inside the free map area instead of running
      underneath the panel. */
-  .editor-toolbar {
+  .editor-column {
     max-width: calc(100% - 24px);
-    max-height: calc(100% - 24px);
-    overflow-y: auto;
   }
 
-  .map-wrap:has(.side-panel:not([hidden])) .editor-toolbar,
-  .map-wrap:has(.weather-panel:not([hidden])) .editor-toolbar {
+  .map-wrap:has(.side-panel:not([hidden])) .editor-column,
+  .map-wrap:has(.weather-panel:not([hidden])) .editor-column {
     max-width: calc(100% - var(--dock-w) - 36px);
   }
 }

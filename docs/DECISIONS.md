@@ -408,3 +408,33 @@ as a route is known — panel open or not — and each kind has its own glyph.**
   `map.addImage`: an icon needs no glyph server, so the style still fetches no
   font and the CSP is unchanged.
 - A hover card and a click still answer with words and move the profile cursor.
+
+## D21. The editor is an object, not a wall of verbs
+
+**Default: the left rail is the editor. The bar holds mode, history and status;
+everything that acts on something lives in the dock, next to that something.**
+
+- **New route** is a first-class action in the header: an empty trip keeps the
+  current profile, switches to Draw, and the first map click creates the first
+  point. Before this, the only ways in were a file and the demo.
+- The dock lists the **trip and its legs** (name, distance, point count). The
+  active leg is marked in the list and drawn highlighted on the map, and picking a
+  leg frames it. This is the object model made visible: the old bar had verbs
+  ("reverse leg", "trim to selection") whose object the user could not see.
+- The **inspector** shows only what applies to the current selection — a point, a
+  span, or a leg — and it is built from `availableCommands()`, so nothing can
+  appear that the command layer would refuse. A row of greyed-out buttons is a
+  menu; a toolbar shows the three things that can be done now.
+- **Snap settings** (toggle, radius, point count) belong to drawing, so they live
+  in the dock. **Save** moves into the dock while the rail is open and returns to
+  the top bar in View mode: one accent action per surface, never two.
+- **Keys** are stated, not implied: Escape leaves the mode, Backspace takes back
+  the last drawn point, Delete removes a single-vertex selection. The hint line
+  names the ones that apply, and `editorKeyAction()` is the pure mapping a test
+  pins.
+- The dock is a bottom sheet on a phone, capped so the map stays visible.
+
+**Why:** the editor was described as fragmented, and it was — six verbs in a row,
+no visible trip structure, no way to start from scratch, and a Save that lived a
+corner away from the work. Naming the object and putting its actions beside it is
+the fix; more buttons was the disease.

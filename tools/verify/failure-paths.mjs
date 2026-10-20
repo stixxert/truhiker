@@ -187,7 +187,10 @@ try {
     if (!routed) {
       problems.push(`blocked trail service did not produce a routing error (toast: ${await page.locator('#toast').innerText()})`);
     }
+    // Escape cancels route-pick mode; when the pick already ended on failure the
+    // same key leaves Edit (the editor's keyboard contract), so step 6 re-enters.
     await page.keyboard.press('Escape');
+    await page.click('[data-mode="edit"]');
   }
 
   // 6. A box larger than the routing limit is refused before any request.
