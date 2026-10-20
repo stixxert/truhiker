@@ -382,6 +382,8 @@ export const no = {
   'banner.hashTooLong':
     'Ruten er for lang til å få plass i en lenke (maks {max} tegn). Bruk Last ned GPX i stedet.',
   'banner.hashInvalid': 'Lenken inneholder en rute som ikke kunne leses.',
+  'banner.placesFailed':
+    'Butikker og hytter kunne ikke lastes ({message}). Rute, profil og paneler virker fortsatt.',
   'banner.seaLevel':
     'Omtrent {distance} av denne ruten ligger på havnivå (0 moh). Krysser linjen vann, kan den strekningen ikke gås — sjekk den.',
   'banner.shareCopied': 'Lenke til ruten er kopiert.',

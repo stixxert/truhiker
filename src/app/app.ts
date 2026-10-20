@@ -1549,6 +1549,10 @@ export class App {
     const map = this.map;
     const service = this.supplyService;
     if (!map || !service) return;
+    // A metered or data-saver connection does not need 175 KB of POIs to plan a
+    // walk; the supply panel still has them when it is opened explicitly.
+    const connection = (navigator as { connection?: { saveData?: boolean } }).connection;
+    if (connection?.saveData === true) return;
     const token = ++this.placesToken;
     const bounds = map.getViewBounds();
     try {
@@ -1556,9 +1560,19 @@ export class App {
       if (token !== this.placesToken) return;
       this.places = result.places;
       this.renderSupplyMap();
-    } catch {
-      // Orientation only: keep the markers that are already there rather than
-      // blanking the map because a live source was slow.
+      this.banners.dismiss('places-failed');
+    } catch (error) {
+      if (token !== this.placesToken) return;
+      // Orientation only: keep the markers already on the map, but say why the
+      // layer is not updating instead of leaving a silent gap.
+      const text = (): string =>
+        this.i18n.t('banner.placesFailed', { message: briefError(messageOf(error)) });
+      this.banners.show({
+        id: 'places-failed',
+        kind: 'warning',
+        message: text(),
+        retext: () => ({ message: text() }),
+      });
     }
   }
 

@@ -5,6 +5,7 @@
  * disk, so the numbers asserted are the numbers the app will see.
  */
 
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
@@ -188,5 +189,42 @@ describe('loadShopIndex — fetch once, parse offline', () => {
 
     const truncated = new Uint8Array(committedBuffer().slice(0, 40));
     expect(reasonOf(truncated)).toBe('truncated');
+  });
+});
+
+describe('the committed artefact', () => {
+  it('matches its published checksum, stays inside Norway, and decodes every name', () => {
+    const bytes = readFileSync(new URL('../../data/shops.osm.bin', import.meta.url));
+    const provenance = JSON.parse(
+      readFileSync(new URL('../../data/shops.osm.json', import.meta.url), 'utf8'),
+    ) as { checksum: { sha256: string }; counts: { total: number } };
+
+    // A count-only test would pass on a file with the right number of wrong
+    // points. The checksum is what pins the bytes that ship.
+    const sha256 = createHash('sha256').update(bytes).digest('hex');
+    expect(sha256).toBe(provenance.checksum.sha256);
+
+    const index = parseShopIndex(committedBuffer());
+    expect(index.count).toBe(provenance.counts.total);
+
+    // The Geofabrik Norway extract includes Svalbard (Longyearbyen has a
+    // supermarket at 78.2 N), so the box is the realm, not the mainland. A point
+    // outside it means a projection bug upstream.
+    const all = index.near({ lon: 11, lat: 65 }, 3_000_000);
+    for (const point of all) {
+      expect(point.point.lat).toBeGreaterThan(57.5);
+      expect(point.point.lat).toBeLessThan(81.5);
+      expect(point.point.lon).toBeGreaterThan(3);
+      expect(point.point.lon).toBeLessThan(32);
+      // No placeholder names, no broken UTF-8 (U+FFFD), nothing blank.
+      expect(point.name.trim().length).toBeGreaterThan(0);
+      expect(point.name).not.toContain('\uFFFD');
+    }
+
+    // The viewport query the map layer uses: a plausible, capped subset.
+    const oslo = index.within({ west: 10.68, south: 59.88, east: 10.82, north: 59.95 });
+    expect(oslo.length).toBeGreaterThan(50);
+    expect(oslo.length).toBeLessThan(500);
+    expect(index.within({ west: 10.68, south: 59.88, east: 10.82, north: 59.95 }, 10)).toHaveLength(10);
   });
 });

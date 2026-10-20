@@ -126,7 +126,11 @@ export class SupplyService {
    */
   async placesIn(bounds: ViewBounds): Promise<PlacesResult> {
     const index = await this.shopIndex();
-    const places: ResupplyCandidate[] = index.within(bounds);
+    // A country-sized view does not need every one of 8,571 points in the GeoJSON
+    // source: clustering merges them anyway. The cap grows with the zoom so a
+    // street-level view can show the whole block.
+    const limit = bounds.zoom < 9 ? 600 : bounds.zoom < 11 ? 1_500 : 2_000;
+    const places: ResupplyCandidate[] = index.within(bounds, limit);
     if (bounds.zoom < HUT_VIEW_MIN_ZOOM) return { places, hutsError: null };
 
     const cacheKey = `${bounds.west.toFixed(2)},${bounds.south.toFixed(2)},${bounds.east.toFixed(2)},${bounds.north.toFixed(2)}`;

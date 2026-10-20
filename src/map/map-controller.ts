@@ -21,6 +21,7 @@ import {
   Popup,
   ScaleControl,
   type Map as MapLibreMapType,
+  type ExpressionSpecification,
   type RasterSourceSpecification,
   type StyleSpecification,
 } from 'maplibre-gl';
@@ -146,25 +147,8 @@ type StyleLayers = NonNullable<StyleSpecification['layers']>;
  * source, and a selection ring. There is no glyph server in this style, so the
  * kind is carried by colour and by the hover card, which has the words.
  */
-type CircleLayer = Extract<StyleLayers[number], { type: 'circle' }>;
-type ColorSpec = NonNullable<CircleLayer['paint']>['circle-color'];
 
 /** Kind → colour. Chosen to stay distinguishable on the dark basemap. */
-function resupplyColor(): NonNullable<ColorSpec> {
-  return [
-    'match',
-    ['get', 'kind'],
-    'supermarket', '#7ee787',
-    'convenience', '#4fae9c',
-    'general', '#8fd0ff',
-    'grocery', '#8fd0ff',
-    'fuel', '#ffd166',
-    'post', '#c9a7ff',
-    'parcel', '#c9a7ff',
-    'hut', '#ff9e64',
-    '#e8efef',
-  ];
-}
 
 /**
  * Resupply glyphs, drawn locally.
@@ -173,163 +157,303 @@ function resupplyColor(): NonNullable<ColorSpec> {
  * images, so a canvas is enough and no font is ever fetched. 16 px at
  * pixelRatio 2, white on transparent, meant to sit on the coloured disc.
  */
-const RESUPPLY_ICON_PX = 16;
 const RESUPPLY_ICON_SCALE = 2;
 
 type IconKind = 'shop' | 'fuel' | 'post' | 'hut';
 
-function drawResupplyIcon(kind: IconKind): ImageData | null {
-  const size = RESUPPLY_ICON_PX * RESUPPLY_ICON_SCALE;
+/**
+ * One glyph per kind, drawn twice: a bright version for a food point and a dark
+ * one for anything that is not confirmed food. Neither is tinted at draw time —
+ * `icon-color` would tint the rim as well as the shape, and the rim is the whole
+ * point: it is what keeps a 16 px glyph legible on a photograph.
+ */
+type IconVariant = 'bright' | 'dark';
+
+function resupplySilhouette(kind: IconKind, ctx: CanvasRenderingContext2D): Path2D {
+  const path = new Path2D();
+  if (kind === 'shop') {
+    // Basket: a tapered body with a carry handle above it.
+    path.moveTo(3, 6.4);
+    path.lineTo(13, 6.4);
+    path.lineTo(11.5, 13.4);
+    path.lineTo(4.5, 13.4);
+    path.closePath();
+    path.moveTo(5.5, 6.3);
+    path.arc(8, 6.3, 2.5, Math.PI, 0);
+    ctx.stroke(path);
+  } else if (kind === 'fuel') {
+    // Pump body with a window, and a hose with a nozzle.
+    path.rect(3.2, 4.1, 6.2, 9.4);
+    path.rect(9.5, 6.2, 3.2, 6.2);
+  } else if (kind === 'post') {
+    path.moveTo(2.2, 4.9);
+    path.lineTo(13.8, 4.9);
+    path.lineTo(13.8, 12.4);
+    path.lineTo(2.2, 12.4);
+    path.closePath();
+  } else {
+    // Hut: roof with an overhang, walls, a door and a chimney.
+    path.moveTo(8, 2.6);
+    path.lineTo(14.4, 8.3);
+    path.lineTo(12.8, 8.3);
+    path.lineTo(12.8, 13.4);
+    path.lineTo(3.2, 13.4);
+    path.lineTo(3.2, 8.3);
+    path.lineTo(1.6, 8.3);
+    path.closePath();
+  }
+  return path;
+}
+
+/** Paint the glyph for a family, centred in a 16-unit box, in the given variant. */
+function paintGlyph(kind: IconKind, ctx: CanvasRenderingContext2D, variant: IconVariant): void {
+  const fill = variant === 'bright' ? '#f7fffd' : '#0e1a19';
+  const rim = variant === 'bright' ? 'rgba(8,18,18,0.75)' : 'rgba(247,255,253,0.85)';
+  const cut = variant === 'bright' ? 'rgba(8,18,18,0.75)' : 'rgba(247,255,253,0.85)';
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = rim;
+
+  const path = resupplySilhouette(kind, ctx);
+
+  if (kind === 'shop') {
+    ctx.beginPath();
+    ctx.arc(8, 6.3, 2.5, Math.PI, 0);
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = rim;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(8, 6.3, 2.5, Math.PI, 0);
+    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = fill;
+    ctx.stroke();
+    ctx.fill(path);
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 1.1;
+    ctx.stroke(path);
+  } else if (kind === 'fuel') {
+    ctx.fill(path);
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 1.1;
+    ctx.stroke(path);
+    ctx.fillStyle = cut;
+    ctx.fillRect(4.6, 5.9, 3.4, 2.6);
+    ctx.strokeStyle = cut;
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(9.4, 5.4);
+    ctx.bezierCurveTo(12.4, 5.4, 12.6, 8.4, 11.4, 10.4);
+    ctx.stroke();
+  } else if (kind === 'post') {
+    ctx.fill(path);
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 1.1;
+    ctx.stroke(path);
+    ctx.strokeStyle = cut;
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(2.8, 5.4);
+    ctx.lineTo(8, 9.2);
+    ctx.lineTo(13.2, 5.4);
+    ctx.stroke();
+  } else {
+    ctx.fill(path);
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 1.1;
+    ctx.stroke(path);
+    ctx.fillStyle = cut;
+    ctx.fillRect(6.8, 9.6, 2.4, 3.6);
+    ctx.fillRect(9.8, 3.2, 1.5, 2.6);
+  }
+}
+
+/** A whole marker: coloured disc, contrast rim and glyph, as one 26 px image. */
+function drawMarker(family: MarkerFamily, variant: IconVariant): ImageData | null {
+  const logical = 26;
+  const size = logical * RESUPPLY_ICON_SCALE;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   ctx.scale(RESUPPLY_ICON_SCALE, RESUPPLY_ICON_SCALE);
-  ctx.fillStyle = '#f7fffd';
-  ctx.strokeStyle = '#f7fffd';
-  ctx.lineWidth = 1.4;
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
 
-  if (kind === 'shop') {
-    // Market basket: a trapezoid with a handle.
-    ctx.beginPath();
-    ctx.moveTo(3.2, 6.4);
-    ctx.lineTo(12.8, 6.4);
-    ctx.lineTo(11.4, 13);
-    ctx.lineTo(4.6, 13);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(8, 6.6, 2.6, Math.PI, 0);
-    ctx.stroke();
-  } else if (kind === 'fuel') {
-    // Pump body plus a nozzle arm.
-    ctx.fillRect(3.4, 4.6, 6, 9);
-    ctx.clearRect(4.8, 6.2, 3.2, 2.4);
-    ctx.beginPath();
-    ctx.moveTo(9.8, 6.4);
-    ctx.lineTo(12.4, 6.4);
-    ctx.lineTo(12.4, 11.2);
-    ctx.stroke();
-  } else if (kind === 'post') {
-    // Envelope.
-    ctx.beginPath();
-    ctx.rect(2.4, 4.6, 11.2, 7.4);
-    ctx.fill();
-    ctx.strokeStyle = '#0b1416';
-    ctx.lineWidth = 1.1;
-    ctx.beginPath();
-    ctx.moveTo(2.8, 5.2);
-    ctx.lineTo(8, 9.1);
-    ctx.lineTo(13.2, 5.2);
-    ctx.stroke();
-  } else {
-    // Hut: a roof with a door.
-    ctx.beginPath();
-    ctx.moveTo(8, 3.4);
-    ctx.lineTo(14, 8.4);
-    ctx.lineTo(12.6, 8.4);
-    ctx.lineTo(12.6, 13);
-    ctx.lineTo(3.4, 13);
-    ctx.lineTo(3.4, 8.4);
-    ctx.lineTo(2, 8.4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#0b1416';
-    ctx.fillRect(6.8, 9.6, 2.4, 3.4);
-  }
+  const centre = logical / 2;
+  const radius = 10.5;
+  const food = variant === 'bright';
+
+  ctx.beginPath();
+  ctx.arc(centre, centre, radius, 0, Math.PI * 2);
+  ctx.fillStyle = FAMILY_COLOR[family];
+  // A point that is not food is drawn hollow: the visual is the honesty rule.
+  ctx.globalAlpha = food ? 1 : 0.36;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = food ? 'rgba(6,16,15,0.65)' : 'rgba(247,255,253,0.92)';
+  ctx.stroke();
+
+  ctx.save();
+  // The glyph box is 16 units; 0.72 of it sits well inside a 21 px disc.
+  const scale = 0.72;
+  ctx.translate(centre - (8 * scale), centre - (8 * scale));
+  ctx.scale(scale, scale);
+  paintGlyph(FAMILY_GLYPH[family], ctx, variant);
+  ctx.restore();
 
   return ctx.getImageData(0, 0, size, size);
 }
 
-const CLUSTER_STEPS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100] as const;
+const CLUSTER_STEPS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 50, 100, 250] as const;
 
-/** A count badge for a cluster, with the number drawn in. */
-function drawClusterBadge(count: number): ImageData | null {
-  const size = 26 * 2;
+/** Two tones: a group with food in it, and a group without. */
+type ClusterTone = 'food' | 'other';
+
+const CLUSTER_TONE_RING: Record<ClusterTone, string> = {
+  food: '#8fe3d4',
+  other: '#c9a27a',
+};
+
+/**
+ * A count badge, drawn once per (tone, bucket) at load time.
+ *
+ * Pre-rendered images are the performance answer here: no glyph server, no text
+ * shaping, no per-frame work — MapLibre just blits a texture. The badge is 30 px
+ * on screen rather than 26, with a heavier ring and a bigger number, because at
+ * z5–z8 it is the only thing on the map that matters.
+ */
+function drawClusterBadge(count: number, tone: ClusterTone): ImageData | null {
+  const logical = 30;
+  const size = logical * RESUPPLY_ICON_SCALE;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  ctx.scale(2, 2);
+  ctx.scale(RESUPPLY_ICON_SCALE, RESUPPLY_ICON_SCALE);
+
+  const centre = logical / 2;
   ctx.beginPath();
-  ctx.arc(13, 13, 12, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(12, 26, 26, 0.92)';
+  ctx.arc(centre, centre, centre - 2.2, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(10, 22, 21, 0.94)';
   ctx.fill();
-  ctx.lineWidth = 1.6;
-  ctx.strokeStyle = '#8fe3d4';
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = CLUSTER_TONE_RING[tone];
   ctx.stroke();
-  ctx.fillStyle = '#f2fffc';
-  ctx.font = `600 ${count >= 100 ? 9 : 10.5}px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`;
+
+  ctx.fillStyle = '#f4fffd';
+  const label = count >= 250 ? '250+' : count >= 100 ? '99+' : String(count);
+  ctx.font = `700 ${label.length >= 4 ? 9 : label.length === 3 ? 10.5 : 12}px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(count >= 100 ? '99+' : String(count), 13, 13.5);
+  ctx.fillText(label, centre, centre + 0.5);
+
   return ctx.getImageData(0, 0, size, size);
 }
 
+/** `icon-image` for one tone: the bucket ladder, shared by both tones. */
+function clusterImageExpression(tone: ClusterTone): ExpressionSpecification {
+  const suffix = tone === 'food' ? '' : '-other';
+  const expression: unknown[] = ['step', ['get', 'point_count'], `cluster-2${suffix}`];
+  for (const step of CLUSTER_STEPS.slice(1)) {
+    expression.push(step, `cluster-${step}${suffix}`);
+  }
+  return expression as unknown as ExpressionSpecification;
+}
+
+/** Paint the glyph for a family, centred in a 16-unit box, in the given variant. */
 function registerResupplyIcons(map: MapLibreMapType): void {
-  for (const kind of ['shop', 'fuel', 'post', 'hut'] as const) {
-    const image = drawResupplyIcon(kind);
-    if (image) map.addImage(`resupply-${kind}`, image, { pixelRatio: RESUPPLY_ICON_SCALE });
+  for (const family of ['green', 'teal', 'blue', 'amber', 'violet', 'orange'] as const) {
+    for (const variant of ['bright', 'dark'] as const) {
+      const image = drawMarker(family, variant);
+      if (!image) continue;
+      const name = variant === 'bright' ? `marker-${family}` : `marker-${family}-dark`;
+      map.addImage(name, image, { pixelRatio: RESUPPLY_ICON_SCALE });
+    }
   }
-  for (const count of CLUSTER_STEPS) {
-    const badge = drawClusterBadge(count);
-    if (badge) map.addImage(`cluster-${count}`, badge, { pixelRatio: 2 });
+  for (const tone of ['food', 'other'] as const) {
+    for (const count of CLUSTER_STEPS) {
+      const badge = drawClusterBadge(count, tone);
+      if (!badge) continue;
+      const name = tone === 'food' ? `cluster-${count}` : `cluster-${count}-other`;
+      map.addImage(name, badge, { pixelRatio: RESUPPLY_ICON_SCALE });
+    }
   }
+}
+
+/** Colour families: one disc colour and one glyph per family. */
+const MARKER_FAMILIES = {
+  supermarket: 'green',
+  convenience: 'teal',
+  general: 'blue',
+  grocery: 'blue',
+  fuel: 'amber',
+  post: 'violet',
+  parcel: 'violet',
+  hut: 'orange',
+} as const;
+type MarkerFamily = (typeof MARKER_FAMILIES)[keyof typeof MARKER_FAMILIES];
+
+const FAMILY_COLOR: Record<MarkerFamily, string> = {
+  green: '#7ee787',
+  teal: '#4fae9c',
+  blue: '#8fd0ff',
+  amber: '#ffd166',
+  violet: '#c9a7ff',
+  orange: '#ff9e64',
+};
+
+const FAMILY_GLYPH: Record<MarkerFamily, IconKind> = {
+  green: 'shop',
+  teal: 'shop',
+  blue: 'shop',
+  amber: 'fuel',
+  violet: 'post',
+  orange: 'hut',
+};
+
+/** Marker image name for a kind, in the variant the point's food status needs. */
+function markerImageExpression(variant: 'bright' | 'dark'): ExpressionSpecification {
+  const suffix = variant === 'bright' ? '' : '-dark';
+  return [
+    'match',
+    ['get', 'kind'],
+    'supermarket',
+    `marker-green${suffix}`,
+    'convenience',
+    `marker-teal${suffix}`,
+    'general',
+    `marker-blue${suffix}`,
+    'grocery',
+    `marker-blue${suffix}`,
+    'fuel',
+    `marker-amber${suffix}`,
+    'post',
+    `marker-violet${suffix}`,
+    'parcel',
+    `marker-violet${suffix}`,
+    'hut',
+    `marker-orange${suffix}`,
+    `marker-teal${suffix}`,
+  ];
 }
 
 function resupplyLayers(): StyleLayers {
   return [
     {
+      // Selection only: one marker at a time, so a circle layer is enough and it
+      // does not need to take part in collision.
       id: 'resupply-ring',
       type: 'circle',
       source: 'resupply',
       filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'id'], '__none__']],
       paint: {
-        'circle-radius': 14,
+        'circle-radius': 15,
         'circle-color': '#f2fffc',
         'circle-opacity': 0.12,
         'circle-stroke-color': '#f2fffc',
         'circle-stroke-width': 2,
-      },
-    },
-    {
-      id: 'resupply-halo',
-      type: 'circle',
-      source: 'resupply',
-      filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'usable'], true]],
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 8, 10, 11, 15, 15],
-        'circle-color': resupplyColor(),
-        'circle-opacity': 0.22,
-      },
-    },
-    {
-      id: 'resupply-points',
-      type: 'circle',
-      source: 'resupply',
-      filter: ['!', ['has', 'point_count']],
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4.5, 10, 7, 15, 10],
-        'circle-color': resupplyColor(),
-        // A point that is not food is hollow: the visual is the honesty rule.
-        'circle-opacity': ['case', ['==', ['get', 'usable'], true], 1, 0.4],
-        'circle-stroke-color': ['case', ['==', ['get', 'usable'], true], '#06100f', '#f2fffc'],
-        'circle-stroke-width': ['case', ['==', ['get', 'usable'], true], 1.6, 1.8],
-      },
-    },
-    {
-      id: 'resupply-cluster',
-      type: 'circle',
-      source: 'resupply',
-      filter: ['has', 'point_count'],
-      paint: {
-        'circle-radius': ['step', ['get', 'point_count'], 18, 10, 21, 100, 25],
-        'circle-color': 'rgba(12, 26, 26, 0.0)',
-        'circle-stroke-width': 0,
       },
     },
     {
@@ -339,70 +463,40 @@ function resupplyLayers(): StyleLayers {
       filter: ['has', 'point_count'],
       layout: {
         'icon-image': [
-          'step',
-          ['get', 'point_count'],
-          'cluster-2',
-          3,
-          'cluster-3',
-          4,
-          'cluster-4',
-          5,
-          'cluster-5',
-          6,
-          'cluster-6',
-          7,
-          'cluster-7',
-          8,
-          'cluster-8',
-          9,
-          'cluster-9',
-          10,
-          'cluster-10',
-          20,
-          'cluster-20',
-          50,
-          'cluster-50',
-          100,
-          'cluster-100',
+          'case',
+          ['>', ['get', 'food'], 0],
+          clusterImageExpression('food'),
+          clusterImageExpression('other'),
         ],
-        'icon-size': ['step', ['get', 'point_count'], 0.85, 10, 1, 50, 1.15],
+        // Bigger when far out: at z5 a badge is the only readable thing on screen.
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 3, 1.2, 7, 1.1, 9, 0.95, 12, 0.85],
         'icon-allow-overlap': true,
         'icon-ignore-placement': true,
       },
     },
     {
-      // The glyph carries the kind; the disc under it carries the colour. A hut
-      // and a supermarket are different things on the ground, and a coloured dot
-      // was asking the user to remember a legend that does not exist.
-      id: 'resupply-icons',
+      // The marker is one image: coloured disc, dark rim, white glyph. Drawing it
+      // as circles plus an icon meant the discs collided while the icons did not,
+      // so a dense block stacked into an unreadable pile. Now the whole marker
+      // takes part in collision placement and declutters as a unit.
+      id: 'resupply-markers',
       type: 'symbol',
       source: 'resupply',
       filter: ['!', ['has', 'point_count']],
       layout: {
         'icon-image': [
-          'match',
-          ['get', 'kind'],
-          'hut',
-          'resupply-hut',
-          'fuel',
-          'resupply-fuel',
-          'post',
-          'resupply-post',
-          'parcel',
-          'resupply-post',
-          'resupply-shop',
+          'case',
+          ['==', ['get', 'usable'], true],
+          markerImageExpression('bright'),
+          markerImageExpression('dark'),
         ],
-        'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.5, 10, 0.75, 15, 1],
-        'icon-allow-overlap': true,
-        'icon-ignore-placement': true,
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 4, 0.55, 9, 0.7, 13, 0.9, 16, 1],
+        'icon-padding': 3,
+        'icon-allow-overlap': false,
+        // Food wins the slot over a hut when only one marker fits.
+        'symbol-sort-key': ['case', ['==', ['get', 'usable'], true], 0, 1],
       },
-      paint: {
-        // Same honesty rule as the disc: a point that is not food is drawn
-        // hollow, so a white glyph on a 40 % tint is unreadable. Tint it dark
-        // instead, which also makes "not food" visible at a glance.
-        'icon-color': ['case', ['==', ['get', 'usable'], true], '#f7fffd', '#1b2a28'],
-        'icon-opacity': 1,
-      },
+      paint: { 'icon-opacity': 1 },
     },
   ];
 }
@@ -454,6 +548,11 @@ function buildStyle(): StyleSpecification {
         cluster: true,
         clusterRadius: 48,
         clusterMaxZoom: 12,
+        // A clustered view should still say whether the group is worth walking to:
+        // one property, summed in the worker, no per-frame work on the main thread.
+        clusterProperties: {
+          food: ['+', ['case', ['==', ['get', 'usable'], true], 1, 0]],
+        },
       },
       'route-cursor': { type: 'geojson', data: EMPTY_POINTS },
     },
@@ -1222,7 +1321,7 @@ export class MapController {
     }
     // The symbol layer is on top of the disc, so the pointer meets whichever is
     // drawn last: listen on both.
-    const layers = ['resupply-icons', 'resupply-points'].filter((id) => this.map.getLayer(id));
+    const layers = ['resupply-markers'].filter((id) => this.map.getLayer(id));
     if (layers.length === 0) return;
     for (const layer of layers) this.wireResupplyLayer(layer);
   }

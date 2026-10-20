@@ -396,6 +396,19 @@ as a route is known — panel open or not — and each kind has its own glyph.**
 - Below the cluster threshold they **compact into one count badge** per group
   (`cluster: true`, radius 48, breaking up at z12): a screen of 250 glyphs is not
   readable, a badge saying "99+" is. Clicking a badge zooms to where it splits.
+- The badge is a **pre-rendered image**, not a text layer: 30 px, 2 px ring, a
+  heavy count, drawn once per bucket at load time (2–9, 10, 20, 50, 99+, 250+) in
+  two tones. A `clusterProperties.food` sum decides the tone — a group with food in
+  it gets a sea-green ring, a group of huts gets ochre — so a zoomed-out view says
+  whether the group is worth walking to without a legend. No glyph server, no text
+  shaping, no per-frame work: MapLibre blits a texture.
+- Badges are **bigger when further out** (`icon-size` 1.2 at z3 → 0.85 at z12):
+  at z5 the badge is the only readable thing on screen.
+- Markers below the cluster threshold **collide as a unit** (disc, rim and glyph
+  are one image) and are sorted so food wins a contested slot. Measured over Oslo:
+  z8 45 features → 36 badges; z12 126 → 76 badges + 16 markers; z14 125 → 61
+  markers (decluttered), each view reaching map idle in ~0.9–1.1 s including
+  basemap tiles.
 - The corridor query still runs when the route or the profile changes, so the
   route's own points carry their plan numbers (distance, gap, detour). A point in
   view that is also on the route is drawn once, from the corridor row.
@@ -438,3 +451,34 @@ everything that acts on something lives in the dock, next to that something.**
 no visible trip structure, no way to start from scratch, and a Save that lived a
 corner away from the work. Naming the object and putting its actions beside it is
 the fix; more buttons was the disease.
+
+## D22. The resupply layer ships with the app, it is not queried live
+
+**Default: one committed ODbL extract, served by us, rebuilt deliberately.**
+
+- **Where it comes from.** Geofabrik's `norway-latest.osm.pbf` (extract 2026-10-18,
+  1.38 GB) is filtered by `tools/build-shops.mjs` to **8,571 points** — supermarket
+  3,971, convenience 554, general 288, grocery 24, fuel 2,283, post office 1,252,
+  parcel locker 199 — deduped from 8,813, and written as `data/shops.osm.bin`
+  (175 KB) with the provenance in `data/shops.osm.json`: tag filter, primary-type
+  priority, exclusions, opening-hours coverage, unmanned-fuel heuristic, sizes and
+  a checksum.
+- **Where it is served from.** Ourselves, as a static file beside the app
+  (`/data/shops.osm.bin`), with the ODbL text at `/data/ODbL-1.0.txt` and the
+  attribution in the map footer, **About data** and the licence notice. That public
+  copy is what ODbL's share-alike and access terms require; nothing re-hosts or
+  reshapes it for someone else.
+- **Why not live.** Overpass is the only free query route and it cannot carry a
+  pan. Measured 2026-10-20: a 0.07° × 0.14° box over Oslo returned **502**; a
+  0.4° × 0.7° box returned **200 after 38.2 s** with **417 KB of JSON for 1,017
+  points**. That is per view, debounced on every pan, against a rate-limited public
+  service. The same country as our own file is **175 KB, once, in roughly 100 ms**.
+- **Why not a commercial places API.** They are keyed, per-request billed, and
+  their terms forbid caching the results — which is exactly what a map layer is.
+- **Huts are the opposite case and stay live** (Turrutebasen WFS, CC BY 4.0): they
+  are few, tied to a place and change, they are fetched on demand, and the view
+  layer holds them to zoom ≥ 12 with a five-minute cache (D20).
+- **Rebuilding** is `node --max-old-space-size=1400 tools/build-shops.mjs --pbf
+  <norway-latest.osm.pbf> --out data`. The checksum, the per-kind counts and the
+  coordinate bounds are pinned by a validation test, so a stale or corrupted
+  artefact cannot ship quietly.

@@ -378,6 +378,8 @@ export const en: Record<MessageKey, string> = {
   'banner.hashTooLong':
     'This route is too long to fit in a link (max {max} characters). Use Download GPX instead.',
   'banner.hashInvalid': 'The link contains a route that could not be read.',
+  'banner.placesFailed':
+    'Shops and huts could not be loaded ({message}). The route, profile and panels still work.',
   'banner.seaLevel':
     'About {distance} of this route is at sea level (0 m). If the line crosses water, that stretch cannot be walked — check it.',
   'banner.shareCopied': 'Link to the route copied.',

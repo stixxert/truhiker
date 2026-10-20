@@ -11,6 +11,7 @@
  * No dependencies: the binary format is documented in tools/README.md.
  */
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 
 const TYPES = ['supermarket', 'convenience', 'general', 'grocery', 'fuel', 'post_office', 'parcel_locker'];
@@ -167,6 +168,42 @@ function main() {
   }
 
   if (mode === 'verify') {
+    // The binary and its manifest must agree, and the points must be in Norway.
+    // A stale or corrupted artefact is a licence and a data-quality problem, not
+    // a cosmetic one: ODbL asks us to serve what we say we serve.
+    const problems = [];
+    const manifestPath = file.replace(/shops\.osm\.bin$/, 'shops.osm.json');
+    if (!fs.existsSync(manifestPath)) {
+      problems.push(`missing manifest ${manifestPath}`);
+    } else {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      const sha = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+      if (manifest.checksum?.sha256 !== sha) {
+        problems.push(`checksum ${sha} does not match the manifest (${manifest.checksum?.sha256})`);
+      }
+      if (manifest.counts?.total !== data.records.length) {
+        problems.push(`count ${data.records.length} does not match the manifest (${manifest.counts?.total})`);
+      }
+    }
+    for (const r of data.records) {
+      const lat = r.lat / 1e6;
+      const lon = r.lon / 1e6;
+      // The Norway extract includes Svalbard (Longyearbyen, 78.2 N).
+      if (!(lat > 57 && lat < 82) || !(lon > 3 && lon < 33)) {
+        problems.push(`point ${r.index} outside Norway: ${lat}, ${lon}`);
+        break;
+      }
+    }
+    if (problems.length > 0) {
+      console.error('verify: FAIL');
+      for (const problem of problems) console.error('  - ' + problem);
+      process.exit(1);
+    }
+    console.log(`verify: OK — ${data.records.length} records, ${data.strings.length} strings, ${data.bytes} bytes, sorted, indices in range, checksum and manifest agree, all points in Norway`);
+    return;
+  }
+
+  if (false) {
     console.log(`OK: ${data.records.length} records, ${data.strings.length} strings, ${data.bytes} bytes, sorted, indices in range`);
     return;
   }
