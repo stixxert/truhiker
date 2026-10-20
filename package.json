@@ -2,7 +2,7 @@
   "name": "npl-map",
   "version": "0.2.0",
   "private": true,
-  "description": "GPX route analyser for Norwegian hiking \u2014 elevation core and map shell",
+  "description": "GPX route analyser for Norwegian hiking — elevation core and map shell",
   "license": "UNLICENSED",
   "type": "module",
   "engines": {
@@ -42,5 +42,10 @@
     "vite": "^8.3.4",
     "vitest": "^5.0.5",
     "wrangler": "^4.151.2"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true,
+    "workerd@1.20261019.1": true
   }
 }
