@@ -896,6 +896,12 @@ input {
   align-self: center;
 }
 
+/* At rest the 3D toggle is a word on the pill, not a third filled chip: three
+   things painted as "selected" is why the state was unreadable. */
+.map-style .btn-toggle:not([aria-pressed='true']) {
+  background: transparent;
+}
+
 /* The planning group: the mode switch and "new route" are the same thought, and
  * they are only meaningful together. */
 /* Creating a route and saving it are header actions. The drawer repeated both —
