@@ -58,6 +58,7 @@ export const en: Record<MessageKey, string> = {
   'route.demoDetails': 'Show information about the demo route',
   'route.file': 'From file',
   'route.link': 'Shared route',
+  'readout.seaLevel': 'sea level',
   'route.unnamed': 'Untitled',
   'route.loaded': 'The route “{name}” is loaded.',
   'route.none': 'No route',
@@ -358,6 +359,8 @@ export const en: Record<MessageKey, string> = {
   'banner.hashTooLong':
     'This route is too long to fit in a link (max {max} characters). Use Download GPX instead.',
   'banner.hashInvalid': 'The link contains a route that could not be read.',
+  'banner.seaLevel':
+    'About {distance} of this route is at sea level (0 m). If the line crosses water, that stretch cannot be walked — check it.',
   'banner.shareCopied': 'Link to the route copied.',
   'banner.shareFailed': 'Could not copy the link. Use Download GPX instead.',
   'banner.offScope': 'The route leaves Norway — elevation profile and statistics are unavailable.',

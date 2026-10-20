@@ -62,6 +62,7 @@ export const no = {
   'route.demoDetails': 'Vis informasjon om demoruten',
   'route.file': 'Fra fil',
   'route.link': 'Delt rute',
+  'readout.seaLevel': 'havnivå',
   'route.unnamed': 'Uten navn',
   'route.loaded': 'Ruten «{name}» er lastet.',
   'route.none': 'Ingen rute',
@@ -362,6 +363,8 @@ export const no = {
   'banner.hashTooLong':
     'Ruten er for lang til å få plass i en lenke (maks {max} tegn). Bruk Last ned GPX i stedet.',
   'banner.hashInvalid': 'Lenken inneholder en rute som ikke kunne leses.',
+  'banner.seaLevel':
+    'Omtrent {distance} av denne ruten ligger på havnivå (0 moh). Krysser linjen vann, kan den strekningen ikke gås — sjekk den.',
   'banner.shareCopied': 'Lenke til ruten er kopiert.',
   'banner.shareFailed': 'Kunne ikke kopiere lenken. Bruk Last ned GPX i stedet.',
   'banner.offScope': 'Ruten går utenfor Norge – høydeprofil og statistikk er utilgjengelige.',

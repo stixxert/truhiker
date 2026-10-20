@@ -123,6 +123,11 @@ import type { SnapResult } from '../snap';
 
 const DEMO_FILE = 'demo/memurubu-glitterheim-jot21.gpx';
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
+/** A stretch at least this long at 0 m is worth naming (metres). */
+const SEA_LEVEL_WARN_M = 300;
+/** ...and only when the rest of the route is above sea level by this much. */
+const SEA_LEVEL_RELIEF_M = 50;
+
 const ZOOM_STEP = 1;
 
 type ProfileStatus = 'empty' | 'loading' | 'ready' | 'error';
@@ -2302,6 +2307,8 @@ export class App {
     this.state.progress = { done: 0, total: 0 };
     this.renderProfilePanel();
     this.renderStats();
+    // Route-level banners describe the previous route until this one answers.
+    this.refreshBanners();
 
     const job = createElevationJob(route.points, {
       onProgress: (progress) => {
@@ -2331,6 +2338,8 @@ export class App {
         this.renderStats();
         this.syncCursorToCamera();
         this.invalidateSupply();
+        // A route-level fact just became known (a stretch at sea level, say).
+        this.refreshBanners();
       })
       .catch((error: unknown) => {
         if (this.job !== job) return;
@@ -2558,7 +2567,12 @@ export class App {
     }
     const elevation = elevationAtDistance(profile.samples, distance);
     const grade = gradeAtDistance(profile.samples, distance);
-    el.textContent = `${this.i18n.format.distance(distance)} · ${this.i18n.format.elevation(elevation)} · ${this.i18n.format.grade(grade)}`;
+    // 0 m here is the sea surface, not a measured hill: say which one it is.
+    const elevationText =
+      Number.isFinite(elevation) && Math.abs(elevation) <= 0.5
+        ? this.i18n.t('readout.seaLevel')
+        : this.i18n.format.elevation(elevation);
+    el.textContent = `${this.i18n.format.distance(distance)} · ${elevationText} · ${this.i18n.format.grade(grade)}`;
   }
 
   private updateRouteMeta(): void {
@@ -2732,6 +2746,33 @@ export class App {
     } else {
       this.banners.dismiss('dem-failed');
       this.banners.dismiss('off-scope');
+    }
+
+    // The DTM is a bare-earth model: over the sea it returns exactly 0 m. A walk
+    // that dips to 0 between high ground is a line across water, and the honest
+    // thing to do is name it instead of drawing a silent 1,000 m cliff.
+    const profile = this.state.profile;
+    const seaLevel =
+      this.state.profileStatus === 'ready' &&
+      profile !== null &&
+      profile.seaLevelM >= SEA_LEVEL_WARN_M &&
+      (() => {
+        const range = minMaxElevation(profile);
+        return range.max - range.min > SEA_LEVEL_RELIEF_M;
+      })();
+    if (seaLevel && profile) {
+      const text = (): string =>
+        this.i18n.t('banner.seaLevel', {
+          distance: this.i18n.format.distance(profile.seaLevelM),
+        });
+      this.banners.show({
+        id: 'sea-level',
+        kind: 'warning',
+        message: text(),
+        retext: () => ({ message: text() }),
+      });
+    } else {
+      this.banners.dismiss('sea-level');
     }
   }
 

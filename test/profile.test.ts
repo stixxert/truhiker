@@ -140,6 +140,24 @@ describe('buildProfile', () => {
       minGradePct: 0,
       distanceM: 0,
       filledSamples: 0,
+      seaLevelM: 0,
     });
+  });
+});
+
+describe('sea level', () => {
+  it('measures the longest stretch at sea level, because 0 m over water is not terrain', () => {
+    // 7 points, 200 m apart: high, high, then four at sea level, then high.
+    const coords = route(7, 200);
+    const profile = buildProfile(coords, [1200, 1200, 0, 0, 0, 0, 1200]);
+    // The run spans from the first 0 m sample to the last: 3 * 200 m.
+    expect(profile.seaLevelM).toBeCloseTo(600, 0);
+
+    // A route that never touches the sea reports nothing.
+    expect(buildProfile(route(4, 200), [800, 795, 790, 785]).seaLevelM).toBe(0);
+    // Sea level throughout is a coastal walk, not a crossing, but it is still measured.
+    const flat = buildProfile(route(4, 200), [0, 0, 0, 0]);
+    expect(flat.seaLevelM).toBeCloseTo(600, 0);
+    expect(flat.ascentM).toBe(0);
   });
 });

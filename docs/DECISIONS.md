@@ -199,6 +199,19 @@ Known limitation (declared, not hidden): a GPX exported from a mixed-source trip
 and re-imported relabels its DEM points as `gpx`, because GPX has no field for
 provenance. The elevation values are preserved.
 
+**Sea level is a surface, not a hill.** The DTM is a bare-earth model that returns
+exactly 0 m over the sea, and a lake's surface is whatever the model holds there.
+So:
+
+- A contiguous stretch at or below 0.5 m is measured (`Profile.seaLevelM`) and, when
+  it is at least 300 m long *and* the rest of the route rises more than 50 m above
+  it, named in a banner: "About {distance} of this route is at sea level. If the
+  line crosses water, that stretch cannot be walked."
+- The readout at such a point says **"0 m · sea level"**, not "0 m a.s.l." — the
+  number is the sea, and calling it a measured height is the lie.
+- Nothing is rewritten: a coastal walk that really is at 0 m stays 0 m. The banner
+  is a question ("if the line crosses water"), not a correction.
+
 ## D16. Trail routing
 
 **Default: route only where the fetched trail network connects the two points.**

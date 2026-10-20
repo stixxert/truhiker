@@ -57,7 +57,16 @@ export interface Profile {
   distanceM: number;
   /** Samples whose input elevation was NoData and was interpolated. */
   filledSamples: number;
+  /**
+   * The longest contiguous stretch at or below sea level, metres along the route.
+   * The DTM is a bare-earth model that returns exactly 0 over the sea, so a walk
+   * that dips to 0 between high ground is a line across water, not a descent.
+   */
+  seaLevelM: number;
 }
+
+/** At or below this, a sample is the sea surface rather than terrain (metres). */
+const SEA_LEVEL_TOLERANCE_M = 0.5;
 
 const DEFAULT_MEDIAN_WINDOW = 3;
 const DEFAULT_HYSTERESIS_M = 5;
@@ -231,6 +240,24 @@ export function gradeSeries(
 }
 
 /**
+ * Longest contiguous run of samples at or below sea level, in metres along the
+ * route. Zero when the route never reaches the sea.
+ */
+function seaLevelRunM(samples: readonly ProfileSample[]): number {
+  let longest = 0;
+  let start: number | null = null;
+  for (const sample of samples) {
+    if (sample.ele <= SEA_LEVEL_TOLERANCE_M) {
+      if (start === null) start = sample.d;
+      longest = Math.max(longest, sample.d - start);
+    } else {
+      start = null;
+    }
+  }
+  return longest;
+}
+
+/**
  * Build a profile from a route and its elevations.
  *
  * `coords` and `elevations` are parallel arrays. The route need not be evenly
@@ -257,6 +284,7 @@ export function buildProfile(
       minGradePct: 0,
       distanceM: 0,
       filledSamples: 0,
+      seaLevelM: 0,
     };
   }
 
@@ -290,5 +318,6 @@ export function buildProfile(
     minGradePct,
     distanceM: distances[distances.length - 1],
     filledSamples: filled,
+    seaLevelM: seaLevelRunM(samples),
   };
 }
