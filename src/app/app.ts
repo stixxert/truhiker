@@ -7,7 +7,7 @@
  */
 
 import { parseGpx, type GpxTrack } from '../core/gpx';
-import { buildProfile, type Profile } from '../core/profile';
+import { buildProfile, seaLevelWarning, type Profile } from '../core/profile';
 import type { LonLat } from '../core/geo';
 import {
   StoreError,
@@ -123,11 +123,6 @@ import type { SnapResult } from '../snap';
 
 const DEMO_FILE = 'demo/memurubu-glitterheim-jot21.gpx';
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
-/** A stretch at least this long at 0 m is worth naming (metres). */
-const SEA_LEVEL_WARN_M = 300;
-/** ...and only when the rest of the route is above sea level by this much. */
-const SEA_LEVEL_RELIEF_M = 50;
-
 const ZOOM_STEP = 1;
 
 type ProfileStatus = 'empty' | 'loading' | 'ready' | 'error';
@@ -2753,14 +2748,8 @@ export class App {
     // thing to do is name it instead of drawing a silent 1,000 m cliff.
     const profile = this.state.profile;
     const seaLevel =
-      this.state.profileStatus === 'ready' &&
-      profile !== null &&
-      profile.seaLevelM >= SEA_LEVEL_WARN_M &&
-      (() => {
-        const range = minMaxElevation(profile);
-        return range.max - range.min > SEA_LEVEL_RELIEF_M;
-      })();
-    if (seaLevel && profile) {
+      this.state.profileStatus === 'ready' && profile !== null ? seaLevelWarning(profile) : null;
+    if (seaLevel !== null && profile) {
       const text = (): string =>
         this.i18n.t('banner.seaLevel', {
           distance: this.i18n.format.distance(profile.seaLevelM),

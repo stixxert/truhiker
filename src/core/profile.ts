@@ -239,6 +239,29 @@ export function gradeSeries(
   return grades;
 }
 
+/** A stretch at least this long at sea level is worth naming (metres). */
+export const SEA_LEVEL_WARN_M = 300;
+/** ...and only when the rest of the route rises this far above it (metres). */
+export const SEA_LEVEL_RELIEF_M = 50;
+
+/**
+ * The sea-level stretch worth telling the user about, in metres, or `null`.
+ *
+ * The DTM returns exactly 0 over the sea, so a route that dips to 0 between high
+ * ground is a line across water. The relief test keeps a genuine coastal walk
+ * (0 m throughout, nothing to warn about) quiet.
+ */
+export function seaLevelWarning(profile: Profile): number | null {
+  if (!(profile.seaLevelM >= SEA_LEVEL_WARN_M) || profile.samples.length === 0) return null;
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  for (const sample of profile.samples) {
+    if (sample.ele < min) min = sample.ele;
+    if (sample.ele > max) max = sample.ele;
+  }
+  return max - min > SEA_LEVEL_RELIEF_M ? profile.seaLevelM : null;
+}
+
 /**
  * Longest contiguous run of samples at or below sea level, in metres along the
  * route. Zero when the route never reaches the sea.

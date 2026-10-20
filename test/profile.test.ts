@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { EARTH_RADIUS_M, type LonLat } from '../src/core/geo';
-import { buildProfile, elevationGainLoss, gradeSeries, medianFilter } from '../src/core/profile';
+import {
+  buildProfile,
+  elevationGainLoss,
+  gradeSeries,
+  medianFilter,
+  seaLevelWarning,
+} from '../src/core/profile';
 
 const DEG = Math.PI / 180;
 
@@ -159,5 +165,19 @@ describe('sea level', () => {
     const flat = buildProfile(route(4, 200), [0, 0, 0, 0]);
     expect(flat.seaLevelM).toBeCloseTo(600, 0);
     expect(flat.ascentM).toBe(0);
+  });
+});
+
+describe('seaLevelWarning', () => {
+  it('speaks only when the stretch is long and the route is otherwise high', () => {
+    const crossing = buildProfile(route(7, 200), [1200, 1200, 0, 0, 0, 0, 1200]);
+    expect(seaLevelWarning(crossing)).toBeCloseTo(600, 0);
+
+    // A genuine coastal walk: at 0 m the whole way, nothing to warn about.
+    expect(seaLevelWarning(buildProfile(route(4, 200), [0, 0, 0, 0]))).toBeNull();
+    // A dip shorter than the threshold is a beach, not a crossing.
+    const dip = buildProfile(route(9, 40), [1200, 1200, 0, 0, 0, 1200, 1200, 1200, 1200]);
+    expect(dip.seaLevelM).toBeLessThan(300);
+    expect(seaLevelWarning(dip)).toBeNull();
   });
 });
