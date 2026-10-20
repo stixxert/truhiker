@@ -284,7 +284,10 @@ input {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: auto;
+  /* Left, with the trip it belongs to. Pinning the actions to the right edge put
+     Save — the thing you reach for while editing — in the far corner from the
+     route name and the route actions. */
+  margin-left: 0;
   flex-wrap: wrap;
   row-gap: 6px;
   justify-content: flex-end;
@@ -808,6 +811,43 @@ input {
   height: 26px;
   padding: 0 8px;
   font-size: 11.5px;
+  border-color: transparent;
+}
+
+/* Inside the pill the segment is one surface: clip the fills to its corners and
+ * drop the table-like dividers between options. */
+.map-style .seg {
+  border-radius: calc(var(--r-ctl) - 4px);
+  overflow: hidden;
+}
+
+.map-style .seg-btn + .seg-btn {
+  border-left: 0;
+}
+
+/* Hover is a lift within the pill, not a repaint: the stock `.seg-btn:hover`
+ * fill (4% white) is invisible on this background, and it used to change the
+ * label weight of the selected option — which made the whole pill jump in width
+ * every time the basemap changed. */
+.map-style .seg-btn:hover:not([aria-pressed='true']),
+.map-style .btn:hover:not([aria-pressed='true']):not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: transparent;
+  color: var(--text);
+}
+
+.map-style .seg-btn[aria-pressed='true'],
+.map-style .btn-toggle[aria-pressed='true'] {
+  background: var(--sel);
+  color: var(--text);
+  /* No weight change: a heavier label is a wider label. */
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.map-style .seg-btn[aria-pressed='true']:hover,
+.map-style .btn-toggle[aria-pressed='true']:hover {
+  background: var(--sel);
 }
 
 /* The planning group: the mode switch and "new route" are the same thought, and
@@ -823,14 +863,26 @@ input {
 }
 
 @media (max-width: 760px) {
+  /* On a phone the top-right corner is already taken by the map controls and the
+     top-left by the route drawer. The pill goes bottom-right, clear of both and
+     above MapLibre's attribution (which must stay readable). */
   .map-style {
-    top: 8px;
+    top: auto;
+    bottom: 44px;
     right: 8px;
   }
 
   .map-style .seg-btn {
     padding: 0 8px;
     font-size: 11px;
+  }
+
+  /* Thumb-sized: the pill is on the map now, so its targets answer to the touch
+     minimum rather than to a mouse's 26 px. */
+  .map-style .seg-btn,
+  .map-style .btn {
+    height: 30px;
+    min-width: 30px;
   }
 
   /* On a phone a new route is the empty state and the ⋯ menu, not a header row. */
@@ -1664,15 +1716,18 @@ input {
  * never covered by a floating bar plus a floating panel that overlap.
  */
 .editor-column {
+  /* Flush to the map's top-left corner, rounded only on the outside edge: a card
+     floating 12 px off both edges reads as a stray popup over the map rather than
+     a drawer belonging to it. */
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 0;
+  left: 0;
   /* Hug the content. A full-height column with a short dock leaves a tall empty
    * card over the map, which reads as a broken panel. The cap keeps a long leg
    * list scrolling instead of growing past the viewport. */
-  max-height: calc(100% - 24px);
-  width: 330px;
-  max-width: calc(100% - 24px);
+  max-height: 100%;
+  width: 340px;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   z-index: 12;
@@ -1695,8 +1750,10 @@ input {
   flex-direction: column;
   gap: 10px;
   padding: 0 12px 12px;
-  border-radius: var(--r-panel);
+  border-radius: 0 0 var(--r-panel) 0;
   border: 1px solid var(--line-strong);
+  border-top: 0;
+  border-left: 0;
   background: rgba(13, 22, 24, 0.97);
   box-shadow: var(--shadow);
   overflow: hidden;
