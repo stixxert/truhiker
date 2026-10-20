@@ -309,17 +309,20 @@ export class ProfileChart {
   // -------------------------------------------------------------------------
 
   private updateAria(): void {
+    // `role="slider"` requires a value even when there is nothing to slide over:
+    // a missing aria-valuenow is a broken control to a screen reader (and a
+    // critical axe violation) while the elevation is still loading or failed.
+    // 0 of 0, disabled, is honest.
+    this.host.setAttribute('aria-valuemin', '0');
+    this.host.setAttribute('aria-valuemax', String(Math.round(this.profile ? this.totalDistance() : 0)));
     if (!this.profile) {
-      this.host.removeAttribute('aria-valuenow');
+      this.host.setAttribute('aria-valuenow', '0');
       this.host.removeAttribute('aria-valuetext');
       return;
     }
-    const total = this.totalDistance();
-    this.host.setAttribute('aria-valuemin', '0');
-    this.host.setAttribute('aria-valuemax', String(Math.round(total)));
     const cursor = this.currentCursor();
     if (cursor === null) {
-      this.host.removeAttribute('aria-valuenow');
+      this.host.setAttribute('aria-valuenow', '0');
       this.host.removeAttribute('aria-valuetext');
       return;
     }
