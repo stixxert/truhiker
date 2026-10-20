@@ -641,6 +641,9 @@
 
           <aside class="side-panel" id="supply-panel" hidden aria-labelledby="supply-title">
             <header class="panel-head">
+              <!-- The tabs were the panel's only title. A panel head is a heading
+                   and a control row, in that order, in both drawers. -->
+              <h2 id="supply-title" data-i18n="supply.title">Forsyning</h2>
               <div class="seg seg-tabs" role="tablist" aria-labelledby="supply-title">
                 <button
                   class="seg-btn"
@@ -873,41 +876,42 @@
             </div>
           </div>
         </section>
+        <!-- The measure strip is the readout's caption, so it lives in the same
+             stacking context as the card it belongs to (see .stage/.profile). -->
+        <footer class="stats" id="stats" aria-live="polite">
+          <div class="stat">
+            <span class="stat-label" data-i18n="stats.distance">Distanse</span>
+            <span class="stat-value" id="stat-distance">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label" data-i18n="stats.ascent">Stigning</span>
+            <span class="stat-value" id="stat-ascent">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label" data-i18n="stats.descent">Nedstigning</span>
+            <span class="stat-value" id="stat-descent">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label" data-i18n="stats.time">Gangtid</span>
+            <span class="stat-value-row">
+              <span class="stat-value" id="stat-time">—</span>
+              <button
+                class="icon-btn"
+                id="btn-pace"
+                type="button"
+                data-i18n-aria-label="stats.pace"
+                data-i18n-title="stats.pace"
+              >
+                <svg class="i" aria-hidden="true"><use href="#i-pace" /></svg>
+              </button>
+            </span>
+          </div>
+          <div class="stat">
+            <span class="stat-label" data-i18n="stats.elevation">Høyde</span>
+            <span class="stat-value" id="stat-elevation">—</span>
+          </div>
+        </footer>
       </main>
-
-      <footer class="stats" id="stats" aria-live="polite">
-        <div class="stat">
-          <span class="stat-label" data-i18n="stats.distance">Distanse</span>
-          <span class="stat-value" id="stat-distance">—</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label" data-i18n="stats.ascent">Stigning</span>
-          <span class="stat-value" id="stat-ascent">—</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label" data-i18n="stats.descent">Nedstigning</span>
-          <span class="stat-value" id="stat-descent">—</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label" data-i18n="stats.time">Gangtid</span>
-          <span class="stat-value-row">
-            <span class="stat-value" id="stat-time">—</span>
-            <button
-              class="icon-btn"
-              id="btn-pace"
-              type="button"
-              data-i18n-aria-label="stats.pace"
-              data-i18n-title="stats.pace"
-            >
-              <svg class="i" aria-hidden="true"><use href="#i-pace" /></svg>
-            </button>
-          </span>
-        </div>
-        <div class="stat">
-          <span class="stat-label" data-i18n="stats.elevation">Høyde</span>
-          <span class="stat-value" id="stat-elevation">—</span>
-        </div>
-      </footer>
     </div>
 
     <dialog id="about-dialog" class="dialog" aria-labelledby="about-title">

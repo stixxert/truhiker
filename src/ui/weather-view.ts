@@ -23,7 +23,7 @@ export type WeatherPanelState =
   | { kind: 'needs-start-date' }
   | { kind: 'needs-daily-km' }
   | { kind: 'loading' }
-  | { kind: 'error'; message: string }
+  | { kind: 'error'; message: string; detail?: string }
   | { kind: 'ready'; plan: WeatherPlan; from?: 'trip' | 'now' };
 
 type WeatherPanelAction = 'none' | 'settings' | 'refresh' | 'open-route';
@@ -297,7 +297,12 @@ export function buildWeatherView(
     return { ...view, state: 'loading', statusLine: i18n.t('weather.loading') };
   }
   if (state.kind === 'error') {
-    return empty(i18n.t('weather.failed', { message: firstLine(state.message) }), 'refresh', state.message);
+    // `message` is already localised product copy (see weatherFailure in app.ts).
+    // The raw upstream reason rides along as the tooltip, where a machine string
+    // is acceptable and a 150-character one is not body text.
+    // One line in the body whatever arrives: a state message is a sentence, not a
+    // stack trace, and the full text stays in the tooltip.
+    return empty(state.message.replace(/\s+/g, ' ').trim(), 'refresh', state.detail ?? state.message);
   }
 
   // A plan only reaches here when the profile had both fields.
@@ -367,7 +372,3 @@ export function buildWeatherView(
   };
 }
 
-function firstLine(message: string): string {
-  const line = message.split('\n')[0].trim();
-  return line.length > 120 ? `${line.slice(0, 117)}…` : line;
-}

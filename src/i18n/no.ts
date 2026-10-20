@@ -63,6 +63,7 @@ export const no = {
   'route.demoDetails': 'Vis informasjon om demoruten',
   'route.file': 'Fra fil',
   'route.link': 'Delt rute',
+  'readout.at': 'Ved {distance}',
   'readout.seaLevel': 'havnivå',
   'route.created':
     'Ny rute startet: {name}. Klikk i kartet for å tegne første punkt.',
@@ -201,7 +202,10 @@ export const no = {
   'weather.refresh': 'Oppdater',
   'weather.fetched': 'varsel hentet {time}',
   'weather.issued': 'varsel sendt {time}',
-  'weather.horizonNote':
+    'weather.beforeSeries': "Turen begynner før MET-varslet starter. Prøv igjen når varselet dekker startdatoen.",
+  'weather.afterSeries': "Turen er utenfor METs varselhorisont.",
+  'weather.network': "Fikk ikke kontakt med MET. Sjekk nettet og prøv igjen.",
+'weather.horizonNote':
     'MET sitt varsel dekker omtrent {days} døgn fremover. Dager utenfor horisonten vises uten tall – ingen anslag.',
   'weather.summary': '{forecast} {forecastUnit} med varsel, {beyond} {beyondUnit} utenfor horisonten',
   'weather.summaryAll': '{forecast} {forecastUnit} med varsel',
@@ -211,7 +215,7 @@ export const no = {
   'weather.empty': 'Turen har ingen dager å vise vær for.',
   'weather.loading': 'Henter varsel …',
   'weather.loadingDay': 'henter …',
-  'weather.failed': 'Værvarselet er ikke tilgjengelig: {message}',
+  'weather.failed': 'Værvarsel er ikke tilgjengelig nå.',
   'weather.noForecast': 'Værvarselet er ikke tilgjengelig. Prøv Oppdater.',
   'weather.networkError': 'nettverket svarte ikke',
   'weather.beyondHorizon': 'utenfor varselhorisonten',

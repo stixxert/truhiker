@@ -1,49 +1,106 @@
 /* ==========================================================================
-   TruHiker — warm graphite, ochre actions, sea-green data
+   TruHiker — "Ridge"
+
+   Design language, in one paragraph: the map is the lightest plane on screen and
+   the only one that goes to the edge, so the chrome is built *below* it in value
+   and *above* it in space. Three surface steps (frame < card < well) carry every
+   grouping; hairlines separate, shadows say "floating", and borders are reserved
+   for things you can actually press. One warm accent for action, one cool accent
+   for measurements, and nothing else. Type is five steps with real jumps — labels
+   read as labels and numbers read as instruments.
+
    System font stack only: no third-party fonts, so the shell works offline.
    ========================================================================== */
 
 :root {
-  --bg: #131211;
-  --panel: #1a1917;
-  --panel-2: #22201d;
-  --panel-3: #2a2824;
-  --line: #34312c;
-  --line-strong: #46423b;
-  --text: #ece8e1;
-  --muted: #a69e92;
-  --muted-dim: #8c857a;
-  --accent: #c98a3f;
-  --accent-strong: #e0a45a;
-  --accent-dim: #8d5f2c;
-  --accent-soft: rgba(201, 138, 63, 0.18);
-  --data: #4fae9c;
-  --data-soft: rgba(79, 174, 156, 0.2);
-  --warn: #d3a24a;
-  --error: #cf7367;
-  --grid: rgba(255, 255, 255, 0.07);
-  --axis: rgba(255, 255, 255, 0.16);
-  /* One radius scale: chips, controls, cards, panels. No pill except the demo
-     tag, which is a badge rather than a control. */
-  --r-chip: 3px;
-  --r-ctl: 6px;
-  --r-card: 8px;
-  --r-panel: 10px;
-  --radius: var(--r-ctl);
-  /* One type scale. Controls sit on 3, small buttons on 2, captions on 1. */
-  --fs-1: 10.5px;
-  --fs-2: 11.5px;
-  --fs-3: 12.5px;
-  --fs-4: 13.5px;
-  --fs-5: 15px;
-  /* Solid dock surface: the panels and their sticky heads share one colour, so
-     a scrolled card can never show through the header. */
-  --dock: #151d1e;
-  --sel: #302d28;
-  --scroll-thumb: rgba(236, 232, 225, 0.34);
-  --scroll-thumb-hover: rgba(236, 232, 225, 0.55);
-  --shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* --- Surfaces. Value order is the depth order: the map is not in this list
+     because it is the lightest thing on screen and nothing in the chrome may
+     compete with it. */
+  --bg: #0b1013; /* frame: the top bar, the deepest tone */
+  --panel: #141a1e; /* raised: cards, docks, anything floating over the map */
+  --panel-2: #1b2227; /* well: inputs, segmented tracks, inset rows, list cards */
+  --panel-3: #232c32; /* lifted: hover, the thumb of a segmented control */
+  --panel-4: #2f3a41; /* edge of a control that must be seen at a glance */
+
+  --line: #212930; /* hairline between two tones of the same surface */
+  --line-strong: #35424a; /* the edge of a pressable control */
+  --line-soft: rgba(255, 255, 255, 0.08); /* the edge of a floating card */
+
+  /* --- Ink */
+  --text: #e8eef0; /* values, titles, the thing you came to read */
+  --muted: #a3b0b5; /* labels and body copy */
+  --dim: #808f95; /* captions, provenance, table cells */
+  --ghost: #5a686e; /* disabled, not present */
+
+  /* --- Roles. Accent is action. Data is measurement. Nothing else is coloured. */
+  --accent: #e8a75c;
+  --accent-strong: #f2b871;
+  --accent-ink: #20150a;
+  /* The profile canvas reads this name through getComputedStyle and pairs it
+     with --data, so it carries the data hue: a chart's fill is the colour of its
+     own line, never the colour of a button. */
+  --accent-soft: rgba(98, 196, 176, 0.18);
+  --data: #62c4b0;
+  --data-soft: rgba(98, 196, 176, 0.16);
+  --warn: #eec163;
+  --warn-soft: rgba(238, 193, 99, 0.12);
+  --error: #ee8b81;
+  --error-soft: rgba(238, 139, 129, 0.12);
+  --focus: #9ed0e6;
+
+  /* Chart surface, read by the profile canvas through getComputedStyle. */
+  --grid: rgba(255, 255, 255, 0.06);
+  --axis: rgba(255, 255, 255, 0.14);
+
+  /* --- Type: five steps, one per job. No size exists outside this list. */
+  --t-1: 11px; /* eyebrow, badge, table caption */
+  --t-2: 12.5px; /* control label, body small, panel note */
+  --t-3: 14px; /* default body, list title */
+  --t-4: 17px; /* card and panel title */
+  --t-5: 22px; /* measure: the stats readout */
+  --lh-1: 1.35;
+  --lh-2: 1.5;
+  --lh-3: 1.45;
+  --lh-4: 1.3;
+  --lh-5: 1.12;
+
+  /* --- Space: 4 px grid. Every gap and pad below is one of these. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 32px;
+
+  /* --- Radius: one scale, tied to what the object is, not how big it is. */
+  --r-1: 4px; /* inner chip, table swell */
+  --r-2: 8px; /* button, input, row */
+  --r-3: 12px; /* list card, popover, map control */
+  --r-4: 16px; /* floating panel, the bottom card */
+  --r-pill: 999px;
+
+  /* --- Elevation: three steps. Only floating things cast a shadow. */
+  --e-1: 0 1px 2px rgba(0, 0, 0, 0.32);
+  --e-2: 0 2px 8px rgba(0, 0, 0, 0.34), 0 1px 1px rgba(0, 0, 0, 0.24);
+  --e-3: 0 14px 34px rgba(0, 0, 0, 0.46), 0 2px 8px rgba(0, 0, 0, 0.34);
+  /* Light from above: the one-pixel top highlight that makes a dark card read
+     as a surface rather than a hole. */
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  --scroll-thumb: rgba(232, 238, 240, 0.22);
+  --scroll-thumb-hover: rgba(232, 238, 240, 0.38);
+
+  --dock-w: min(420px, calc(100% - 24px));
+
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
   color-scheme: dark;
 }
 
@@ -60,25 +117,69 @@ body {
 body {
   background: var(--bg);
   color: var(--text);
+  font-size: var(--t-3);
+  line-height: var(--lh-3);
+  font-weight: 400;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
+  color: inherit;
+}
+
+button {
+  font-weight: 500;
 }
 
 [hidden] {
   display: none !important;
 }
 
-/* Focus is a neutral ring. Amber is the primary action's colour; a focused
- * secondary button wearing it pretends to be the CTA. */
+/* Focus is the one state that must survive every background, including the
+   basemap: a light ring plus a dark halo reads on snow and on forest. */
 :focus-visible {
-  outline: 2px solid var(--text);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+/* Controls that live inside a clipped container (the zoom pill, the basemap
+   switch, a supply row) take the ring inset, or the container eats it. */
+.map-controls .map-btn:focus-visible,
+.map-style .seg-btn:focus-visible,
+.map-style .btn:focus-visible,
+.supply-point-main:focus-visible,
+.supply-check:focus-visible {
+  outline-offset: -3px;
+  border-radius: var(--r-1);
+}
+
+/* Scrollbars: one shape everywhere, always visible, so a scrolling panel never
+   looks like a clipped one. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: var(--r-pill);
+  border: 3px solid transparent;
+  background-color: var(--scroll-thumb);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scroll-thumb-hover);
+  background-clip: content-box;
 }
 
 .app {
@@ -89,89 +190,375 @@ input {
   min-height: 0;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* --------------------------------------------------------------------------
-   Top bar
+   Controls
+
+   One button, three weights (quiet, default, primary), two sizes. The quiet
+   weight is what the bar is made of: a toolbar of filled boxes is a panel that
+   happens to be horizontal.
+   -------------------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  height: 32px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-2);
+  border: 1px solid var(--line-strong);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: var(--t-2);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.004em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--panel-3);
+  border-color: var(--panel-4);
+}
+
+.btn:active:not(:disabled) {
+  background: var(--panel-4);
+}
+
+.btn:disabled {
+  /* Nothing to press: no fill, no edge, no pretence. */
+  background: transparent;
+  border-color: transparent;
+  color: var(--ghost);
+  cursor: not-allowed;
+}
+
+.btn .i,
+.icon-btn .i,
+.map-btn .i {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* The only filled accent on screen. There is exactly one per view. */
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: var(--accent);
+}
+
+.btn-primary:disabled {
+  background: var(--panel-2);
+  border-color: var(--line);
+  color: var(--ghost);
+}
+
+/* Quiet: a word and an icon on the surface. Loud only when it is open. */
+.btn-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.btn-quiet:hover:not(:disabled) {
+  background: var(--panel-2);
+  border-color: transparent;
+  color: var(--text);
+}
+
+/* Open is state, not decoration: surface plus ink. Never a weight change — a
+   heavier label is a wider label, and the bar would shove its neighbours. */
+.btn-quiet[aria-expanded='true'],
+.btn-quiet[aria-pressed='true'] {
+  background: var(--panel-3);
+  border-color: transparent;
+  color: var(--text);
+}
+
+.btn-quiet[aria-expanded='true']:hover:not(:disabled),
+.btn-quiet[aria-pressed='true']:hover:not(:disabled) {
+  background: var(--panel-3);
+  color: var(--text);
+}
+
+.btn-open {
+  background: var(--panel-2);
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.btn-open .i {
+  color: var(--muted);
+}
+
+.btn-open:hover:not(:disabled) .i {
+  color: var(--text);
+}
+
+.btn-icon {
+  width: 32px;
+  padding: 0;
+}
+
+.btn-small {
+  height: 28px;
+  padding: 0 var(--s-2);
+  gap: 6px;
+  font-size: var(--t-2);
+  border-radius: var(--r-2);
+}
+
+.btn-toggle {
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.btn-danger {
+  border-color: rgba(238, 139, 129, 0.42);
+  color: var(--error);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--error-soft);
+  border-color: var(--error);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-2);
+  background: transparent;
+  color: var(--dim);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.icon-btn:hover {
+  background: var(--panel-3);
+  color: var(--text);
+}
+
+/* Segmented control: a track with a raised thumb, not a row of bordered cells.
+   Track is a well, thumb is a surface — the same relationship a panel has with
+   the map, one level down. */
+.seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 3px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+.seg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--t-2);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+/* Hover is a hint; selection is a position. Measured before: hover 31,37,41 with
+   the *selected* label colour, selection 35,44,50 — a 4-unit gap that read as two
+   active cells. */
+.seg-btn:hover:not([aria-pressed='true']):not([aria-selected='true']):not(:disabled) {
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--dim);
+}
+
+/* Selected: rule + thumb shadow. Three cues (fill, ink, shadow) so the state is
+   never carried by colour alone. */
+.seg-btn[aria-pressed='true'],
+.seg-btn[aria-selected='true'] {
+  background: var(--panel-3);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow:
+    var(--e-1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.seg-btn:disabled {
+  color: var(--ghost);
+  cursor: not-allowed;
+}
+
+.seg-lang .seg-btn {
+  padding: 0 9px;
+  letter-spacing: 0.06em;
+}
+
+.seg-tabs {
+  margin-right: auto;
+}
+
+/* Inputs share one shape: a well with a focus ring, no inner shadow tricks. */
+.snap-radius input,
+.leg-name input,
+.energy-field input,
+.field-row input,
+.settings-field input,
+.settings-field select,
+.trip-rename input,
+.supply-controls select {
+  border-radius: var(--r-2);
+  border: 1px solid var(--line-strong);
+  background: var(--panel-2);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.snap-radius input:focus-visible,
+.leg-name input:focus-visible,
+.energy-field input:focus-visible,
+.field-row input:focus-visible,
+.settings-field input:focus-visible,
+.settings-field select:focus-visible,
+.trip-rename input:focus-visible,
+.supply-controls select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   Frame: the top bar
+
+   One row: identity on the left, tools on the right, no vertical rules. The bar
+   is the darkest surface on screen so the eye leaves it for the map.
    -------------------------------------------------------------------------- */
 
 .topbar {
   position: relative;
   flex: none;
   z-index: 20;
-  background: var(--panel);
+  background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
 
 .topbar-row {
   display: flex;
   align-items: center;
-  /* One gap for every cluster, and the same 12 px rail the map overlays use —
-     the bar had 13/8/22/6 gap values and three left origins. */
-  gap: 8px;
-  padding: 8px 12px;
-  min-height: 50px;
+  gap: var(--s-2);
+  padding: 0 var(--s-3);
+  height: 48px;
+  flex-wrap: nowrap;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   flex: none;
 }
 
 .brand-mark {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   color: var(--accent);
 }
 
 .brand-name {
-  font-size: 13.5px;
-  font-weight: 650;
-  letter-spacing: 0.01em;
+  font-size: var(--t-3);
+  font-weight: 600;
+  letter-spacing: -0.012em;
   white-space: nowrap;
 }
 
 .route-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--s-2);
   min-width: 0;
-  padding-left: 12px;
+  padding-left: var(--s-2);
+  margin-left: var(--s-1);
   border-left: 1px solid var(--line);
 }
 
 .route-name {
-  font-size: 12.5px;
+  font-size: var(--t-3);
+  font-weight: 500;
   color: var(--text);
   opacity: 0.92;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 30vw;
+  max-width: 26vw;
 }
 
 .route-tag {
   flex: none;
-  font-size: var(--fs-1);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: var(--t-1);
+  font-weight: 500;
   letter-spacing: 0.01em;
-  color: var(--muted);
-  border: 1px solid var(--line-strong);
-  background: var(--panel-3);
-  border-radius: 999px;
-  padding: 2px 7px;
+  color: var(--dim);
+  border: 1px solid transparent;
+  background: var(--panel-2);
+  border-radius: var(--r-pill);
+  padding: 3px 9px;
   white-space: nowrap;
 }
 
 .route-tag[data-origin='file'] {
-  color: var(--muted);
-  border-color: var(--line-strong);
-  background: transparent;
+  color: var(--dim);
+  background: var(--panel-2);
 }
 
 .route-tag[data-origin='link'] {
   color: var(--warn);
-  border-color: rgba(227, 178, 105, 0.35);
-  background: rgba(227, 178, 105, 0.08);
+  background: var(--warn-soft);
 }
 
 .demo-details {
@@ -182,15 +569,16 @@ input {
 .route-tag--button {
   cursor: pointer;
   list-style: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: inherit;
   line-height: 1.4;
 }
 
 .route-tag--button::-webkit-details-marker {
   display: none;
+}
+
+.route-tag--button:hover {
+  color: var(--text);
+  background: var(--panel-3);
 }
 
 .route-tag--button::after {
@@ -200,7 +588,7 @@ input {
   border-left: 3.5px solid transparent;
   border-right: 3.5px solid transparent;
   border-top: 4px solid currentColor;
-  opacity: 0.75;
+  opacity: 0.7;
   transition: transform 140ms ease;
 }
 
@@ -210,9 +598,7 @@ input {
 
 .route-popover {
   position: absolute;
-  top: calc(100% + 8px);
-  /* Anchored to the tag's left edge, not its right: the badge sits near the
-     start of the bar, and `right: 0` pushed a 340 px panel off the viewport. */
+  top: calc(100% + 10px);
   left: 0;
   right: auto;
   z-index: 40;
@@ -220,149 +606,84 @@ input {
   max-height: min(70vh, 460px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 14px 16px 12px;
-  border-radius: var(--r-panel);
-  border: 1px solid var(--line-strong);
-  background: var(--dock);
-  box-shadow: var(--shadow);
+  padding: var(--s-4);
+  border-radius: var(--r-3);
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+  box-shadow: var(--e-3), var(--edge);
   text-align: left;
   white-space: normal;
 }
 
-.route-popover::-webkit-scrollbar {
-  width: 10px;
-}
-
-.route-popover::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  border: 3px solid transparent;
-  background-color: var(--scroll-thumb);
-  background-clip: content-box;
-}
-
 .route-popover h2 {
-  margin: 0 0 10px;
-  font-size: var(--fs-3);
-  font-weight: 650;
-  letter-spacing: 0.01em;
+  margin: 0 0 var(--s-3);
+  font-size: var(--t-4);
+  font-weight: 600;
+  letter-spacing: -0.012em;
 }
 
 .meta-list {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  margin: 0 0 10px;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-3);
 }
 
 .meta-list > div {
   display: grid;
   grid-template-columns: 92px minmax(0, 1fr);
-  gap: 8px;
+  gap: var(--s-2);
   align-items: baseline;
 }
 
 .meta-list dt {
-  font-size: var(--fs-1);
-  letter-spacing: 0.01em;
-  color: var(--muted);
+  font-size: var(--t-1);
+  letter-spacing: 0.02em;
+  color: var(--dim);
 }
 
 .meta-list dd {
   margin: 0;
-  font-size: var(--fs-3);
-  line-height: 1.4;
+  font-size: var(--t-2);
+  line-height: var(--lh-2);
   color: var(--text);
   overflow-wrap: anywhere;
 }
 
 .popover-note {
   margin: 0;
-  padding-top: 9px;
+  padding-top: var(--s-3);
   border-top: 1px solid var(--line);
-  font-size: var(--fs-1);
-  line-height: 1.45;
-  color: var(--muted);
+  font-size: var(--t-1);
+  line-height: var(--lh-2);
+  color: var(--dim);
 }
 
+/* Identity left, tools right: the empty space belongs inside the bar, between
+   the two clusters, where it reads as a decision rather than as a missing item. */
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  /* Left, with the trip it belongs to. Pinning the actions to the right edge put
-     Save — the thing you reach for while editing — in the far corner from the
-     route name and the route actions. */
-  margin-left: 0;
-  padding-left: 8px;
-  border-left: 1px solid var(--line);
-  flex-wrap: wrap;
-  row-gap: 6px;
-  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-left: auto;
+  padding-left: 0;
+  border-left: 0;
+  flex-wrap: nowrap;
 }
 
-/* Functional groups, separated by a hairline: [file] | [view] | [panels] |
-   [library] | [save]. Each group is one thought; the rules stop the bar from
-   reading as a row of equal-weight buttons. */
 .tb-group {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s-1);
 }
 
-.tb-group + .tb-group,
-.topbar-more-body + .tb-group {
-  border-left: 1px solid var(--line);
-  padding-left: 8px;
+.tb-group + .tb-group {
+  margin-left: var(--s-2);
 }
 
-/* The save group used a bare rule while its neighbours used a bordered group:
-   two separator idioms 20 px apart. One of them. */
 .tb-group--save {
-  border-left: 1px solid var(--line);
-  padding-left: 8px;
-}
-
-/* Above the mobile breakpoint the ⋯ disclosure is not in play: its body lays out
- * inline through `display: contents`. The toggle and its label were still in the
- * row, though — the raw checkbox showed as a 13 px sliver at the far left, and the
- * icon sat in front of a menu that was already open. Neither means anything here.
- *
- * Three classes for the label: it also matches `.topbar-more-label.btn`, which
- * sets `display: contents` further down the file and would win at two. */
-@media (min-width: 761px) {
-  .topbar .topbar-actions .topbar-more-label,
-  .topbar .topbar-more-toggle {
-    display: none;
-  }
-
-  /* One line, never two: a wrapped header doubles its height and pushes the map
-     down. Whatever does not fit truncates or hides, it does not wrap. */
-  .topbar-row,
-  .topbar-actions {
-    flex-wrap: nowrap;
-  }
-
-  .route-meta {
-    flex: 0 1 auto;
-    min-width: 0;
-  }
-
-  /* The analysis toggles keep their icon and drop the word: eleven text items in
-     one 56 px strip is a wall of words, not a toolbar. The tooltip and the
-     accessible name still carry the label. */
-  #btn-supply .btn-label,
-  #btn-weather .btn-label,
-  #btn-trips .btn-label,
-  #btn-settings .btn-label {
-    display: none;
-  }
-}
-
-/* Below ~1120 px the row needs what it does not have. The route name goes first:
- * it is in the tab title and in the editor header; the bar's actions are not. */
-@media (min-width: 761px) and (max-width: 1120px) {
-  .route-meta {
-    display: none;
-  }
+  margin-left: var(--s-2);
+  gap: var(--s-2);
 }
 
 /* Icon sprite: one definition of each glyph, sized by CSS. */
@@ -388,62 +709,65 @@ input {
 
 .tb-menu-body {
   position: absolute;
-  top: calc(100% + 7px);
+  top: calc(100% + 8px);
   right: 0;
   z-index: 40;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   width: max-content;
-  min-width: 200px;
-  padding: 5px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-panel);
-  background: var(--dock);
-  box-shadow: var(--shadow);
+  min-width: 210px;
+  padding: 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-3);
+  background: var(--panel);
+  box-shadow: var(--e-3), var(--edge);
+  overflow-y: auto;
+  max-height: min(70vh, 420px);
 }
 
 .tb-menu[open] > .tb-menu-toggle {
-  background: var(--sel);
+  background: var(--panel-3);
   color: var(--text);
 }
 
 .menu-section {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   margin-top: 2px;
-  padding: 7px 9px 3px;
+  padding: var(--s-2) 9px var(--s-1);
   border-top: 1px solid var(--line);
 }
 
 .menu-label {
-  font-size: var(--fs-1);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted-dim);
+  font-size: var(--t-1);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--dim);
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  min-height: 32px;
-  padding: 0 9px;
+  min-height: 34px;
+  padding: 0 10px;
   border: 0;
-  border-radius: var(--r-ctl);
+  border-radius: var(--r-2);
   background: transparent;
   color: var(--text);
-  font-size: var(--fs-3);
+  font-size: var(--t-3);
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
 }
 
 .menu-item:hover {
-  background: var(--sel);
+  background: var(--panel-3);
 }
 
 .menu-item:disabled {
-  color: var(--muted-dim);
+  color: var(--ghost);
   cursor: default;
 }
 
@@ -454,1453 +778,47 @@ input {
 .tb-menu-body .seg {
   align-self: flex-start;
   margin-top: 0;
-  border-radius: var(--r-ctl);
 }
 
-/* Mobile-only disclosure (the ⋯ control in the header and in the editor bar).
-   Above 760 px both toggles are gone and their bodies are `display: contents`,
-   so the desktop row is laid out exactly as if the wrappers were not there. */
+/* Mobile-only disclosure. Above 760 px both toggles are gone and their bodies
+   are `display: contents`, so the desktop row lays out as if they were absent. */
 .topbar-more-toggle,
 .topbar-more-label,
 .topbar-more-label.btn,
-.topbar-more-body,
-/* Buttons ------------------------------------------------------------------ */
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 11px;
-  border-radius: var(--r-ctl);
-  border: 1px solid var(--line-strong);
-  background: var(--panel-2);
-  color: var(--text);
-  font-size: var(--fs-3);
-  font-weight: 500;
-  line-height: 1;
-  cursor: pointer;
-  transition:
-    background-color 140ms ease,
-    border-color 140ms ease,
-    color 140ms ease;
-  white-space: nowrap;
-}
-
-.btn:hover:not(:disabled) {
-  background: var(--panel-3);
-}
-
-.btn:active:not(:disabled) {
-  transform: translateY(0.5px);
-}
-
-.btn:disabled {
-  /* A disabled control is a word that is not available yet, not a ghost
-     rectangle that still looks pressable: drop the fill and the border. */
-  background: transparent;
-  border-color: transparent;
-  color: var(--muted-dim);
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.btn .i,
-.icon-btn .i,
-.map-btn .i {
-  width: 16px;
-  height: 16px;
-  flex: none;
-}
-
-/* The one accent-filled control on the screen: the recurring action, Save. */
-.btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #1d1407;
-  font-weight: 650;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--accent-strong);
-  border-color: var(--accent-strong);
-}
-
-/* Secondary weight: the first-run action (Åpne GPX), dialog actions. */
-.btn-open .i {
-  color: var(--muted);
-}
-
-.btn-open:hover:not(:disabled) .i {
-  color: var(--text);
-}
-
-/* Quiet weight: panels and the trip library. Visible by position and label,
-   loud only when they are the thing that is open. */
-.btn-quiet {
-  background: transparent;
-  border-color: transparent;
-  color: var(--muted);
-}
-
-.btn-quiet:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: transparent;
-  color: var(--text);
-}
-
-/* An open drawer is state, not decoration: surface fill and brighter text.
- * Never a font-weight change: a heavier label is a wider label, and the bar
- * would shove its neighbours sideways the moment a panel opens. */
-.btn-quiet[aria-expanded='true'] {
-  background: var(--sel);
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
-}
-
-.btn-quiet[aria-expanded='true']:hover:not(:disabled) {
-  background: var(--sel);
-  color: var(--text);
-}
-
-.btn-icon {
-  width: 32px;
-  padding: 0;
-}
-
-.btn-toggle {
-  color: var(--muted);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.btn-toggle[aria-pressed='true'] {
-  background: var(--sel);
-  border-color: var(--line-strong);
-  color: var(--text);
-}
-
-.btn-toggle[aria-pressed='true']:hover:not(:disabled) {
-  background: var(--sel);
-}
-
-.seg {
-  display: inline-flex;
-  align-items: stretch;
-  border: 1px solid var(--line-strong);
-  background: var(--panel-2);
-  border-radius: var(--r-ctl);
-  padding: 2px;
-  gap: 2px;
-  overflow: hidden;
-  height: 32px;
-}
-
-.seg-btn {
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--muted);
-  padding: 0 10px;
-  font-size: var(--fs-2);
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background-color 140ms ease,
-    color 140ms ease;
-}
-
-.seg-btn + .seg-btn {
-  border-left: 1px solid var(--line);
-}
-
-.seg-btn:hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-/* Selected is a filled surface with brighter, heavier text — not a coloured
-   border. Accent stays reserved for the primary action and the active tab. */
-.seg-btn[aria-pressed='true'] {
-  background: var(--sel);
-  color: var(--text);
-  font-weight: 650;
-}
-
-.seg-btn[aria-selected='true'] {
-  background: var(--sel);
-  color: var(--data);
-  font-weight: 650;
-}
-
-.seg-lang .seg-btn {
-  padding: 0 9px;
-  font-size: var(--fs-2);
-  letter-spacing: 0.06em;
-}
-
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--r-ctl);
-  background: transparent;
-  color: var(--muted);
-  line-height: 1;
-  cursor: pointer;
-}
-
-.icon-btn:hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-/* Banners ------------------------------------------------------------------ */
-
-.banners {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 0 14px 9px;
-  max-height: 30vh;
-  overflow: auto;
-}
-
-.banner {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 7px 10px;
-  border-radius: var(--r-card);
-  border: 1px solid var(--line-strong);
-  background: var(--panel-2);
-  font-size: 12.5px;
-  line-height: 1.35;
-}
-
-.banner-dot {
-  flex: none;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--muted);
-}
-
-.banner-text {
-  flex: 1;
-  margin: 0;
-  min-width: 0;
-}
-
-.banner-action {
-  flex: none;
-  border: 0;
-  background: transparent;
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.banner-close {
-  flex: none;
-  width: 20px;
-  height: 20px;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.banner-close:hover {
-  color: var(--text);
-}
-
-.banner--warning {
-  background: rgba(227, 178, 105, 0.09);
-  border-color: rgba(227, 178, 105, 0.32);
-}
-
-.banner--warning .banner-dot {
-  background: var(--warn);
-}
-
-.banner--error {
-  background: rgba(231, 130, 118, 0.09);
-  border-color: rgba(231, 130, 118, 0.34);
-}
-
-.banner--error .banner-dot {
-  background: var(--error);
-}
-
-.banner--info {
-  background: rgba(79, 174, 156, 0.07);
-  border-color: rgba(79, 174, 156, 0.25);
-}
-
-.banner--info .banner-dot {
-  background: var(--accent);
-}
-
-/* --------------------------------------------------------------------------
-   Stage: map + profile
-   -------------------------------------------------------------------------- */
-
-.stage {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.map-wrap {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  background: var(--bg);
-  /* Width of the right-hand dock, so the map chrome can step out of its way. */
-  --dock-w: min(430px, calc(100% - 24px));
-}
-
-.map {
-  position: absolute;
-  inset: 0;
-}
-
-.maplibregl-map {
-  font-family: inherit;
-}
-
-.maplibregl-canvas:focus-visible {
-  /* Inset, so the map's own overflow cannot clip the ring. */
-  outline: 2px solid var(--accent);
-  outline-offset: -3px;
-}
-
-.maplibregl-ctrl-scale {
-  border-color: rgba(231, 239, 239, 0.45) !important;
-  background: rgba(8, 16, 18, 0.6) !important;
-  color: var(--text) !important;
-  font-size: 10px !important;
-  padding: 1px 4px !important;
-  margin-left: 10px !important;
-  margin-bottom: 9px !important;
-  border-radius: 3px;
-}
-
-/* Map controls ------------------------------------------------------------- */
-
-/* Map options live on the map, not in the header. A basemap switch is a property
- * of what you are looking at; in the bar it was the widest thing in the row and a
- * neighbour of route actions it has nothing to do with. */
-.map-style {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 6;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-ctl);
-  /* Same surface as the sheet and the map controls: the chrome has one colour. */
-  background: var(--panel);
-  box-shadow: var(--shadow);
-}
-
-.map-style .seg-btn {
-  height: 26px;
-  padding: 0 10px;
-  font-size: 11.5px;
-}
-
-.map-style .btn {
-  height: 26px;
-  padding: 0 8px;
-  font-size: 11.5px;
-  border-color: transparent;
-}
-
-/* Inside the pill the segment is one surface: no second frame, no table-like
- * dividers, fills clipped to a small corner. Nesting a bordered group inside a
- * bordered pill inside a bordered cell is three edges in a 40 px control. */
-.map-style .seg {
-  border: 0;
-  background: transparent;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.map-style .seg-btn + .seg-btn {
-  border-left: 0;
-}
-
-/* Hover is a lift within the pill, not a repaint: the stock `.seg-btn:hover`
- * fill (4% white) is invisible on this background, and it used to change the
- * label weight of the selected option — which made the whole pill jump in width
- * every time the basemap changed. */
-.map-style .seg-btn:hover:not([aria-pressed='true']),
-.map-style .btn:hover:not([aria-pressed='true']):not(:disabled) {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: transparent;
-  color: var(--text);
-}
-
-.map-style .seg-btn[aria-pressed='true'],
-.map-style .btn-toggle[aria-pressed='true'] {
-  background: var(--panel-2);
-  color: var(--text);
-  /* No weight change: a heavier label is a wider label. Selection is an amber
-     underline rather than another 6 % fill, which hover already uses — the
-     selected option and the hovered one were the same colour. */
-  font-weight: 500;
-  box-shadow: inset 0 -2px 0 var(--accent);
-}
-
-/* Hover is the lighter cue. `[aria-pressed]` has to out-weigh it or the pointer
-   position *is* the selection — measured fill was 38,37,35 on hover against
-   34,32,29 on the selected chip, i.e. inverted. */
-.map-style .seg-btn:hover:not([aria-pressed='true']),
-.map-style .btn:hover:not([aria-pressed='true']):not(:disabled) {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.map-style .seg-btn[aria-pressed='true'],
-.map-style .btn-toggle[aria-pressed='true'] {
-  background: rgba(201, 138, 63, 0.16);
-}
-
-.map-style .seg-btn[aria-pressed='true']:hover,
-.map-style .btn-toggle[aria-pressed='true']:hover {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-/* The 3D toggle sat 2 px below the segment because the two boxes were sized from
-   different rules; both are now 26 px on the same flex line. */
-.map-style .btn {
-  align-self: center;
-}
-
-/* At rest the 3D toggle is a word on the pill, not a third filled chip: three
-   things painted as "selected" is why the state was unreadable. */
-.map-style .btn-toggle:not([aria-pressed='true']) {
-  background: transparent;
-}
-
-/* The planning group: the mode switch and "new route" are the same thought, and
- * they are only meaningful together. */
-/* Creating a route and saving it are header actions. The drawer repeated both —
- * and the two save rows even ordered status and button differently — so each fact
- * now has exactly one owner. */
-.editor-dock-head #editor-new,
-.editor-panel .editor-save {
-  display: none;
-}
-
-.editor-dock-head .seg-mode {
-  flex: 0 0 auto;
-}
-
-.editor-dock-head .seg-mode .seg-btn {
-  height: 24px;
-  padding: 0 7px;
-  font-size: 11px;
-}
-
-@media (max-width: 760px) {
-  /* On a phone the top-right corner is already taken by the map controls and the
-     top-left by the route drawer. The pill goes bottom-right, clear of both and
-     above MapLibre's attribution (which must stay readable). */
-  .map-style {
-    top: auto;
-    bottom: 44px;
-    right: 8px;
-  }
-
-  .map-style .seg-btn {
-    padding: 0 8px;
-    font-size: 11px;
-  }
-
-  /* Thumb-sized: the pill is on the map now, so its targets answer to the touch
-     minimum rather than to a mouse's 26 px. */
-  .map-style .seg-btn,
-  .map-style .btn {
-    height: 30px;
-    min-width: 30px;
-  }
-
-  /* On a phone a new route is the empty state and the ⋯ menu, not a header row. */
-  .topbar-new {
-    display: none;
-  }
-
-  /* A 340 px drawer on a 390 px screen leaves the map — the thing you are told to
-     click — as a 50 px strip. Phones get the full width. Two classes: a later
-     `.editor-column` rule re-declared the desktop width and won. */
-  .map-wrap .editor-column {
-    width: 100%;
-    max-width: 100%;
-    max-height: 62%;
-  }
-
-  /* No pointer, so the hover readout is meaningless — and it was painting over
-     the Distanse/Stigning labels in a 38 px head. */
-  .profile-readout {
-    display: none;
-  }
-
-  /* The demo tag holds ~74 px of a 148 px meta row, truncating the route name to
-     "Memurub…". The name is the identity; the tag is the footnote. */
-  .route-meta .demo-details {
-    display: none;
-  }
-
-  /* One divider, not two: the actions wrapper and the save group each drew one. */
-  .topbar-actions {
-    border-left: 0;
-    padding-left: 0;
-  }
-
-  /* Creating a route is a header action on a desktop and a drawer action on a
-     phone, where the header has no room for it. The drawer is open by default. */
-  .editor-dock-head #editor-new {
-    display: inline-flex;
-  }
-
-  /* 40 px toggle beside a 32 px Save is two control sizes in one row. */
-  .topbar-more-label.btn {
-    width: 32px;
-    height: 32px;
-  }
-
-  /* The disclosure body is the phone's menu: a sheet with its own scroll, a
-     full-width Import GPX at the top, and the nested "more" menu flowing inside it
-     instead of hanging 149 px past the frame. */
-  .topbar .topbar-actions .topbar-more-body {
-    height: auto;
-    max-height: min(66vh, 420px);
-    overflow-y: auto;
-    padding: 10px;
-    gap: 10px;
-  }
-
-  /* One column of full-width rows: a 2-up grid turned the sheet into a jumble of
-     half-width buttons with clipped outlines, and the design note above already
-     says a single column reads better on a phone. */
-  .topbar-more-body .tb-group {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    border-left: 0;
-    padding-left: 0;
-  }
-
-  /* An unlabelled glyph among four labelled rows reads as a rendering fault. */
-  .topbar-more-body .btn-icon .btn-label {
-    display: inline;
-  }
-
-  #btn-settings .btn-label {
-    display: inline;
-  }
-
-  .topbar-more-body .btn-icon {
-    width: auto;
-    padding: 0 8px;
-  }
-
-  /* The nested disclosure is a block inside the sheet, not a zero-height
-     `display: contents`: its four rows were overflowing a fixed-height box and
-     were unclickable. */
-  .topbar .tb-menu {
-    display: block;
-  }
-
-  .topbar .tb-menu > .tb-menu-body {
-    display: flex !important;
-    height: auto;
-  }
-
-  .topbar-more-body {
-    height: auto;
-    max-height: calc(100dvh - 70px);
-    overflow-y: auto;
-  }
-
-  /* The hint wraps instead of truncating mid-word. */
-  .profile-status {
-    white-space: normal;
-    overflow: visible;
-  }
-
-  .topbar-more-body .tb-group > .btn,
-  .topbar-more-body .tb-group > .seg,
-  .topbar-more-body .seg-btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .topbar-more-toggle:checked ~ #btn-open {
-    position: absolute;
-    top: calc(100% + 14px);
-    left: 16px;
-    right: 16px;
-    width: auto;
-    margin: 0;
-    height: 36px;
-  }
-
-  /* The sheet already has a reserved row for Import GPX; keep that reservation
-     even when the groups wrap, or the button lands on top of them. */
-  .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-body {
-    padding-top: 60px;
-  }
-
-  /* The nested disclosure was a dropdown laid out at x=339–539 on a 390 px
-     screen. In the sheet it is not a disclosure at all: its items join the grid,
-     so About/Share/Download are one tap away instead of two. */
-  .topbar .tb-menu {
-    display: contents;
-  }
-
-  .topbar .tb-menu > summary {
-    display: none;
-  }
-
-  /* Two classes: the base `.tb-menu-body` is absolutely positioned further down
-     the file, and this block sits earlier, so one class lost to it. */
-  .topbar .tb-menu-body {
-    position: static;
-    width: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    border: 0;
-    box-shadow: none;
-    padding: 0;
-    background: transparent;
-  }
-
-  .topbar .tb-menu-body .menu-item {
-    justify-content: flex-start;
-  }
-
-  /* Anchored to the demo tag, `left: 0` put a 340 px panel's right edge at 462 px
-     on a 390 px screen. On a phone it is a sheet under the bar, not a popover
-     hanging off its trigger. */
-  .route-popover {
-    position: fixed;
-    top: 52px;
-    left: 8px;
-    right: 8px;
-    width: auto;
-    max-height: min(70vh, 460px);
-  }
-
-  /* The readout was clipped mid-number ("1 176 m oh · +0,") because it was one
-     nowrap line in a narrow box. Wrapping keeps every digit honest. */
-  .profile-readout {
-    white-space: normal;
-  }
-}
-
-@media (min-width: 761px) and (max-width: 1200px) {
-  .topbar-new .btn-label {
-    display: none;
-  }
-}
-
-.map-controls {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 6;
-  display: flex;
-  flex-direction: column;
-  background: var(--panel);
-  border: 1px solid var(--line-strong);
-  /* Same radius token as the style pill beside it: two overlays 30 px apart with
-     8 px and 6 px corners is the detail that reads as "assembled". */
-  border-radius: var(--r-ctl);
-  overflow: hidden;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
-}
-
-/* The zoom pair is one control. A hairline between + and − cuts it in two. */
-.map-btn + .map-btn {
-  border-top: 0;
-}
-
-.map-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  background: transparent;
-  color: var(--text);
-  line-height: 1;
-  cursor: pointer;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease;
-}
-
-.map-btn:last-child {
-  border-bottom: 0;
-}
-
-.map-btn:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: var(--text);
-}
-
-.map-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-/* Terrain hint ------------------------------------------------------------- */
-
-.terrain-hint {
-  position: absolute;
-  left: 12px;
-  bottom: 34px;
-  z-index: 6;
-  max-width: calc(100% - 130px);
-  padding: 3px 8px;
-  border-radius: 6px;
-  border: 1px solid rgba(227, 178, 105, 0.34);
-  background: rgba(13, 22, 24, 0.85);
-  color: var(--warn);
-  font-size: 10.5px;
-  line-height: 1.35;
-}
-
-.terrain-hint:empty {
-  display: none;
-}
-
-/* Attribution -------------------------------------------------------------- */
-
-.map-attrib {
-  position: absolute;
-  right: 10px;
-  bottom: 8px;
-  z-index: 6;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: rgba(8, 16, 18, 0.72);
-  border: 1px solid rgba(34, 49, 52, 0.9);
-  font-size: 10.5px;
-  color: var(--muted);
-  max-width: calc(100% - 20px);
-  white-space: normal;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  text-align: right;
+.topbar-more-body {
+  display: contents;
 }
-
-.map-attrib > * + *::before {
-  content: '·';
-  margin-right: 5px;
-  color: var(--muted-dim);
-}
-
-.map-attrib a {
-  color: var(--muted);
-  text-decoration: none;
-}
-
-.map-attrib a:hover {
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-/* Empty state / fatal ------------------------------------------------------ */
-
-.empty-state {
-  position: absolute;
-  inset: 0;
-  z-index: 8;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: radial-gradient(ellipse at 50% 45%, rgba(8, 16, 18, 0.25), rgba(8, 16, 18, 0.72));
-  pointer-events: none;
-}
-
-.empty-card {
-  pointer-events: auto;
-  width: min(430px, 100%);
-  padding: 26px 26px 22px;
-  border-radius: var(--r-panel);
-  border: 1px solid var(--line-strong);
-  background: rgba(15, 24, 26, 0.94);
-  box-shadow: var(--shadow);
-  text-align: center;
-}
-
-.empty-icon {
-  width: 44px;
-  height: 44px;
-  color: var(--accent);
-  margin-bottom: 6px;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.empty-card h2 {
-  margin: 0 0 8px;
-  font-size: 18px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-}
-
-.empty-card p {
-  margin: 0 0 16px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-.empty-card .empty-privacy {
-  margin: 14px 0 0;
-  font-size: 11px;
-  color: var(--muted-dim);
-}
-
-.map-fatal {
-  position: absolute;
-  inset: 0;
-  z-index: 9;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(8, 14, 16, 0.92);
-}
-
-.map-fatal p {
-  max-width: 460px;
-  margin: 0;
-  padding: 18px 20px;
-  border: 1px solid rgba(231, 130, 118, 0.4);
-  background: rgba(231, 130, 118, 0.08);
-  border-radius: var(--r-panel);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.dropzone {
-  position: absolute;
-  inset: 10px;
-  z-index: 30;
-  display: grid;
-  place-items: center;
-  border: 2px dashed rgba(79, 174, 156, 0.65);
-  border-radius: var(--r-panel);
-  background: rgba(7, 18, 20, 0.72);
-  pointer-events: none;
-}
-
-.dropzone-inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  color: var(--accent);
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.dropzone-inner svg {
-  width: 40px;
-  height: 40px;
-}
-
-.dropzone-inner p {
-  margin: 0;
-}
-
-/* --------------------------------------------------------------------------
-   Profile
-   -------------------------------------------------------------------------- */
-
-.profile {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  height: 218px;
-  background: var(--panel);
-  border-top: 1px solid var(--line);
-  min-height: 0;
-}
-
-.profile.is-collapsed {
-  height: 38px;
-}
-
-.profile-head {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 38px;
-  flex-wrap: wrap;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--line);
-}
-
-.profile-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font-size: 12.5px;
-  font-weight: 650;
-  letter-spacing: 0.01em;
-  padding: 6px 8px;
-  border-radius: var(--r-ctl);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.profile-toggle:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.profile-toggle .chevron {
-  width: 14px;
-  height: 14px;
-  color: var(--muted);
-  transition: transform 160ms ease;
-  transform: rotate(0deg);
-}
-
-.profile.is-collapsed .profile-toggle .chevron {
-  transform: rotate(-90deg);
-}
-
-.profile-status {
-  flex: 1;
-  min-width: 0;
-  font-size: 11.5px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-source {
-  flex: none;
-  padding-left: 10px;
-  border-left: 1px solid var(--line);
-}
-
-.profile-readout {
-  flex: none;
-  /* The only thing in the head whose content width changes. Without a reserve,
-     every value under the pointer nudges the provenance badge to its left, so
-     "Kartverket DTM" slides back and forth while the cursor moves. Reserve the
-     widest realistic reading and right-align inside it. */
-  min-width: 30ch;
-  text-align: left;
-  font-size: 12.5px;
-  font-weight: 550;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-  opacity: 0.94;
-  white-space: nowrap;
-}
-
-.profile-body {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-}
-
-.profile-chart {
-  position: absolute;
-  inset: 0;
-  cursor: crosshair;
-  touch-action: pan-y;
-  outline: none;
-}
-
-.profile-chart:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -3px;
-  border-radius: 4px;
-}
-
-.profile-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.profile-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 12px 22px;
-  text-align: center;
-  background: var(--panel-2);
-  pointer-events: none;
-}
-
-.profile-overlay > * {
-  pointer-events: auto;
-}
-
-.profile-overlay-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.profile-overlay-detail {
-  margin: 0;
-  max-width: 620px;
-  font-size: 11.5px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-.profile-progress {
-  width: min(240px, 60%);
-  height: 4px;
-  border-radius: 999px;
-  background: var(--line);
-  overflow: hidden;
-  margin-top: 4px;
-}
-
-.profile-progress > span {
-  display: block;
-  height: 100%;
-  width: 0;
-  border-radius: inherit;
-  background: var(--accent);
-  transition: width 240ms ease;
-}
-
-.profile-progress > span.is-indeterminate {
-  animation: slide 1.2s ease-in-out infinite;
-}
-
-@keyframes slide {
-  0% {
-    transform: translateX(-40%);
-  }
-  100% {
-    transform: translateX(300%);
-  }
-}
-
-/* --------------------------------------------------------------------------
-   Stats
-   -------------------------------------------------------------------------- */
-
-.stats {
-  flex: none;
-  display: grid;
-  /* Stretched, not fixed: five 152 px tracks stopped at x=904 of 1440 and left
-     the notice card ending mid-screen. Even tracks with a real gap fill the band
-     and keep every value on the same rhythm. */
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 24px;
-  padding: 9px 16px calc(9px + env(safe-area-inset-bottom));
-  background: var(--panel);
-  border-top: 1px solid var(--line);
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.stat-label {
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.005em;
-  color: var(--muted);
-}
-
-.stat-value {
-  font-size: 14.5px;
-  font-weight: 620;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  letter-spacing: -0.005em;
-}
-
-.stat-value.is-disabled {
-  color: var(--muted-dim);
-}
-
-.stat-value-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.stat-value-row .btn {
-  align-self: center;
-}
-
-.stat-value-row .i {
-  width: 14px;
-  height: 14px;
-}
-
-.source-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  font-size: 11.5px;
-  font-weight: 500;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.source-badge .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--muted-dim);
-}
-
-.source-badge[data-status='ready'] .dot {
-  background: var(--data);
-}
-
-.source-badge[data-status='loading'] {
-  color: var(--warn);
-}
-
-.source-badge[data-status='loading'] .dot {
-  background: var(--warn);
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-.source-badge[data-status='error'] {
-  color: var(--error);
-}
-
-.source-badge[data-status='error'] .dot {
-  background: var(--error);
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-/* --------------------------------------------------------------------------
-   Dialogs
-   -------------------------------------------------------------------------- */
-
-.dialog {
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-panel);
-  background: var(--panel);
-  color: var(--text);
-  padding: 0;
-  width: min(560px, calc(100vw - 28px));
-  max-height: min(82vh, 760px);
-  box-shadow: var(--shadow);
-}
-
-.dialog::backdrop {
-  background: rgba(4, 10, 11, 0.62);
-}
-
-.dialog-inner {
-  display: flex;
-  flex-direction: column;
-  max-height: inherit;
-}
-
-.dialog-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 13px 16px;
-  border-bottom: 1px solid var(--line);
-}
-
-.dialog-head h2 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 650;
-}
-
-.dialog-body {
-  padding: 14px 16px 18px;
-  overflow: auto;
-  scrollbar-gutter: stable;
-  font-size: 12.5px;
-  line-height: 1.55;
-}
-
-.dialog-body::-webkit-scrollbar,
-.banners::-webkit-scrollbar {
-  width: 11px;
-}
-
-.dialog-body::-webkit-scrollbar-thumb,
-.banners::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  border: 3px solid transparent;
-  background-color: var(--scroll-thumb);
-  background-clip: content-box;
-}
-
-.dialog-body::-webkit-scrollbar-thumb:hover,
-.banners::-webkit-scrollbar-thumb:hover {
-  background-color: var(--scroll-thumb-hover);
-  background-clip: content-box;
-}
-
-.dialog-body p {
-  color: var(--muted);
-  margin: 0 0 12px;
-}
-
-.dialog-body h3 {
-  margin: 18px 0 8px;
-  font-size: 11.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-}
-
-.dialog-body h3:first-child {
-  margin-top: 0;
-}
-
-.notice {
-  padding: 12px 14px;
-  border-radius: var(--r-card);
-  border: 1px solid rgba(227, 178, 105, 0.28);
-  background: rgba(227, 178, 105, 0.08);
-}
-
-.notice h3 {
-  margin: 0 0 6px;
-  color: var(--warn);
-  font-size: 12px;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-.notice p {
-  margin: 0;
-  color: var(--text);
-  opacity: 0.86;
-}
-
-.source-list {
-  margin: 0 0 12px;
-  padding-left: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.source-list li {
-  color: var(--muted);
-}
-
-.source-list strong {
-  display: block;
-  color: var(--text);
-  font-size: 12.5px;
-}
-
-.source-list a,
-.dialog-body a {
-  color: var(--accent);
-  text-decoration: none;
-  margin-right: 8px;
-}
-
-.source-list a:hover,
-.dialog-body a:hover {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.field-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin: 10px 0;
-}
-
-.field-row label {
-  color: var(--text);
-  font-size: 12.5px;
-}
-
-.field-row input {
-  width: 120px;
-  padding: 7px 9px;
-  border-radius: var(--r-ctl);
-  border: 1px solid var(--line-strong);
-  background: var(--panel-2);
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
-.field-row input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.formula {
-  margin: 12px 0 0;
-  padding: 9px 11px;
-  border-radius: var(--r-card);
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  font-size: 11.5px;
-  color: var(--muted);
-}
-
-.field-error {
-  margin: 8px 0 0;
-  font-size: 11.5px;
-  color: var(--error);
-}
-
-.dialog-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--line);
-}
-
-.dialog-actions-right {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Toast -------------------------------------------------------------------- */
-
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 22px;
-  transform: translateX(-50%);
-  z-index: 100;
-  padding: 9px 15px;
-  border-radius: var(--r-card);
-  border: 1px solid rgba(79, 174, 156, 0.4);
-  background: rgba(13, 23, 25, 0.97);
-  box-shadow: var(--shadow);
-  font-size: 12.5px;
-  color: var(--text);
-  max-width: calc(100vw - 32px);
-  text-align: center;
-}
-
-.toast[data-kind='warning'] {
-  border-color: rgba(227, 178, 105, 0.45);
-}
-
-/* --------------------------------------------------------------------------
-   Phase 3 — save status, editor toolbar, weather panel, trip library
-   -------------------------------------------------------------------------- */
 
-/* Save: one accent button, and a quiet state line to its left. The status is
-   its own element — a dot and a word — never a label glued into the fill. */
+/* The save group: a state word and the action it belongs to. */
 .save-group {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--s-2);
   flex: none;
 }
 
 .save-status {
-  display: inline-block;
-  font-size: var(--fs-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-1);
+  font-weight: 500;
   line-height: 1.25;
-  color: var(--muted-dim);
-  font-variant-numeric: tabular-nums;
+  color: var(--dim);
   max-width: 18ch;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-align: right;
 }
 
 .save-status::before {
   content: '';
   display: inline-block;
-  width: 5px;
-  height: 5px;
-  margin-right: 6px;
+  flex: none;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: currentColor;
-  /* Middle of the line box, not 0.05em above the baseline: at 11 px that put the
-     dot visibly high against the label it is supposed to sit beside. */
-  vertical-align: middle;
   opacity: 0.9;
 }
 
@@ -1916,7 +834,6 @@ input {
   background: var(--warn);
 }
 
-/* A write that has been requested but has not committed: still not saved. */
 .save-status[data-kind='saving'] {
   color: var(--muted);
 }
@@ -1940,44 +857,514 @@ input {
 }
 
 .save-status[data-kind='unavailable'] {
-  color: var(--muted-dim);
+  color: var(--muted);
 }
 
-.btn-small {
-  height: 26px;
-  padding: 0 8px;
-  font-size: var(--fs-2);
-  border-radius: var(--r-ctl);
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
-.btn-danger {
-  border-color: rgba(231, 130, 118, 0.4);
-  color: var(--error);
-}
+/* Banners --------------------------------------------------------------- */
 
-.btn-danger:hover {
-  background: rgba(231, 130, 118, 0.12);
-}
-
-/* Editor column ------------------------------------------------------------ *
- * The editor is one left rail: the mode bar at the top, then the dock with the
- * trip, its legs and the actions for what is selected. A single positioned
- * column means neither part has to guess the other's height, and the map is
- * never covered by a floating bar plus a floating panel that overlap.
- */
-.editor-column {
-  /* Flush to the map's top-left corner, rounded only on the outside edge: a card
-     floating 12 px off both edges reads as a stray popup over the map rather than
-     a drawer belonging to it. */
+/* The stack floats over the map instead of pushing it down: five failed sources
+   used to grow the frame to 230 px and move the world under the cursor. It never
+   covers the drawer or the analysis dock at their own rail, and every banner can
+   be dismissed on its own. */
+.banners {
   position: absolute;
-  top: 0;
-  left: 0;
-  /* Hug the content. A full-height column with a short dock leaves a tall empty
-   * card over the map, which reads as a broken panel. The cap keeps a long leg
-   * list scrolling instead of growing past the viewport. */
-  max-height: 100%;
-  width: 340px;
-  max-width: 100%;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 18;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(520px, calc(100% - 24px));
+  padding: 0;
+  max-height: min(38vh, 220px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: none;
+}
+
+/* A banner is a notice, not a bar: opaque surface, a role rule on the leading
+   edge, and a dot. Opaque matters — over a desktop the stack floats on the map,
+   and a 12 % tint on a topo basemap is unreadable mud. */
+.banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px var(--s-2);
+  padding: 7px 10px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow:
+    var(--e-2),
+    inset 2px 0 0 var(--muted);
+  font-size: var(--t-2);
+  line-height: var(--lh-2);
+  pointer-events: auto;
+}
+
+.banner-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.banner-text {
+  /* A basis, not `flex: 1`: with a long action label the text collapsed to a
+     six-line column beside it. It wraps the action to the next row instead. */
+  flex: 1 1 16ch;
+  margin: 0;
+  min-width: 0;
+}
+
+.banner-action {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--t-2);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--r-1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.banner-close {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  background: transparent;
+  color: var(--dim);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--r-1);
+}
+
+.banner-close:hover {
+  color: var(--text);
+  background: var(--panel-3);
+}
+
+.banner--warning {
+  border-color: rgba(238, 193, 99, 0.28);
+  box-shadow: inset 2px 0 0 var(--warn);
+}
+
+.banner--warning .banner-dot {
+  background: var(--warn);
+}
+
+.banner--error {
+  border-color: rgba(238, 139, 129, 0.3);
+  box-shadow: inset 2px 0 0 var(--error);
+}
+
+.banner--error .banner-dot {
+  background: var(--error);
+}
+
+.banner--info {
+  border-color: rgba(98, 196, 176, 0.24);
+  box-shadow: inset 2px 0 0 var(--data);
+}
+
+.banner--info .banner-dot {
+  background: var(--data);
+}
+
+
+
+
+/* --------------------------------------------------------------------------
+   Stage
+
+   The map fills the stage; the readout is a card lying on it. `--stack` is the
+   height that card occupies, so every piece of map chrome can step above it
+   instead of guessing.
+   -------------------------------------------------------------------------- */
+
+.stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* The exact height of the readout card plus its bottom margin (194 + 68 + 12).
+     The four values are measured, not guessed: the map's own chrome is placed
+     from this number, so a wrong one puts a licence line under a panel. */
+  --stack: 274px;
+}
+
+.stage:has(.profile.is-collapsed) {
+  --stack: 124px;
+}
+
+/* The default-body notice is a real row inside the readout, so the stack grows
+   with it and nothing has to be clipped to keep the numbers honest. */
+.stage:has(.stat-notice:not([hidden])) {
+  --stack: 312px;
+}
+
+.stage:has(.profile.is-collapsed):has(.stat-notice:not([hidden])) {
+  --stack: 162px;
+}
+
+.map-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+}
+
+.maplibregl-map {
+  font-family: inherit;
+}
+
+.maplibregl-canvas:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -4px;
+}
+
+/* MapLibre's scale bar sits bottom-left; the chrome below keeps clear of it. */
+.maplibregl-ctrl-scale {
+  border: 0 !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.45) !important;
+  background: rgba(11, 16, 19, 0.72) !important;
+  color: var(--text) !important;
+  font-size: var(--t-1) !important;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 5px !important;
+  margin: 0 0 calc(var(--stack) + 8px) 12px !important;
+  border-radius: var(--r-1);
+}
+
+.maplibregl-popup {
+  max-width: calc(100vw - 24px);
+}
+
+.maplibregl-popup-content {
+  padding: 10px 12px;
+  border-radius: var(--r-3);
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--e-3), var(--edge);
+  max-height: 45vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+}
+
+.maplibregl-popup-tip {
+  border-top-color: var(--panel);
+  border-bottom-color: var(--panel);
+}
+
+/* Map controls ------------------------------------------------------------- */
+
+/* Floating pills over the map: the same surface and radius as a panel, one step
+   down in elevation. Nothing on the map wears a 1 px frame. */
+.map-controls {
+  position: absolute;
+  bottom: calc(var(--stack) + 34px);
+  left: var(--s-3);
+  z-index: 6;
+  display: flex;
+  flex-direction: row;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+  box-shadow: var(--e-2);
+  overflow: hidden;
+}
+
+/* 34 + 1 px of border = 36: the control bar and the basemap pill are the same
+   height, so the two corners of the map are one family. */
+.map-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 34px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.map-btn:last-child {
+  border-right: 0;
+}
+
+.map-btn:hover {
+  background: var(--panel-3);
+}
+
+.map-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Basemap switch: a property of what you are looking at, so it lives on the map
+   and follows the same thumb-in-a-track idiom as every other segmented control. */
+.map-style {
+  position: absolute;
+  bottom: calc(var(--stack) + 40px);
+  right: var(--s-3);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 3px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-3);
+  background: var(--panel);
+  box-shadow: var(--e-2);
+}
+
+.map-style .seg {
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.map-style .seg-btn {
+  height: 100%;
+  padding: 0 10px;
+  font-size: var(--t-2);
+}
+
+.map-style .btn {
+  height: 28px;
+  padding: 0 9px;
+  font-size: var(--t-2);
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.map-style .seg-btn[aria-pressed='true'],
+.map-style .btn-toggle[aria-pressed='true'] {
+  background: var(--panel-3);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.map-style .btn:hover:not([aria-pressed='true']):not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.map-style .btn-toggle:not([aria-pressed='true']) {
+  background: transparent;
+}
+
+/* Attribution: a licence line, not a control. It keeps the map's own contrast
+   so it stays readable over snow and over forest. */
+.map-attrib {
+  position: absolute;
+  right: var(--s-3);
+  bottom: calc(var(--stack) + 12px);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: var(--r-1);
+  background: rgba(11, 16, 19, 0.72);
+  font-size: 10.5px;
+  color: var(--muted);
+  max-width: calc(100% - 24px);
+  white-space: normal;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.map-attrib > * + *::before {
+  content: '·';
+  margin-right: 5px;
+  color: var(--dim);
+}
+
+.map-attrib a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.map-attrib a:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.terrain-hint {
+  position: absolute;
+  left: var(--s-3);
+  bottom: calc(var(--stack) + 78px);
+  z-index: 6;
+  max-width: calc(100% - 200px);
+  padding: 3px 8px;
+  border-radius: var(--r-1);
+  border: 0;
+  background: rgba(11, 16, 19, 0.8);
+  color: var(--warn);
+  font-size: var(--t-1);
+  line-height: var(--lh-1);
+}
+
+.terrain-hint:empty {
+  display: none;
+}
+
+/* Empty state ------------------------------------------------------------- */
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: var(--s-5);
+  background: radial-gradient(ellipse at 50% 42%, rgba(11, 16, 19, 0.32), rgba(11, 16, 19, 0.78));
+  pointer-events: none;
+}
+
+.empty-card {
+  pointer-events: auto;
+  width: min(440px, 100%);
+  padding: var(--s-7) var(--s-6) var(--s-5);
+  border-radius: var(--r-4);
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+  box-shadow: var(--e-3), var(--edge);
+  text-align: center;
+}
+
+.empty-icon {
+  width: 46px;
+  height: 46px;
+  color: var(--accent);
+  margin-bottom: var(--s-2);
+}
+
+.empty-card h2 {
+  margin: 0 0 var(--s-2);
+  font-size: var(--t-4);
+  font-weight: 600;
+  letter-spacing: -0.014em;
+}
+
+.empty-card p {
+  margin: 0 0 var(--s-4);
+  font-size: var(--t-3);
+  line-height: var(--lh-2);
+  color: var(--muted);
+}
+
+.empty-card .empty-privacy {
+  margin: var(--s-4) 0 0;
+  font-size: var(--t-1);
+  line-height: var(--lh-2);
+  color: var(--dim);
+}
+
+.map-fatal {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: var(--s-6);
+  background: rgba(9, 13, 16, 0.94);
+}
+
+.map-fatal p {
+  max-width: 460px;
+  margin: 0;
+  padding: var(--s-4) var(--s-5);
+  border: 1px solid rgba(238, 139, 129, 0.38);
+  background: var(--error-soft);
+  border-radius: var(--r-3);
+  font-size: var(--t-3);
+  line-height: var(--lh-2);
+}
+
+.dropzone {
+  position: absolute;
+  inset: var(--s-3);
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  border: 2px dashed rgba(98, 196, 176, 0.6);
+  border-radius: var(--r-4);
+  background: rgba(9, 16, 18, 0.74);
+  pointer-events: none;
+}
+
+.dropzone-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  color: var(--accent);
+  font-size: var(--t-4);
+  font-weight: 600;
+}
+
+.dropzone-inner svg {
+  width: 40px;
+  height: 40px;
+}
+
+.dropzone-inner p {
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Editor column
+
+   A floating card, inset from the map's corner like the analysis dock on the
+   other side. Flush-to-two-edges with one rounded corner was neither a card nor
+   a drawer; this is one model, mirrored.
+   -------------------------------------------------------------------------- */
+
+.editor-column {
+  position: absolute;
+  top: var(--s-3);
+  left: var(--s-3);
+  width: 336px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - var(--stack) - 24px);
   display: flex;
   flex-direction: column;
   z-index: 12;
@@ -1988,33 +1375,23 @@ input {
   pointer-events: auto;
 }
 
-/* One card. The bar and the dock used to be two floating boxes with their own
- * borders, shadows and gaps — the bar reading as a stray strip above the editor
- * it belongs to. Now the panel is the surface and the bar is its first section. */
 .editor-panel {
   position: static;
   flex: 0 1 auto;
   min-height: 0;
-  max-height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 0 12px 12px;
-  /* One rounded corner on a panel that is flush on two edges is neither a card
-     nor a drawer. Flush means flush: square, and opaque — a 97 % surface over a
-     detailed basemap reads as permanent smudge, and alpha without blur is the
-     tell. */
-  border-radius: 0;
-  border: 1px solid var(--line-strong);
-  border-top: 0;
-  border-left: 0;
+  gap: var(--s-3);
+  padding: 0 var(--s-3) var(--s-3);
+  border-radius: var(--r-4);
+  border: 1px solid var(--line-soft);
   background: var(--panel);
-  box-shadow: var(--shadow);
+  box-shadow: var(--e-3), var(--edge);
   overflow: hidden;
 }
 
 .editor-panel .panel-head {
-  padding: 10px 12px 8px;
+  padding: var(--s-3) var(--s-3) var(--s-2);
   border-bottom: 1px solid var(--line);
 }
 
@@ -2023,8 +1400,8 @@ input {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  margin: 0 -4px;
-  padding: 0 4px;
+  margin: 0 calc(-1 * var(--s-1));
+  padding: 0 var(--s-1);
 }
 
 .editor-dock-head {
@@ -2032,34 +1409,32 @@ input {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 8px;
-  row-gap: 6px;
+  column-gap: var(--s-2);
+  row-gap: var(--s-2);
 }
 
-/* The trip name gets its own line; the planning group (mode switch, new route)
-   gets the next one. Three controls on one 304 px line read as a pile. */
 .editor-dock-head .editor-trip {
   flex: 1 1 100%;
 }
 
 .editor-dock-head .btn {
   flex: none;
-  height: 26px;
-  font-size: var(--fs-2);
-  padding: 0 8px;
+  height: 28px;
+  font-size: var(--t-2);
+  padding: 0 var(--s-2);
 }
 
 .editor-trip {
   margin: 0;
-  font-size: var(--fs-2);
-  color: var(--muted);
+  font-size: var(--t-2);
+  color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
 
 .editor-legs {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .leg-row {
@@ -2067,9 +1442,9 @@ input {
   flex-direction: column;
   gap: 2px;
   width: 100%;
-  padding: 7px 9px;
+  padding: var(--s-2) 10px;
   border: 1px solid transparent;
-  border-radius: var(--r-ctl);
+  border-radius: var(--r-2);
   background: transparent;
   color: var(--text);
   text-align: left;
@@ -2077,27 +1452,27 @@ input {
 }
 
 .leg-row:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--panel-2);
 }
 
 .leg-row[aria-current='true'] {
-  background: var(--sel);
-  border-color: var(--line-strong);
+  background: var(--panel-2);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .leg-row-name {
-  font-size: var(--fs-3);
-  font-weight: 600;
+  font-size: var(--t-3);
+  font-weight: 500;
 }
 
 .leg-row-meta {
-  font-size: var(--fs-2);
-  color: var(--muted);
+  font-size: var(--t-2);
+  color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
 
 /* View mode: the card is the trip's structure only — no editing sections, and a
- * shorter list so the map keeps most of the screen. */
+   shorter list so the map keeps most of the screen. */
 .editor-column:has(.editor-toolbar[data-mode='view']) .editor-settings,
 .editor-column:has(.editor-toolbar[data-mode='view']) .editor-save,
 .editor-column:has(.editor-toolbar[data-mode='view']) .editor-status,
@@ -2106,12 +1481,18 @@ input {
   display: none;
 }
 
+/* Creating a route and saving it are header actions; the drawer repeated both. */
+.editor-dock-head #editor-new,
+.editor-panel .editor-save {
+  display: none;
+}
+
 .editor-column:has(.editor-toolbar[data-mode='view']) .editor-panel {
   flex: none;
   max-height: 46vh;
 }
 
-/* Editor toolbar ----------------------------------------------------------- */
+/* Editor toolbar ---------------------------------------------------------- */
 
 .editor-toolbar {
   position: static;
@@ -2119,22 +1500,20 @@ input {
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--s-1);
   padding: 0;
   border: 0;
   background: none;
-  font-size: 11.5px;
 }
 
 .editor-toolbar[data-mode='view'] {
-  padding-bottom: 6px;
+  padding-bottom: var(--s-1);
 }
 
-/* In view mode the bar is a compact mode switch, not a panel. */
 .editor-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   flex-wrap: wrap;
   min-width: 0;
 }
@@ -2144,13 +1523,13 @@ input {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  padding-top: 8px;
+  padding-top: var(--s-2);
   border-top: 1px solid var(--line);
 }
 
 .editor-inspector .btn {
   height: 28px;
-  font-size: var(--fs-3);
+  font-size: var(--t-2);
   padding: 0 9px;
 }
 
@@ -2158,64 +1537,22 @@ input {
   flex: 1 1 100%;
 }
 
-.editor-save {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-
-.editor-save-state {
-  font-size: var(--fs-2);
-  line-height: 1.25;
-  color: var(--muted-dim);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.editor-save-state::before {
-  content: '';
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  margin-right: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  vertical-align: middle;
-  opacity: 0.9;
-}
-
-.editor-save-state:empty {
-  display: none;
-}
-
-.editor-save-state[data-kind='dirty'] {
-  color: var(--warn);
-}
-
-.editor-save-state[data-kind='saved'] {
-  color: var(--data);
-}
-
 .editor-settings {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 10px;
-  padding-top: 8px;
+  gap: var(--s-2);
+  padding-top: var(--s-2);
   border-top: 1px solid var(--line);
-  font-size: var(--fs-3);
+  font-size: var(--t-2);
 }
 
 .editor-status {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: var(--fs-2);
-  color: var(--muted-dim);
+  font-size: var(--t-2);
+  color: var(--dim);
   min-width: 0;
 }
 
@@ -2226,9 +1563,10 @@ input {
 
 .editor-hint {
   margin: 0;
-  font-size: var(--fs-2);
-  color: var(--muted);
-  line-height: 1.4;
+  font-size: var(--t-2);
+  color: var(--dim);
+  line-height: var(--lh-2);
+  white-space: normal;
 }
 
 .editor-inspector .leg-name input {
@@ -2239,8 +1577,8 @@ input {
 .editor-column .snap-indicator {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: var(--fs-2);
+  gap: 6px;
+  font-size: var(--t-2);
   color: var(--muted);
 }
 
@@ -2251,7 +1589,7 @@ input {
   flex: none;
   border-radius: 50%;
   background: currentColor;
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .editor-column .snap-indicator[data-state='ready'],
@@ -2268,32 +1606,37 @@ input {
 }
 
 .seg-mode {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
 }
 
 .seg-mode .seg-btn {
   flex: 1 1 0;
-  height: 26px;
+  height: 24px;
   padding: 0 9px;
-  font-size: 11.5px;
+  font-size: var(--t-2);
 }
 
-.editor-toolbar .btn {
-  height: 26px;
-  font-size: 11.5px;
+.editor-dock-head .seg-mode .seg-btn {
+  height: 24px;
   padding: 0 8px;
 }
 
+.editor-toolbar .btn {
+  height: 28px;
+  font-size: var(--t-2);
+  padding: 0 var(--s-2);
+}
+
 .editor-toolbar .btn:disabled {
-  opacity: 0.42;
+  color: var(--ghost);
   cursor: default;
 }
 
 #btn-undo,
 #btn-redo {
   min-width: 30px;
-  font-size: 14px;
+  font-size: var(--t-3);
   line-height: 1;
 }
 
@@ -2302,7 +1645,7 @@ input {
 .leg-name {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -2311,47 +1654,36 @@ input {
   width: 16px;
   height: 16px;
   margin: 0;
-  accent-color: var(--text);
-}
-
-.snap-toggle {
-  gap: 7px;
+  accent-color: var(--accent);
 }
 
 .snap-radius input {
-  width: 56px;
-  height: 24px;
-  padding: 0 5px;
-  border-radius: var(--r-ctl);
-  border: 1px solid var(--line-strong);
-  background: var(--panel-2);
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
+  width: 58px;
+  height: 26px;
+  padding: 0 6px;
+  font-size: var(--t-2);
 }
 
 .leg-name input {
   width: 150px;
-  height: 24px;
-  padding: 0 6px;
-  border-radius: var(--r-ctl);
-  border: 1px solid var(--line-strong);
-  background: var(--panel-2);
-  color: var(--text);
+  height: 26px;
+  padding: 0 8px;
+  font-size: var(--t-2);
 }
 
 .snap-radius .unit {
-  color: var(--muted-dim);
+  color: var(--dim);
 }
 
 .editor-count,
 .editor-selection {
-  color: var(--muted-dim);
+  color: var(--dim);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .snap-indicator {
-  color: var(--accent);
+  color: var(--data);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2359,112 +1691,66 @@ input {
 }
 
 .offtrail-legend {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   flex-wrap: wrap;
   min-width: 0;
 }
 
 .offtrail-summary {
   color: var(--warn);
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .offtrail-summary.is-clear {
-  color: var(--muted-dim);
+  color: var(--dim);
 }
 
 .offtrail-chip {
   padding: 1px 6px;
-  border-radius: var(--r-chip);
-  border: 1px dashed rgba(227, 178, 105, 0.5);
+  border-radius: var(--r-1);
+  border: 0;
+  background: var(--warn-soft);
   color: var(--warn);
-  font-size: 10px;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.editor-hint {
-  color: var(--muted-dim);
-  white-space: normal;
-}
-
-
 .btn-reroute {
-  border-color: var(--line-strong);
   color: var(--text);
 }
 
-/* Weather panel ------------------------------------------------------------ */
+/* --------------------------------------------------------------------------
+   Panels (weather, resupply + energy)
 
-/* "Now | Trip": a compact switch under the status line, not in the head — the
- * head is already title + Refresh + close at 430 px. */
-.weather-from {
-  align-self: flex-start;
-  margin: 2px 0 2px;
-}
+   One dock, one head, one scroll. The head is the panel — it is not a card
+   sitting on a card.
+   -------------------------------------------------------------------------- */
 
-.weather-from .seg-btn {
-  height: 26px;
-  padding: 0 10px;
-  font-size: var(--fs-3);
-}
-
-.weather-from .seg-btn:disabled {
-  color: var(--muted-dim);
-  cursor: default;
-}
-
-/* The dock owns the map's whole height on desktop and scrolls internally. The
-   panel is the scroll container, so its head can stay pinned to the top edge
-   while the body passes underneath. */
 .weather-panel,
 .side-panel {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: var(--s-3);
+  right: var(--s-3);
+  bottom: calc(var(--stack) + var(--s-3));
   z-index: 14;
   width: var(--dock-w);
-  max-height: calc(100% - 24px);
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  padding: 0 13px 12px;
-  border-radius: var(--r-panel);
-  border: 1px solid var(--line-strong);
-  background: var(--dock);
-  box-shadow: var(--shadow);
+  gap: 10px;
+  padding: 0 var(--s-3) var(--s-3);
+  border-radius: var(--r-4);
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+  box-shadow: var(--e-3), var(--edge);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
 
-.weather-panel::-webkit-scrollbar,
-.side-panel::-webkit-scrollbar {
-  width: 11px;
-}
-
-.weather-panel::-webkit-scrollbar-track,
-.side-panel::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.weather-panel::-webkit-scrollbar-thumb,
-.side-panel::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  border: 3px solid transparent;
-  background-color: var(--scroll-thumb);
-  background-clip: content-box;
-}
-
-.weather-panel::-webkit-scrollbar-thumb:hover,
-.side-panel::-webkit-scrollbar-thumb:hover {
-  background-color: var(--scroll-thumb-hover);
-  background-clip: content-box;
-}
-
-/* A pinned head is only convincing if the body visibly disappears under it. */
 .panel-head {
   position: sticky;
   top: 0;
@@ -2472,32 +1758,32 @@ input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin: 0 -13px;
-  padding: 12px 13px 10px;
+  gap: var(--s-2);
+  margin: 0 calc(-1 * var(--s-3));
+  padding: var(--s-3) var(--s-3) 10px;
   border-bottom: 1px solid var(--line);
-  /* A rounded notch at the screen corner and a cool band over a warm panel read
-     as two components sharing a name. The head is the panel, not a card on it. */
-  border-radius: 0;
-  background: transparent;
+  border-radius: var(--r-4) var(--r-4) 0 0;
+  background: var(--panel);
 }
 
+/* A pinned head is only convincing if the body visibly disappears under it. */
 .panel-head::after {
   content: '';
   position: absolute;
   left: 0;
   right: 0;
   top: 100%;
-  height: 10px;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0));
+  height: 8px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0));
   pointer-events: none;
 }
 
 .panel-head h2 {
   margin: 0;
-  font-size: var(--fs-4);
-  font-weight: 650;
-  letter-spacing: -0.005em;
+  font-size: var(--t-4);
+  line-height: var(--lh-4);
+  font-weight: 600;
+  letter-spacing: -0.014em;
 }
 
 .panel-head-actions {
@@ -2508,28 +1794,50 @@ input {
 
 .panel-status {
   margin: 0;
-  font-size: var(--fs-1);
-  color: var(--muted);
+  font-size: var(--t-1);
+  color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
 
+.panel-note {
+  margin: 0;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line);
+  font-size: var(--t-1);
+  line-height: var(--lh-2);
+  color: var(--dim);
+}
+
+/* A message with an action: one card, not a bordered box inside a bordered box. */
 .weather-message {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 9px;
-  padding: 10px 11px;
-  border-radius: var(--r-card);
-  border: 1px solid var(--line);
+  gap: var(--s-2);
+  padding: 10px var(--s-3);
+  border-radius: var(--r-3);
+  border: 0;
   background: var(--panel-2);
 }
 
 .weather-message p {
   margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text);
-  opacity: 0.9;
+  font-size: var(--t-2);
+  line-height: var(--lh-2);
+  color: var(--muted);
+}
+
+/* Weather ---------------------------------------------------------------- */
+
+.weather-from {
+  align-self: flex-start;
+  height: 28px;
+}
+
+.weather-from .seg-btn {
+  height: 100%;
+  padding: 0 11px;
+  font-size: var(--t-2);
 }
 
 .weather-table-wrap {
@@ -2539,7 +1847,7 @@ input {
 .weather-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--fs-2);
+  font-size: var(--t-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2555,18 +1863,18 @@ input {
 .weather-table td {
   text-align: left;
   vertical-align: top;
-  padding: 5px 7px 5px 0;
+  padding: 6px var(--s-2) 6px 0;
   border-bottom: 1px solid var(--line);
 }
 
 .weather-table thead th {
-  font-size: var(--fs-1);
+  font-size: var(--t-1);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
+  letter-spacing: 0.05em;
+  color: var(--dim);
   border-bottom-color: var(--line-strong);
   white-space: nowrap;
+  padding-bottom: 5px;
 }
 
 .weather-table tbody tr:last-child th,
@@ -2577,17 +1885,17 @@ input {
 .weather-table th.wx-day {
   width: 26px;
   color: var(--text);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .wx-date {
   white-space: nowrap;
-  color: var(--muted);
+  color: var(--dim);
 }
 
 .wx-distance {
   white-space: nowrap;
-  color: var(--muted);
+  color: var(--dim);
 }
 
 .wx-conditions {
@@ -2603,7 +1911,7 @@ input {
 }
 
 .wx-value[data-kind='temp'] {
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .wx-value[data-kind='precip'],
@@ -2632,60 +1940,59 @@ input {
 }
 
 .wx-icon[data-family='unknown'] {
-  color: var(--muted-dim);
+  color: var(--dim);
 }
 
 .wx-sub {
   display: block;
-  font-size: var(--fs-1);
-  color: var(--muted-dim);
+  font-size: var(--t-1);
+  color: var(--dim);
   margin-top: 1px;
 }
 
+/* Badges are words in a quiet capsule. Never an outline: an outline is a
+   control, and none of these are pressable. */
 .wx-badge {
   display: inline-block;
   padding: 2px 7px;
-  border-radius: var(--r-chip);
-  font-size: var(--fs-1);
-  line-height: 1.45;
-  border: 1px solid var(--line-strong);
+  border-radius: var(--r-1);
+  font-size: 10.5px;
+  line-height: 1.4;
+  border: 0;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--panel-3);
 }
 
 .wx-badge[data-kind='beyond-horizon'] {
-  border-style: dashed;
-  border-color: rgba(227, 178, 105, 0.45);
   color: var(--warn);
-  background: rgba(227, 178, 105, 0.07);
+  background: var(--warn-soft);
 }
 
 .wx-badge[data-kind='unavailable'] {
-  border-color: rgba(231, 130, 118, 0.42);
   color: var(--error);
-  background: rgba(231, 130, 118, 0.07);
+  background: var(--error-soft);
 }
 
 .weather-table tr[data-status='beyond-horizon'] .wx-date,
 .weather-table tr[data-status='beyond-horizon'] .wx-distance {
-  opacity: 0.72;
+  opacity: 0.7;
 }
 
 .weather-warnings {
   list-style: none;
   margin: 0;
-  padding: 9px 0 0;
+  padding: var(--s-2) 0 0;
   border-top: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
 }
 
 .wx-warning-heading {
-  font-size: 9.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
+  font-size: var(--t-1);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--dim);
 }
 
 .wx-warning {
@@ -2693,51 +2000,42 @@ input {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: var(--t-2);
+  line-height: var(--lh-2);
+  color: var(--muted);
+}
+
+.wx-warning-title {
+  color: var(--text);
 }
 
 .wx-severity {
   padding: 1px 6px;
-  border-radius: var(--r-chip);
-  font-size: 9.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border: 1px solid rgba(227, 178, 105, 0.45);
+  border-radius: var(--r-1);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border: 0;
   color: var(--warn);
+  background: var(--warn-soft);
 }
 
 .wx-warning a {
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--t-1);
 }
 
-.panel-note {
-  margin: 0;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
-  font-size: var(--fs-1);
-  line-height: 1.5;
-  color: var(--muted-dim);
-}
-
-
-/* --------------------------------------------------------------------------
-   Resupply + energy panel (docs/13)
-   -------------------------------------------------------------------------- */
-
-.seg-tabs {
-  margin-right: auto;
-}
+/* Resupply + energy ------------------------------------------------------ */
 
 .seg-tabs .seg-btn {
-  padding: 4px 11px;
-  font-size: var(--fs-3);
+  padding: 0 12px;
+  font-size: var(--t-2);
 }
 
 .supply-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--s-2);
   min-width: 0;
 }
 
@@ -2745,67 +2043,65 @@ input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 11px;
+  gap: var(--s-2);
+  font-size: var(--t-2);
   color: var(--muted);
 }
 
 .supply-controls select {
-  height: 26px;
-  padding: 0 6px;
-  border-radius: 6px;
-  border: 1px solid var(--line-strong);
-  background: var(--panel-2);
-  color: var(--text);
-  font-size: 11.5px;
+  height: 28px;
+  padding: 0 var(--s-2);
+  font-size: var(--t-2);
 }
 
 .supply-huts-error {
   margin: 0;
-  padding: 7px 9px;
-  border-radius: var(--r-card);
-  border: 1px solid rgba(227, 178, 105, 0.4);
-  background: rgba(227, 178, 105, 0.08);
+  padding: var(--s-2) 10px;
+  border-radius: var(--r-2);
+  border: 0;
+  background: var(--warn-soft);
   color: var(--warn);
-  font-size: 11px;
-  line-height: 1.45;
+  font-size: var(--t-1);
+  line-height: var(--lh-2);
 }
 
 .supply-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 6px;
 }
 
+/* Chips are filters, so they are pressable and they show pressed state. */
 .supply-chip {
-  min-height: 24px;
-  padding: 2px 8px;
-  border-radius: var(--r-chip);
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
   border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 10.5px;
+  font-size: var(--t-2);
   cursor: pointer;
 }
 
-.supply-chip[aria-pressed='true'] {
-  border-color: var(--line-strong);
-  background: var(--sel);
+.supply-chip:hover {
+  border-color: var(--panel-4);
   color: var(--text);
-  font-weight: 600;
 }
 
-.supply-chip:hover {
-  border-color: var(--line-strong);
+.supply-chip[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--panel-3);
   color: var(--text);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
 }
 
 .supply-empty {
   margin: 0;
-  font-size: 11.5px;
-  line-height: 1.5;
-  color: var(--muted);
+  font-size: var(--t-2);
+  line-height: var(--lh-2);
+  color: var(--dim);
 }
 
 .supply-points,
@@ -2819,17 +2115,18 @@ input {
   gap: 6px;
 }
 
+/* One row per point. A card, not a boxed cell: no border, a filled surface and
+   a marker on the left when the point is not food. */
 .supply-point {
-  border: 1px solid var(--line);
-  border-radius: var(--r-card);
+  border: 0;
+  border-radius: var(--r-3);
   background: var(--panel-2);
   overflow: hidden;
 }
 
-/* A point that is not a food source is visibly secondary, not hidden. */
 .supply-point[data-usable='false'] {
-  border-style: dashed;
-  background: rgba(22, 33, 36, 0.55);
+  background: rgba(27, 34, 39, 0.6);
+  box-shadow: inset 2px 0 0 rgba(255, 255, 255, 0.12);
 }
 
 .supply-point-main {
@@ -2837,7 +2134,7 @@ input {
   flex-direction: column;
   gap: 2px;
   width: 100%;
-  padding: 7px 9px;
+  padding: 9px 11px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -2847,7 +2144,7 @@ input {
 }
 
 .supply-point-main:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.045);
 }
 
 .supply-point-head {
@@ -2858,37 +2155,41 @@ input {
 }
 
 .supply-point-name {
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: var(--t-3);
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* "ikke mat" is a warning flag, not decoration: solid fill so it cannot be read
+   as another muted badge. */
 .supply-flag {
   flex: none;
-  padding: 1px 5px;
-  border-radius: var(--r-chip);
-  border: 1px solid rgba(255, 158, 100, 0.45);
-  color: #ff9e64;
-  font-size: var(--fs-1);
-  letter-spacing: 0.02em;
+  padding: 1px 6px;
+  border-radius: var(--r-1);
+  border: 0;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .supply-point-meta,
 .supply-provenance {
-  font-size: var(--fs-1);
-  color: var(--muted);
+  font-size: var(--t-1);
+  color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
 
 .supply-provenance {
-  color: var(--muted-dim);
+  color: var(--dim);
 }
 
 .supply-point-gap {
-  font-size: 10.5px;
+  font-size: var(--t-1);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -2902,25 +2203,24 @@ input {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .supply-badge {
-  padding: 1px 5px;
-  border-radius: var(--r-chip);
-  border: 1px solid var(--line-strong);
+  padding: 1px 6px;
+  border-radius: var(--r-1);
+  border: 0;
+  background: var(--panel-3);
   color: var(--muted);
-  font-size: var(--fs-1);
+  font-size: 10.5px;
   line-height: 1.5;
 }
 
-/* "ikke bekreftet" needs somewhere to check it: the link sits under the row
-   button (never inside it), as a small, obviously-secondary affordance. */
 .supply-check {
   display: inline-block;
-  padding: 3px 9px 7px;
+  padding: 2px 11px 9px;
   color: var(--accent);
-  font-size: var(--fs-2);
+  font-size: var(--t-2);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -2931,45 +2231,44 @@ input {
 
 .supply-warning {
   margin: 0;
-  padding: 6px 9px 7px;
-  border-top: 1px solid rgba(231, 130, 118, 0.35);
-  background: rgba(231, 130, 118, 0.08);
+  padding: 6px 11px 8px;
+  border-top: 1px solid rgba(238, 139, 129, 0.24);
+  background: var(--error-soft);
   color: var(--error);
-  font-size: 10.5px;
-  line-height: 1.45;
+  font-size: var(--t-1);
+  line-height: var(--lh-2);
 }
 
 .supply-h3 {
-  margin: 6px 0 0;
-  font-size: var(--fs-1);
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted-dim);
+  margin: var(--s-1) 0 0;
+  font-size: var(--t-1);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--dim);
 }
 
 .supply-leg {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 6px 8px;
-  border-radius: var(--r-card);
-  border: 1px solid var(--line);
-  background: rgba(22, 33, 36, 0.6);
+  gap: 3px;
+  padding: 8px 11px;
+  border-radius: var(--r-3);
+  border: 0;
+  background: var(--panel-2);
 }
 
 .supply-leg[data-danger='true'] {
-  border-color: rgba(231, 130, 118, 0.45);
+  box-shadow: inset 2px 0 0 var(--error);
 }
 
 .supply-leg-title {
-  font-size: var(--fs-3);
+  font-size: var(--t-2);
   font-weight: 600;
 }
 
 .supply-leg-numbers {
-  font-size: 10.5px;
-  color: var(--muted);
+  font-size: var(--t-1);
+  color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2981,9 +2280,9 @@ input {
 
 .supply-warning-item {
   display: flex;
-  gap: 6px;
-  font-size: 10.5px;
-  line-height: 1.5;
+  gap: 7px;
+  font-size: var(--t-1);
+  line-height: var(--lh-2);
   color: var(--muted);
 }
 
@@ -2993,7 +2292,7 @@ input {
   height: 6px;
   margin-top: 5px;
   border-radius: 50%;
-  background: var(--muted-dim);
+  background: var(--dim);
 }
 
 .supply-warning-item[data-severity='warning'] .supply-warning-dot {
@@ -3010,7 +2309,7 @@ input {
 
 .supply-line {
   margin: 0;
-  font-size: var(--fs-2);
+  font-size: var(--t-2);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -3024,9 +2323,13 @@ input {
   font-weight: 600;
 }
 
+.supply-index {
+  color: var(--dim);
+}
+
 .engine-notes {
-  font-size: 10px;
-  color: var(--muted-dim);
+  font-size: var(--t-1);
+  color: var(--dim);
 }
 
 .engine-notes summary {
@@ -3035,12 +2338,12 @@ input {
 }
 
 .engine-notes ul {
-  margin: 4px 0 0;
-  padding-left: 16px;
+  margin: var(--s-1) 0 0;
+  padding-left: var(--s-4);
   display: flex;
   flex-direction: column;
   gap: 3px;
-  line-height: 1.45;
+  line-height: var(--lh-2);
 }
 
 .supply-attribution {
@@ -3048,22 +2351,24 @@ input {
   padding-top: 0;
 }
 
-/* Energy --------------------------------------------------------------- */
+/* Energy ----------------------------------------------------------------- */
 
-/* B3: the numbers come from a body nobody entered. A badge, not a hidden panel. */
+/* The numbers come from a body nobody entered. A labelled strip, not a hidden
+   panel and not an alarm. */
 .energy-notice,
 .stat-notice {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--s-2);
   flex-wrap: wrap;
-  padding: 7px 9px;
-  border-radius: var(--r-card);
-  border: 1px solid rgba(232, 200, 120, 0.42);
-  background: rgba(232, 200, 120, 0.1);
-  color: #f0d9a0;
-  font-size: 11px;
-  line-height: 1.45;
+  padding: 7px 10px;
+  border-radius: var(--r-2);
+  border: 0;
+  background: var(--warn-soft);
+  box-shadow: inset 2px 0 0 var(--warn);
+  color: var(--warn);
+  font-size: var(--t-1);
+  line-height: var(--lh-2);
 }
 
 .energy-notice-text,
@@ -3072,23 +2377,24 @@ input {
   min-width: 0;
 }
 
-.stat-notice {
-  /* `.stat` is a column; this row is a row, and must not stretch to fill the
-     grid track — it is a footnote under the numbers, not a number. */
+.stats .stat-notice {
   grid-column: 1 / -1;
-  flex-direction: row;
   align-self: start;
-  justify-content: flex-start;
-  margin-top: 2px;
-  font-size: 11.5px;
+  margin: 2px 0 0;
+  flex-direction: row;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  color: var(--dim);
+  font-size: var(--t-1);
+  align-items: center;
 }
 
 .energy-headline {
   margin: 0;
-  margin-top: 2px;
-  font-size: 12.5px;
-  font-weight: 650;
-  line-height: 1.4;
+  font-size: var(--t-3);
+  font-weight: 600;
+  line-height: var(--lh-3);
 }
 
 .energy-headline[data-verdict='unavoidable'] {
@@ -3096,15 +2402,14 @@ input {
 }
 
 .energy-headline[data-verdict='ok'] {
-  color: var(--accent);
+  color: var(--text);
 }
 
 .energy-body {
   margin: 0;
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--text);
-  opacity: 0.86;
+  font-size: var(--t-2);
+  line-height: var(--lh-2);
+  color: var(--muted);
 }
 
 .energy-band,
@@ -3120,13 +2425,13 @@ input {
 }
 
 .energy-band .energy-range {
-  fill: rgba(79, 174, 156, 0.34);
-  stroke: rgba(79, 174, 156, 0.85);
+  fill: rgba(98, 196, 176, 0.24);
+  stroke: rgba(98, 196, 176, 0.7);
   stroke-width: 1;
 }
 
 .energy-band .energy-band-edge {
-  stroke: rgba(79, 174, 156, 0.85);
+  stroke: var(--data);
   stroke-width: 1.4;
 }
 
@@ -3164,89 +2469,85 @@ input {
 }
 
 .energy-value {
-  margin: 2px 0 0;
-  font-size: 13px;
-  font-weight: 650;
+  margin: 3px 0 0;
+  font-size: var(--t-4);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.012em;
 }
 
 .energy-detail {
   margin: 0;
-  font-size: 10.5px;
-  color: var(--muted);
+  font-size: var(--t-1);
+  color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
 
 .energy-food-mass {
-  margin: 2px 0 0;
-  font-size: 11.5px;
+  margin: 3px 0 0;
+  font-size: var(--t-2);
   font-weight: 600;
-  color: var(--accent);
+  color: var(--data);
 }
 
 .energy-assumptions {
-  margin: 4px 0 0;
-  padding: 8px 9px 4px;
+  margin: var(--s-1) 0 0;
+  padding: var(--s-2) 10px 6px;
   border: 1px solid var(--line);
-  border-radius: var(--r-card);
+  border-radius: var(--r-3);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--s-2);
 }
 
 .energy-assumptions legend {
   padding: 0 5px;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted-dim);
+  font-size: var(--t-1);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--dim);
 }
 
 .energy-field {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 76px;
+  grid-template-columns: minmax(0, 1fr) 78px;
   align-items: center;
-  gap: 4px 8px;
+  gap: var(--s-1) var(--s-2);
 }
 
 .energy-field label {
-  font-size: 11px;
+  font-size: var(--t-2);
   color: var(--muted);
 }
 
 .energy-field input {
   width: 100%;
   height: 28px;
-  padding: 0 6px;
-  border-radius: 6px;
-  border: 1px solid var(--line-strong);
-  background: var(--panel-2);
-  color: var(--text);
-  font-size: 11.5px;
-  font-variant-numeric: tabular-nums;
+  padding: 0 var(--s-2);
+  font-size: var(--t-2);
 }
 
 .energy-field .field-hint {
   grid-column: 1 / -1;
 }
 
-/* Map marker card ------------------------------------------------------ */
+/* Resupply hover card on the map ----------------------------------------- */
 
 .map-card {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 150px;
   font-family: inherit;
 }
 
 .map-card-title {
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--t-2);
+  font-weight: 600;
 }
 
 .map-card-line {
-  font-size: 10.5px;
+  font-size: var(--t-1);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -3258,58 +2559,555 @@ input {
 
 .map-card-badges,
 .map-card-provenance {
-  font-size: 9.5px;
-  color: var(--muted-dim);
+  font-size: 10.5px;
+  color: var(--dim);
 }
 
-.maplibregl-popup-content {
-  padding: 7px 9px;
-  border-radius: var(--r-card);
-  border: 1px solid var(--line-strong);
-  background: var(--dock);
+/* --------------------------------------------------------------------------
+   The readout: elevation profile + measure strip
+
+   Both sit in one card that lies on the map — a toolbar row, the chart, and the
+   numbers as its caption. Two surfaces, because two things are being said: what
+   the terrain does, and what that costs.
+   -------------------------------------------------------------------------- */
+
+.profile {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  /* Pushed to the bottom: the map behind it is absolute, so this is the first
+     in-flow child of the stage. */
+  margin: auto var(--s-3) 0;
+  height: 194px;
+  min-height: 0;
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-bottom: 0;
+  border-radius: var(--r-4) var(--r-4) 0 0;
+  box-shadow: var(--e-3), var(--edge);
+  z-index: 15;
+}
+
+.profile.is-collapsed {
+  height: 44px;
+}
+
+.profile-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  height: 44px;
+  padding: 0 var(--s-3);
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+
+.profile.is-collapsed .profile-head {
+  border-bottom: 0;
+}
+
+.profile-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  border: 0;
+  background: transparent;
   color: var(--text);
-  box-shadow: var(--shadow);
+  font-size: var(--t-3);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  padding: 6px 8px 6px 6px;
+  border-radius: var(--r-2);
+  cursor: pointer;
+  white-space: nowrap;
 }
 
-.maplibregl-popup-tip {
-  border-top-color: var(--dock);
+.profile-toggle:hover {
+  background: var(--panel-2);
 }
 
-/* Trip library ------------------------------------------------------------- */
+.profile-toggle .chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--dim);
+  transition: transform 160ms ease;
+  transform: rotate(0deg);
+}
+
+.profile.is-collapsed .profile-toggle .chevron {
+  transform: rotate(-90deg);
+}
+
+.profile-status {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--t-2);
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Provenance is a chip: a word about where the numbers came from, not a sixth
+   metric and not a divider. */
+.profile-source {
+  flex: none;
+  padding-left: 0;
+  border-left: 0;
+  padding: 2px 9px 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--panel-2);
+  font-size: var(--t-1);
+}
+
+.profile-readout {
+  flex: none;
+  /* The only thing in the head whose width changes with the pointer. Reserved so
+     the badge beside it does not slide back and forth. */
+  min-width: 30ch;
+  font-size: var(--t-2);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.profile-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.profile-chart {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  touch-action: pan-y;
+  outline: none;
+}
+
+.profile-chart:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -4px;
+  border-radius: var(--r-1);
+}
+
+.profile-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.profile-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: var(--s-3) var(--s-5);
+  text-align: center;
+  background: var(--panel-2);
+  pointer-events: none;
+}
+
+.profile-overlay > * {
+  pointer-events: auto;
+}
+
+.profile-overlay-title {
+  margin: 0;
+  font-size: var(--t-3);
+  font-weight: 600;
+}
+
+.profile-overlay-detail {
+  margin: 0;
+  max-width: 620px;
+  font-size: var(--t-2);
+  line-height: var(--lh-2);
+  color: var(--muted);
+}
+
+.profile-progress {
+  width: min(240px, 60%);
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--panel-4);
+  overflow: hidden;
+  margin-top: var(--s-1);
+}
+
+.profile-progress > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--data);
+  transition: width 240ms ease;
+}
+
+.profile-progress > span.is-indeterminate {
+  animation: slide 1.2s ease-in-out infinite;
+}
+
+@keyframes slide {
+  0% {
+    transform: translateX(-40%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+/* The measure strip: five instruments on one line. Numbers are the point, so
+   they are the largest type in the chrome; labels sit above them at one third
+   the size, which is what makes a figure read as a measurement. */
+.stats {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  column-gap: var(--s-5);
+  row-gap: var(--s-2);
+  align-items: start;
+  margin: 0 var(--s-3) var(--s-3);
+  padding: 11px var(--s-4) 12px;
+  min-height: 66px;
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--r-4) var(--r-4);
+  box-shadow: var(--e-3);
+  z-index: 16;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.stat-label {
+  font-size: var(--t-1);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-value {
+  font-size: var(--t-5);
+  font-weight: 600;
+  line-height: var(--lh-5);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+
+.stat-value.is-disabled {
+  color: var(--dim);
+}
+
+.stat-value-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.stat-value-row .btn,
+.stat-value-row .icon-btn {
+  align-self: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+.stat-value-row .i {
+  width: 14px;
+  height: 14px;
+}
+
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  font-size: var(--t-1);
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.source-badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
+.source-badge[data-status='ready'] .dot {
+  background: var(--data);
+}
+
+.source-badge[data-status='loading'] {
+  color: var(--warn);
+}
+
+.source-badge[data-status='loading'] .dot {
+  background: var(--warn);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.source-badge[data-status='error'] {
+  color: var(--error);
+}
+
+.source-badge[data-status='error'] .dot {
+  background: var(--error);
+}
+
+/* --------------------------------------------------------------------------
+   Dialogs
+   -------------------------------------------------------------------------- */
+
+.dialog {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-4);
+  background: var(--panel);
+  color: var(--text);
+  padding: 0;
+  width: min(560px, calc(100vw - 28px));
+  max-height: min(82vh, 760px);
+  box-shadow: var(--e-3);
+}
 
 .dialog--wide {
   width: min(680px, calc(100vw - 28px));
 }
 
-.trips-problem {
-  margin: 0 0 10px;
-  padding: 8px 10px;
-  border-radius: var(--r-card);
-  border: 1px solid rgba(231, 130, 118, 0.4);
-  background: rgba(231, 130, 118, 0.08);
+.dialog::backdrop {
+  background: rgba(5, 8, 10, 0.66);
+}
+
+.dialog-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+}
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.dialog-head h2 {
+  margin: 0;
+  font-size: var(--t-4);
+  font-weight: 600;
+  letter-spacing: -0.014em;
+}
+
+.dialog-body {
+  padding: var(--s-4) var(--s-4) var(--s-5);
+  overflow: auto;
+  scrollbar-gutter: stable;
+  font-size: var(--t-3);
+  line-height: var(--lh-2);
+}
+
+.dialog-body p {
+  color: var(--muted);
+  margin: 0 0 var(--s-3);
+}
+
+.dialog-body h3 {
+  margin: var(--s-5) 0 var(--s-2);
+  font-size: var(--t-1);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--dim);
+}
+
+.dialog-body h3:first-child {
+  margin-top: 0;
+}
+
+.notice {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-3);
+  border: 0;
+  background: var(--warn-soft);
+  box-shadow: inset 2px 0 0 var(--warn);
+}
+
+.notice h3 {
+  margin: 0 0 6px;
+  color: var(--warn);
+  font-size: var(--t-2);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.notice p {
+  margin: 0;
+  color: var(--text);
+}
+
+.source-list {
+  margin: 0 0 var(--s-3);
+  padding-left: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.source-list li {
+  color: var(--muted);
+  font-size: var(--t-2);
+  line-height: var(--lh-2);
+}
+
+.source-list strong {
+  display: block;
+  color: var(--text);
+  font-size: var(--t-2);
+  font-weight: 600;
+}
+
+.source-list a,
+.dialog-body a {
+  color: var(--accent);
+  text-decoration: none;
+  margin-right: var(--s-2);
+}
+
+.source-list a:hover,
+.dialog-body a:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin: 10px 0;
+}
+
+.field-row label {
+  color: var(--text);
+  font-size: var(--t-3);
+}
+
+.field-row input {
+  width: 124px;
+  height: 32px;
+  padding: 0 10px;
+}
+
+.formula {
+  margin: var(--s-3) 0 0;
+  padding: 10px var(--s-3);
+  border-radius: var(--r-2);
+  background: var(--panel-2);
+  border: 0;
+  font-size: var(--t-2);
+  line-height: var(--lh-2);
+  color: var(--dim);
+}
+
+.field-error {
+  margin: var(--s-2) 0 0;
+  font-size: var(--t-2);
   color: var(--error);
 }
 
-.trips-empty {
-  margin: 0 0 10px;
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--line);
 }
 
-/* Where the trips live, and how full it is. Rendered by the dialog itself. */
+.dialog-actions-right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* Toast -------------------------------------------------------------------- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 100;
+  padding: 10px var(--s-4);
+  border-radius: var(--r-3);
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+  box-shadow: var(--e-3), var(--edge);
+  font-size: var(--t-2);
+  color: var(--text);
+  max-width: calc(100vw - 32px);
+  text-align: center;
+}
+
+.toast[data-kind='warning'] {
+  box-shadow: inset 2px 0 0 var(--warn), var(--e-3);
+}
+
+/* --------------------------------------------------------------------------
+   Trip library and trip settings
+   -------------------------------------------------------------------------- */
+
+.trips-problem {
+  margin: 0 0 var(--s-2);
+  padding: var(--s-2) 10px;
+  border-radius: var(--r-2);
+  border: 0;
+  background: var(--error-soft);
+  box-shadow: inset 2px 0 0 var(--error);
+  color: var(--error);
+  font-size: var(--t-2);
+}
+
+.trips-empty {
+  margin: 0 0 var(--s-2);
+}
+
 .trips-storage {
-  margin: 10px 0 0;
-  font-size: 11px;
-  color: var(--muted-dim);
+  margin: var(--s-3) 0 0;
+  font-size: var(--t-1);
+  color: var(--dim);
 }
 
 .trips-storage-note {
   margin: 6px 0 0;
   padding: 7px 10px;
-  border-radius: var(--r-card);
-  border: 1px solid rgba(227, 178, 105, 0.4);
-  background: rgba(227, 178, 105, 0.08);
+  border-radius: var(--r-2);
+  border: 0;
+  background: var(--warn-soft);
   color: var(--warn);
-  font-size: 11.5px;
-  line-height: 1.35;
+  font-size: var(--t-1);
+  line-height: var(--lh-1);
 }
 
 .trip-list {
@@ -3318,34 +3116,33 @@ input {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .trip-row {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding: 10px 11px;
-  border-radius: var(--r-card);
-  border: 1px solid var(--line);
+  padding: 11px var(--s-3);
+  border-radius: var(--r-3);
+  border: 0;
   background: var(--panel-2);
 }
 
 .trip-row[data-current='true'] {
-  border-color: rgba(79, 174, 156, 0.35);
-  background: rgba(79, 174, 156, 0.06);
+  box-shadow: inset 2px 0 0 var(--data);
 }
 
 .trip-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--s-2);
   min-width: 0;
 }
 
 .trip-name {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--t-3);
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3353,18 +3150,19 @@ input {
 
 .trip-badge {
   flex: none;
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--accent);
-  border: 1px solid rgba(79, 174, 156, 0.32);
-  border-radius: var(--r-chip);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--data);
+  background: var(--data-soft);
+  border: 0;
+  border-radius: var(--r-1);
   padding: 1px 6px;
 }
 
 .trip-meta {
-  font-size: 11px;
-  color: var(--muted);
+  font-size: var(--t-1);
+  color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
 
@@ -3372,7 +3170,7 @@ input {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .trip-rename {
@@ -3385,62 +3183,59 @@ input {
 .trip-rename input {
   flex: 1 1 180px;
   min-width: 0;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 6px;
-  border: 1px solid var(--line-strong);
-  background: var(--panel-3);
-  color: var(--text);
+  height: 30px;
+  padding: 0 var(--s-2);
 }
 
 .trip-confirm {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  font-size: 11.5px;
+  gap: var(--s-2);
+  font-size: var(--t-2);
   color: var(--text);
 }
 
 .trip-import {
-  margin-top: 12px;
-  padding: 14px;
-  border-radius: var(--r-panel);
+  margin-top: var(--s-3);
+  padding: var(--s-4);
+  border-radius: var(--r-3);
   border: 1px dashed var(--line-strong);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
-  transition: border-color 120ms ease, background-color 120ms ease;
+  gap: var(--s-2);
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
 }
 
 .trip-import.is-over {
-  border-color: var(--accent);
-  background: rgba(79, 174, 156, 0.07);
+  border-color: var(--data);
+  background: var(--data-soft);
 }
 
 .trip-import p {
   margin: 0;
-  font-size: 11.5px;
+  font-size: var(--t-2);
+  color: var(--muted);
 }
-
-/* Trip settings ------------------------------------------------------------ */
 
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 14px;
+  gap: var(--s-3) var(--s-4);
 }
 
 .settings-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
 }
 
 .settings-field label {
-  font-size: 11.5px;
+  font-size: var(--t-2);
   color: var(--muted);
 }
 
@@ -3448,89 +3243,192 @@ input {
 .settings-field select {
   width: 100%;
   height: 32px;
-  padding: 0 9px;
-  border-radius: var(--r-ctl);
-  border: 1px solid var(--line-strong);
-  background: var(--panel-2);
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
-.settings-field select {
-  font-variant-numeric: normal;
+  padding: 0 10px;
 }
 
 .field-hint {
-  margin: 10px 0 0;
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--muted-dim);
+  margin: var(--s-3) 0 0;
+  font-size: var(--t-1);
+  line-height: var(--lh-2);
+  color: var(--dim);
 }
 
 #settings-errors {
-  margin-top: 12px;
-  padding: 9px 11px;
-  border-radius: var(--r-card);
-  border: 1px solid rgba(231, 130, 118, 0.4);
-  background: rgba(231, 130, 118, 0.07);
+  margin-top: var(--s-3);
+  padding: 10px var(--s-3);
+  border-radius: var(--r-2);
+  border: 0;
+  background: var(--error-soft);
+  box-shadow: inset 2px 0 0 var(--error);
   color: var(--error);
+  font-size: var(--t-2);
 }
 
 #settings-errors ul {
   margin: 0;
-  padding-left: 16px;
+  padding-left: var(--s-4);
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
 /* --------------------------------------------------------------------------
-   Responsive
+   Responsive — desktop: one row, icon weight tells you what matters
    -------------------------------------------------------------------------- */
 
-@media (max-width: 1000px) {
-  .route-name {
-    max-width: 20vw;
+@media (min-width: 761px) {
+  .topbar .topbar-actions .topbar-more-label,
+  .topbar .topbar-more-toggle {
+    display: none;
   }
 
-  .stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px 14px;
+  .topbar-row,
+  .topbar-actions {
+    flex-wrap: nowrap;
+  }
+
+  .route-meta {
+    flex: 0 1 auto;
+  }
+
+  /* Eleven text items in a 48 px strip is a wall of words. The analysis toggles
+     keep the icon; the tooltip and the accessible name carry the word. */
+  #btn-supply .btn-label,
+  #btn-weather .btn-label,
+  #btn-trips .btn-label,
+  #btn-settings .btn-label {
+    display: none;
+  }
+
+  .topbar .btn-quiet,
+  .topbar .btn-icon {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+  }
+
+  .topbar .btn-open,
+  .topbar .topbar-new {
+    width: auto;
+    height: 34px;
+    padding: 0 var(--s-3);
+  }
+
+  .topbar .btn-save {
+    height: 34px;
+    padding: 0 var(--s-4);
+    font-size: var(--t-3);
+  }
+
+  .editor-column {
+    max-width: calc(100% - 24px);
+  }
+
+  /* The dock owns the right edge, so the map's own chrome steps around it. */
+  .map-wrap:has(.side-panel:not([hidden])) .map-style,
+  .map-wrap:has(.weather-panel:not([hidden])) .map-style,
+  .map-wrap:has(.side-panel:not([hidden])) .map-attrib,
+  .map-wrap:has(.weather-panel:not([hidden])) .map-attrib {
+    right: calc(var(--dock-w) + var(--s-6));
+  }
+
+  .map-wrap:has(.side-panel:not([hidden])) .editor-column,
+  .map-wrap:has(.weather-panel:not([hidden])) .editor-column {
+    max-width: calc(100% - var(--dock-w) - 36px);
   }
 }
 
+/* The route name is the first thing that goes: it is in the tab title and in the
+   drawer. What must never happen is a second row. */
+/* 1024 px is a laptop with room to spare: hiding the route name there while the
+   phone shows it is backwards. The identity survives down to 900 px. */
+@media (min-width: 761px) and (max-width: 900px) {
+  .route-meta {
+    display: none;
+  }
+}
+
+/* Ordinary laptops (900–1200 px) get a deliberate, not a squeezed, reading: the
+   import action keeps its icon and drops its word, and the measures step down one
+   type step so five instruments still fit on one line. */
+/* Five measures on one line only hold at the full step while a cell can carry
+ * "1 175-1 406 moh" (171 px). Below that the row tightens its gutters, then steps
+ * the type down one step — a clipped number is worse than a smaller one. */
+@media (min-width: 761px) and (max-width: 1020px) {
+  .stats {
+    column-gap: var(--s-3);
+    padding-left: var(--s-3);
+    padding-right: var(--s-3);
+  }
+
+  .stat-value {
+    font-size: var(--t-4);
+  }
+}
+
+@media (min-width: 761px) and (max-width: 900px) {
+  .stats {
+    column-gap: var(--s-2);
+  }
+}
+
+/* On a narrow desktop the save word is the first thing to go: the button that
+   acts on it is right beside it, and the word is one more thing competing with
+   the route identity. Labels stay — an unlabelled folder icon is a guess. */
+@media (min-width: 761px) and (max-width: 1060px) {
+  .save-group .save-status {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Responsive — phone: the drawer and the dock are sheets, the readout is two
+   rows, and the map keeps the middle.
+   -------------------------------------------------------------------------- */
+
 @media (max-width: 760px) {
-  /* -- Header: brand, route, save state and one menu — a single row -------- */
+  .stage {
+    --stack: 291px;
+  }
+
+  .stage:has(.profile.is-collapsed) {
+    --stack: 171px;
+  }
+
+  .stage:has(.stat-notice:not([hidden])) {
+    --stack: 336px;
+  }
+
+  .stage:has(.profile.is-collapsed):has(.stat-notice:not([hidden])) {
+    --stack: 216px;
+  }
 
   .topbar-row {
-    flex-wrap: nowrap;
-    align-items: center;
     gap: 6px;
-    padding: 8px 10px;
-    min-height: 56px;
+    padding: 0 10px;
+    height: 56px;
   }
 
   .brand {
-    order: 1;
     gap: 0;
   }
 
-  /* The mark carries the brand on a phone; the wordmark is the first thing
-     that goes when the row has to hold a route name and a save state. */
+  /* The mark carries the brand; the wordmark is the first thing that goes. */
   .brand-name {
     display: none;
   }
 
   .brand-mark {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
   }
 
   .route-meta {
     order: 2;
     flex: 1 1 auto;
     gap: 6px;
-    padding-left: 8px;
+    padding-left: var(--s-2);
+    margin-left: 0;
     overflow: hidden;
   }
 
@@ -3538,29 +3436,38 @@ input {
     flex: 0 1 auto;
     min-width: 0;
     max-width: none;
-    font-size: 12.5px;
+    font-size: var(--t-3);
   }
 
-  .route-tag {
-    flex: 0 1 auto;
-    max-width: 30vw;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: 9.5px;
-    padding: 1px 6px;
+  .route-meta .demo-details {
+    display: none;
   }
 
   .topbar-actions {
     order: 3;
     flex: none;
-    width: auto;
-    margin-left: 0;
-    flex-wrap: nowrap;
+    margin-left: auto;
     gap: 6px;
   }
 
-  /* "Åpne GPX" keeps its own 40 px row inside the ⋯ popover: the map still
-     gets a full-width primary action, one tap away, without eating the row. */
+  .topbar .btn-quiet,
+  .topbar .btn-icon,
+  .topbar .btn-save,
+  .topbar .btn-open {
+    height: 40px;
+  }
+
+  .topbar .btn-save {
+    padding: 0 var(--s-4);
+    font-size: var(--t-3);
+  }
+
+  .save-group {
+    gap: 6px;
+  }
+
+  /* Import GPX keeps a full-width row of its own inside the sheet: the map still
+     gets a primary action, one tap away, without eating the header row. */
   #btn-open {
     display: none;
   }
@@ -3569,8 +3476,8 @@ input {
     display: inline-flex;
     position: absolute;
     top: calc(100% + 14px);
-    left: 16px;
-    right: 16px;
+    left: var(--s-3);
+    right: var(--s-3);
     z-index: 31;
     height: 40px;
     justify-content: center;
@@ -3595,44 +3502,405 @@ input {
     padding: 0;
   }
 
-  /* Below 760 px the disclosure body is the popover; the base rule's
-     `display: contents` is desktop-only. */
   .topbar-more-toggle:focus-visible ~ .topbar-actions .topbar-more-label {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
   }
 
   .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-label {
-    background: var(--sel);
-    border-color: transparent;
+    background: var(--panel-3);
     color: var(--text);
+  }
+
+  .topbar-new {
+    display: none;
   }
 
   .topbar-more-body {
     display: none;
   }
 
-  /* The popover is a stack of full-width rows: view, panels, library, then the
-     occasional actions. One column reads better than a 2-up grid of controls. */
   .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-body {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: var(--s-2);
     position: absolute;
     top: calc(100% + 6px);
-    right: 8px;
-    left: 8px;
+    right: var(--s-2);
+    left: var(--s-2);
     z-index: 30;
-    /* The top padding reserves the pinned "Import GPX" row (see #btn-open). */
+    /* Reserves the pinned "Importer GPX" row above. */
     padding: 56px 10px 10px;
-    border: 1px solid var(--line-strong);
-    border-radius: var(--r-panel);
-    background: var(--dock);
-    box-shadow: var(--shadow);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--r-4);
+    background: var(--panel);
+    box-shadow: var(--e-3), var(--edge);
     max-height: calc(100dvh - 78px);
     overflow-y: auto;
     overscroll-behavior: contain;
+  }
+
+  /* One column of full-width rows: a 2-up grid of half-width buttons reads as a
+     jumble on a phone. */
+  .topbar-more-body .tb-group {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    margin-left: 0;
+  }
+
+  .topbar-more-body .tb-group + .tb-group {
+    border-top: 1px solid var(--line);
+    padding-top: var(--s-2);
+  }
+
+  .topbar-more-body .btn,
+  .topbar-more-body .btn-icon,
+  .topbar-more-body .seg,
+  .topbar-more-body .seg-btn {
+    width: 100%;
+    justify-content: center;
+    height: 40px;
+  }
+
+  .topbar-more-body .btn-icon .btn-label,
+  #btn-settings .btn-label {
+    display: inline;
+  }
+
+  .topbar-more-body .btn-icon {
+    width: 100%;
+  }
+
+  .topbar-more-body .seg {
+    width: 100%;
+    height: 40px;
+  }
+
+  .tb-group--nav {
+    justify-content: space-between;
+  }
+
+  .tb-group--nav > .btn-trips {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .tb-group--nav .tb-menu-toggle {
+    display: none;
+  }
+
+  /* The nested disclosure is not a dropdown inside a sheet: its three items join
+     the column, one tap away instead of two. */
+  .topbar .tb-menu {
+    display: contents;
+  }
+
+  .topbar .tb-menu > summary {
+    display: none;
+  }
+
+  .topbar .tb-menu-body {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    background: transparent;
+  }
+
+  .topbar .tb-menu-body .menu-item {
+    justify-content: flex-start;
+    width: 100%;
+    min-height: 40px;
+    font-size: var(--t-3);
+  }
+
+  .topbar .tb-menu-body .menu-section {
+    border-top: 1px solid var(--line);
+  }
+
+  .route-popover {
+    position: fixed;
+    top: 60px;
+    left: var(--s-2);
+    right: var(--s-2);
+    width: auto;
+    max-height: min(70vh, 460px);
+  }
+
+  /* --- Map chrome on a phone: the corners, not the middle -------------- */
+
+  .map-controls {
+    bottom: calc(var(--stack) + 34px);
+    left: var(--s-2);
+    flex-direction: row;
+    border-radius: var(--r-2);
+  }
+
+  .map-btn {
+    width: 40px;
+    height: 40px;
+    border-bottom: 0;
+    border-right: 1px solid var(--line);
+  }
+
+  .map-btn:last-child {
+    border-right: 0;
+  }
+
+  .map-style {
+    bottom: calc(var(--stack) + 34px);
+    right: var(--s-2);
+  }
+
+  .map-style .seg {
+    height: 34px;
+  }
+
+  .map-style .seg-btn {
+    height: 100%;
+    min-width: 34px;
+    padding: 0 9px;
+  }
+
+  .map-style .btn {
+    height: 34px;
+    min-width: 34px;
+    padding: 0 var(--s-2);
+  }
+
+  .map-attrib {
+    right: var(--s-2);
+    bottom: calc(var(--stack) + 8px);
+    font-size: 10px;
+    max-width: calc(100% - 120px);
+  }
+
+  .terrain-hint {
+    left: var(--s-2);
+    bottom: calc(var(--stack) + 80px);
+    max-width: calc(100% - 60px);
+  }
+
+  .banners {
+    top: calc(100% + 4px);
+    width: calc(100% - 16px);
+    max-height: min(46vh, 320px);
+  }
+
+  /* A long action label beside the text squeezed the message into a six-line
+     column; the action takes its own row instead. */
+  .banner-text {
+    flex: 1 1 calc(100% - 34px);
+  }
+
+  .banner-action {
+    margin-left: 14px;
+  }
+
+  .maplibregl-ctrl-scale {
+    margin-bottom: calc(var(--stack) + 8px) !important;
+    margin-left: var(--s-2) !important;
+  }
+
+  /* --- Sheets ---------------------------------------------------------- */
+
+  .editor-column {
+    top: var(--s-2);
+    left: var(--s-2);
+    right: var(--s-2);
+    width: auto;
+    max-width: none;
+    max-height: calc(100% - var(--stack) - 16px);
+  }
+
+  .editor-panel {
+    padding: 0 10px 10px;
+    gap: 10px;
+  }
+
+  .weather-panel,
+  .side-panel {
+    top: var(--s-2);
+    right: var(--s-2);
+    left: var(--s-2);
+    bottom: calc(var(--stack) + var(--s-2));
+    width: auto;
+    padding: 0 var(--s-3) var(--s-3);
+  }
+
+  .editor-dock-head #editor-new {
+    display: inline-flex;
+  }
+
+  /* --- Readout --------------------------------------------------------- */
+
+  .profile {
+    height: 164px;
+    margin: auto var(--s-2) 0;
+  }
+
+  .profile.is-collapsed {
+    height: 44px;
+  }
+
+  .profile-head {
+    gap: var(--s-2);
+    padding: 0 10px;
+  }
+
+  .profile-status {
+    white-space: normal;
+    font-size: var(--t-1);
+  }
+
+  .profile-readout {
+    display: none;
+  }
+
+  /* Five measures in two ranked rows on a twelve-column grid: the two you check
+     while walking get half the width each at the full step, and the three you
+     check at camp share the second row — with the elevation given a double cell,
+     because "1 175–1 406 moh" is the widest number in the app and a clipped
+     number is a lie. */
+  .stats {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 8px;
+    row-gap: 7px;
+    margin: 0 var(--s-2) var(--s-2);
+    padding: 9px var(--s-3) 10px;
+    min-height: 102px;
+  }
+
+  .stat:nth-child(1) {
+    grid-column: 1 / 7;
+    grid-row: 1;
+  }
+
+  .stat:nth-child(4) {
+    grid-column: 7 / 13;
+    grid-row: 1;
+  }
+
+  .stat:nth-child(2) {
+    grid-column: 1 / 4;
+    grid-row: 2;
+  }
+
+  .stat:nth-child(3) {
+    grid-column: 4 / 7;
+    grid-row: 2;
+  }
+
+  .stat:nth-child(5) {
+    grid-column: 7 / 13;
+    grid-row: 2;
+  }
+
+  .stat-value {
+    font-size: var(--t-5);
+  }
+
+  .stat:nth-child(2) .stat-value,
+  .stat:nth-child(3) .stat-value,
+  .stat:nth-child(5) .stat-value {
+    font-size: var(--t-4);
+  }
+
+  /* The pace affordance stays a small inline control, not a 36 px block that
+     stretches its row. */
+  .stat-value-row .icon-btn {
+    width: 26px;
+    height: 26px;
+  }
+
+  .stat-notice {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .stat-notice .btn {
+    height: 30px;
+  }
+
+  /* The menu that launched a sheet steps aside, so the sheet's pinned head is
+     never covered by the row it came from. */
+  .app:has(.side-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-body,
+  .app:has(.weather-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-body,
+  .app:has(.side-panel:not([hidden])) .topbar-more-toggle:checked ~ #btn-open,
+  .app:has(.weather-panel:not([hidden])) .topbar-more-toggle:checked ~ #btn-open {
+    display: none;
+  }
+
+  .app:has(.side-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-label,
+  .app:has(.weather-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-label {
+    background: transparent;
+    color: var(--dim);
+  }
+
+  /* The sheet leaves only a strip of map, which is shorter than the control bar
+     is wide — so the bar is not left half-covered by the drawer. */
+  .map-wrap:has(.side-panel:not([hidden])) .map-controls,
+  .map-wrap:has(.weather-panel:not([hidden])) .map-controls {
+    display: none;
+  }
+
+  /* --- Dialogs and forms ---------------------------------------------- */
+
+  .dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 40px);
+  }
+
+  .dialog--wide {
+    width: calc(100vw - 20px);
+  }
+
+  .settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .field-row input {
+    height: 40px;
+  }
+
+  /* Touch minimums: 30 px is the floor, 36–44 px the target. */
+  .btn,
+  .btn-small,
+  .icon-btn,
+  .seg-btn,
+  .supply-chip {
+    min-height: 36px;
+  }
+
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .seg {
+    height: 40px;
+  }
+
+  .weather-from {
+    height: 36px;
+  }
+
+  .menu-item {
+    min-height: 44px;
+  }
+
+  .supply-point-main {
+    padding: 11px var(--s-3);
   }
 }
 
@@ -3643,23 +3911,59 @@ input {
 
   .seg-mode .seg-btn {
     padding: 0 5px;
-    font-size: 11px;
   }
 }
 
-@media (max-height: 680px) {
+/* Short screens: the chart gives way to the map, never the other way round. */
+@media (max-height: 640px) {
+  .stage {
+    --stack: 163px;
+  }
+
   .profile {
-    height: 150px;
+    height: 84px;
+  }
+
+  .profile.is-collapsed {
+    height: 40px;
+  }
+
+  .stage:has(.profile.is-collapsed) {
+    --stack: 119px;
+  }
+
+  .stage:has(.stat-notice:not([hidden])) {
+    --stack: 201px;
   }
 }
 
-/* Short phones (360x560 and similar): too little map is left to dock a sheet
- * inside it, so the sheet takes the viewport below the header and scrolls. */
-@media (max-width: 760px) and (max-height: 680px) {
+@media (max-width: 760px) and (max-height: 700px) {
+  .stage {
+    --stack: 185px;
+  }
+
+  .profile {
+    height: 58px;
+  }
+
+  .stage:has(.profile.is-collapsed) {
+    --stack: 171px;
+  }
+
+  .stage:has(.stat-notice:not([hidden])) {
+    --stack: 230px;
+  }
+
+  .stage:has(.profile.is-collapsed):has(.stat-notice:not([hidden])) {
+    --stack: 216px;
+  }
+
+  /* Too little map is left to dock a sheet inside it. */
   .weather-panel,
   .side-panel {
     position: fixed;
-    max-height: min(84vh, calc(100dvh - 68px));
+    top: 60px;
+    max-height: none;
   }
 }
 
@@ -3674,321 +3978,116 @@ input {
   }
 }
 
-/* Right edge layout -------------------------------------------------------- *
- * On desktop the dock is a full-height column on the right edge. Nothing is
- * reserved for the map chrome underneath: the zoom stack and the attribution
- * step to the left of the dock instead, so the panel never clips its own
- * content and no licence line is ever covered.
- */
-@media (min-width: 761px) {
-  .weather-panel,
-  .side-panel {
-    top: 12px;
-    right: 12px;
-    bottom: 12px;
-    max-height: calc(100% - 24px);
-  }
-
-  .map-controls {
-    top: auto;
-    left: 12px;
-    right: auto;
-    bottom: 44px;
-  }
-
-  /* The editor bar sits top-left, so the stack lives bottom-left for good and is
-     never moved by the dock: only the attribution steps out of its way. */
-  .map-wrap:has(.side-panel:not([hidden])) .map-attrib,
-  .map-wrap:has(.weather-panel:not([hidden])) .map-attrib {
-    right: calc(var(--dock-w) + 22px);
-  }
-
-  /* Nothing occupies the top-right on desktop any more, and the dock owns the
-     right edge: the bar wraps inside the free map area instead of running
-     underneath the panel. */
-  .editor-column {
-    max-width: calc(100% - 24px);
-  }
-
-  .map-wrap:has(.side-panel:not([hidden])) .editor-column,
-  .map-wrap:has(.weather-panel:not([hidden])) .editor-column {
-    max-width: calc(100% - var(--dock-w) - 36px);
-  }
-}
-
-/* Phone: a panel is a bottom sheet, so the two pieces of map chrome it would
- * otherwise cover move out of its way. The attribution steps below the editor
- * bar and left of the zoom stack: it stays on the map, readable, and outside
- * the sheet — a licence line is never the thing that gets covered. */
-@media (max-width: 760px) {
-  .map-wrap:has(.side-panel:not([hidden])) .map-attrib,
-  .map-wrap:has(.weather-panel:not([hidden])) .map-attrib {
-    top: 68px;
-    right: auto;
-    bottom: auto;
-    left: 8px;
-    max-width: calc(100% - 64px);
-  }
-
-  .map-wrap:has(.side-panel:not([hidden])):has(.editor-toolbar[data-mode='draw']:not([hidden])) .map-attrib,
-  .map-wrap:has(.side-panel:not([hidden])):has(.editor-toolbar[data-mode='edit']:not([hidden])) .map-attrib,
-  .map-wrap:has(.weather-panel:not([hidden])):has(.editor-toolbar[data-mode='draw']:not([hidden])) .map-attrib,
-  .map-wrap:has(.weather-panel:not([hidden])):has(.editor-toolbar[data-mode='edit']:not([hidden])) .map-attrib {
-    top: 96px;
-  }
-}
-
-/* 320-class phones: the demo popover is anchored to a flex row that is narrower
- * than the viewport, so pin it to the viewport instead of chasing ancestors. */
-@media (max-width: 360px) {
-  .route-popover {
-    position: fixed;
-    top: 64px;
-    left: 8px;
-    right: 8px;
-    width: auto;
-  }
-}
-
-/* Scroll affordance -------------------------------------------------------- *
- * A panel that scrolls must look like it scrolls. Chromium and Safari get the
- * classic, always-visible scrollbar (styled thumb, stable gutter) because the
- * standard properties below would hand it back to the OS's auto-hiding overlay
- * scrollbar — which is exactly what made a clipped panel read as broken.
- * Firefox has no ::-webkit-scrollbar, so it gets the standard equivalent.
- */
-@supports not (selector(::-webkit-scrollbar)) {
-  .weather-panel,
-  .side-panel,
-  .route-popover,
-  .dialog-body,
-  .banners,
-  .tb-menu-body,
-  .topbar-more-body {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scroll-thumb) transparent;
-  }
-}
-
-.tb-menu-body {
-  overflow-y: auto;
-  max-height: min(70vh, 420px);
-}
-
-/* The file group sits outside .topbar-more-body, so its trailing rule needs
- * the group rule spelled out. */
-@media (min-width: 761px) {
-  .topbar-more-body > .tb-group:first-child {
-    border-left: 1px solid var(--line);
-    margin-left: 2px;
-    padding-left: 12px;
-  }
-}
-
-.tb-menu-body::-webkit-scrollbar,
-.topbar-more-body::-webkit-scrollbar {
-  width: 11px;
-}
-
-.tb-menu-body::-webkit-scrollbar-thumb,
-.topbar-more-body::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  border: 3px solid transparent;
-  background-color: var(--scroll-thumb);
-  background-clip: content-box;
-}
-
-/* Phone: a drawer owns the screen while it is open. The menu that launched it
- * steps aside (its ⋯ control loses the pressed look), so the sheet's pinned head
- * — tabs, refresh, close — is never covered by the popover it came from. */
-@media (max-width: 760px) {
-  .app:has(.side-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-body,
-  .app:has(.weather-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-body,
-  .app:has(.side-panel:not([hidden])) .topbar-more-toggle:checked ~ #btn-open,
-  .app:has(.weather-panel:not([hidden])) .topbar-more-toggle:checked ~ #btn-open {
-    display: none;
-  }
-
-  .app:has(.side-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-label,
-  .app:has(.weather-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-label {
-    background: transparent;
-    color: var(--muted);
-  }
-
-  /* The library row: the label hugs its icon, the two icon buttons sit together
-     at the far right instead of floating in the middle of the row. */
-  .tb-group--nav {
-    justify-content: space-between;
-  }
-
-  .tb-group--nav > .btn-trips {
-    flex: 1 1 auto;
-    justify-content: flex-start;
-  }
-
-  .tb-group--nav > .tb-menu {
-    flex: 0 0 auto;
-  }
-
-  .tb-group--nav .tb-menu-toggle {
-    width: 40px;
-  }
-}
-
-/* Resupply hover card: MapLibre caps the popup at 240 px, but a long name or a
- * long provenance line can still overflow the map edge — clamp and scroll it. */
-.maplibregl-popup {
-  max-width: calc(100vw - 24px);
-}
-
-.maplibregl-popup-content {
-  max-height: 45vh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  overflow-wrap: anywhere;
-}
-
-.maplibregl-popup-content::-webkit-scrollbar {
-  width: 9px;
-}
-
-.maplibregl-popup-content::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-color: var(--scroll-thumb);
-  background-clip: content-box;
-}
-
-/* Phone: the sheet leaves only a strip of map, which is shorter than the zoom
- * stack — so the stack is not left half-covered by the drawer. */
-@media (max-width: 760px) {
-  .map-wrap:has(.side-panel:not([hidden])) .map-controls,
-  .map-wrap:has(.weather-panel:not([hidden])) .map-controls {
-    display: none;
-  }
-}
-
-@media (max-width: 760px) {
-  /* The menu's own "more" is a sheet of its own: the popover clips its
-     contents, and a nested disclosure 40 px wide is not a menu. */
-  .tb-menu-body {
-    position: fixed;
-    top: auto;
-    right: 8px;
-    bottom: calc(8px + env(safe-area-inset-bottom));
-    left: 8px;
-    width: auto;
-    max-height: 50vh;
-    overflow-y: auto;
-    padding: 6px;
-    box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.5);
-  }
-
-  .menu-item {
-    min-height: 44px;
-    font-size: 14px;
-  }
-
-  .menu-section {
-    padding-bottom: 6px;
-  }
-
-  .menu-label {
-    font-size: var(--fs-2);
-  }
-
-  /* Inside the popover a quiet control still has to look tappable. */
-  .tb-group > .btn-quiet {
-    background: rgba(255, 255, 255, 0.045);
-  }
-
-  .tb-group > .btn-quiet[aria-expanded='true'] {
-    background: var(--sel);
-  }
-
-  .tb-group--nav > .btn-icon,
-  .tb-group--nav > .tb-menu .tb-menu-toggle {
-    flex: 0 0 auto;
-    width: 40px;
-  }
-}
-
-/* A second tier is the last resort, not the default: it used to start at 1280 px,
- * so every ordinary laptop ran a two-row header — identity on top, tools on a
- * full-width row below — which reads as a broken bar rather than a grouped one.
- * With the route name dropped below 1120 px and the analysis toggles reduced to
- * icons, one line fits down to ~920 px; only below that does the bar wrap. */
-@media (min-width: 761px) and (max-width: 920px) {
-  .topbar-row {
-    flex-wrap: wrap;
-    row-gap: 6px;
-    column-gap: 10px;
-  }
-
-  .topbar-actions {
-    flex: 1 1 100%;
-    justify-content: flex-end;
-    flex-wrap: nowrap;
-  }
-}
-
-/* The save status is a word; on a narrow desktop the dot and its title say
-   enough, and the dock carries the words while editing. */
-@media (min-width: 761px) and (max-width: 1280px) {
-  .save-group .save-status {
-    max-width: 0;
-    overflow: hidden;
-    padding-left: 0;
-    margin-left: 0;
-  }
-
-  .save-group {
-    gap: 4px;
-  }
-}
 
 /* --------------------------------------------------------------------------
- * The phone sheet, last word.
+ * Phone measures: five numbers, one size.
  *
- * These rules live at the end of the file on purpose: the desktop `.tb-menu`
- * dropdown is declared later than the responsive block above, so a rule inside
- * that block lost to it and the menu's four rows were laid out absolutely,
- * outside the sheet's height budget — clipped and unclickable. Specificity plus
- * position settles it: in the sheet the disclosure is not a dropdown.
+ * They were 22 px (distance, walking time) over 17 px (ascent, descent,
+ * elevation) in a 2-column row stacked on a 3-column row, so the middle column
+ * aligned with nothing. One size, two tracks, the elevation given the full row.
+ * ------------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 18px;
+  }
+
+  .stats .stat:nth-child(5) {
+    grid-column: 1 / -1;
+  }
+
+  .stats .stat-value {
+    font-size: var(--t-5);
+    font-weight: 600;
+  }
+}
+
+/* Import GPX and Ny rute are both secondary: one wore a border and the other
+   nothing, 130 px apart. Quiet, both of them. */
+#btn-open {
+  background: transparent;
+  border-color: transparent;
+  color: var(--dim);
+}
+
+#btn-open:hover:not(:disabled) {
+  background: var(--panel-3);
+  border-color: transparent;
+  color: var(--text);
+}
+
+/* The scale bar was the only non-opaque surface in the app. */
+.maplibregl-ctrl-scale {
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-2);
+  box-shadow: var(--e-1);
+  color: var(--muted);
+}
+
+/* One note size, both drawers. */
+#supply-panel .panel-note {
+  font-size: var(--t-2);
+}
+
+/* Fixed panel heights left 144 px of dead space under the weather copy. */
+#supply-panel,
+#weather-panel {
+  height: auto;
+  max-height: calc(100vh - 132px);
+  overflow: auto;
+}
+
+
+/* --------------------------------------------------------------------------
+ * Phone menu: one row model.
+ *
+ * The sheet mixed centred icon rows (39 px) with left-aligned text rows (44 px)
+ * at four different label origins, so it read as two menus stacked. Every row is
+ * now one 44 px line with its label on the same rail, and the toggle shows state.
  * ------------------------------------------------------------------------ */
 @media (max-width: 760px) {
-  .topbar .topbar-actions .tb-menu {
-    display: block;
-    height: auto;
-  }
-
-  .topbar .topbar-actions .tb-menu > summary {
-    display: none;
-  }
-
-  .topbar .topbar-actions .tb-menu-body {
-    position: static;
+  .topbar-more-body .btn,
+  .topbar-more-body .menu-item {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-    width: auto;
-    max-height: none;
-    overflow: visible;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-    padding: 0;
-    background: transparent;
-  }
-
-  .topbar .topbar-actions .tb-menu-body .menu-item {
+    align-items: center;
     justify-content: flex-start;
+    gap: 12px;
     width: 100%;
+    height: 44px;
+    padding: 0 14px;
+    font-size: var(--t-3);
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-radius: var(--r-2);
+    color: var(--text);
   }
 
-  .topbar .topbar-actions .topbar-more-body {
-    height: auto;
-    max-height: calc(100dvh - 70px);
-    overflow-y: auto;
+  .topbar-more-body .btn .i {
+    width: 20px;
+    height: 20px;
+    color: var(--dim);
+  }
+
+  .topbar-more-body .btn:hover:not(:disabled),
+  .topbar-more-body .menu-item:hover {
+    background: var(--panel-3);
+  }
+
+  /* An open sheet must look open. */
+  .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-label {
+    background: var(--panel-3);
+    color: var(--text);
+  }
+
+  .topbar-more-body .tb-group {
+    border-top: 1px solid var(--line-strong);
+    padding-top: 8px;
+  }
+
+  .topbar-more-body .tb-group:first-of-type {
+    border-top: 0;
+    padding-top: 0;
   }
 }

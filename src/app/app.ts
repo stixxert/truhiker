@@ -179,6 +179,27 @@ function messageOf(error: unknown): string {
  * A banner gets one line. URLs and retry logs belong in the tooltip, not in the
  * visible message — a public app should not shout query strings at people.
  */
+/** Weather failures are upstream states, not product copy.
+ *
+ * The MET client reports machine states ("requested time 2026-10-20T10:00:00Z
+ * precedes MET's series, which starts ..."). That text is English, carries an ISO
+ * timestamp, and is 150 characters wide in a 209 px cell — it must never be the
+ * sentence a Norwegian user reads. The raw reason stays available as the title.
+ */
+function weatherFailure(error: unknown, i18n: I18n): { message: string; detail?: string } {
+  const raw = messageOf(error);
+  if (/precedes MET's series|starts .*T\d/i.test(raw)) {
+    return { message: i18n.t('weather.beforeSeries'), detail: raw };
+  }
+  if (/past .*series|beyond the .* series|horizon/i.test(raw)) {
+    return { message: i18n.t('weather.afterSeries'), detail: raw };
+  }
+  if (/fetch|network|abort|timeout|ENOTFOUND|ECONN/i.test(raw)) {
+    return { message: i18n.t('weather.network'), detail: raw };
+  }
+  return { message: i18n.t('weather.failed'), detail: raw };
+}
+
 function briefError(message: string): string {
   const http = /\bHTTP (\d{3})\b/.exec(message);
   if (http) return `HTTP ${http[1]}`;
@@ -1347,7 +1368,12 @@ export class App {
       this.weatherState = { kind: 'ready', plan, ...(from === 'now' ? { from } : {}) };
     } catch (error) {
       if (token !== this.weatherToken) return;
-      this.weatherState = { kind: 'error', message: messageOf(error) };
+      const failure = weatherFailure(error, this.i18n);
+      this.weatherState = {
+        kind: 'error',
+        message: failure.message,
+        ...(failure.detail ? { detail: failure.detail } : {}),
+      };
     }
     this.renderWeather();
   }
@@ -2805,7 +2831,9 @@ export class App {
       Number.isFinite(elevation) && Math.abs(elevation) <= 0.5
         ? this.i18n.t('readout.seaLevel')
         : this.i18n.format.elevation(elevation);
-    el.textContent = `${this.i18n.format.distance(distance)} · ${elevationText} · ${this.i18n.format.grade(grade)}`;
+    // Labelled: unlabelled, "3,50 km · 1 178 moh · +2,7 %" sitting next to the source
+    // badge reads as the route's length while the stats say 9,01 km.
+    el.textContent = `${this.i18n.t('readout.at', { distance: this.i18n.format.distance(distance) })} · ${elevationText} · ${this.i18n.format.grade(grade)}`;
   }
 
   private updateRouteMeta(): void {

@@ -59,6 +59,7 @@ export const en: Record<MessageKey, string> = {
   'route.demoDetails': 'Show information about the demo route',
   'route.file': 'From file',
   'route.link': 'Shared route',
+  'readout.at': 'At {distance}',
   'readout.seaLevel': 'sea level',
   'route.created':
     'New route started: {name}. Click the map to draw the first point.',
@@ -197,7 +198,10 @@ export const en: Record<MessageKey, string> = {
   'weather.refresh': 'Refresh',
   'weather.fetched': 'forecast fetched {time}',
   'weather.issued': 'forecast issued {time}',
-  'weather.horizonNote':
+    'weather.beforeSeries': "The trip starts before MET's forecast series begins. Try again once the forecast covers the start date.",
+  'weather.afterSeries': "The trip is past MET's forecast horizon.",
+  'weather.network': "Could not reach MET. Check the connection and try again.",
+'weather.horizonNote':
     'MET’s forecast covers about {days} days ahead. Days beyond the horizon are shown without numbers — no estimates.',
   'weather.summary': '{forecast} {forecastUnit} with a forecast, {beyond} {beyondUnit} beyond the horizon',
   'weather.summaryAll': '{forecast} {forecastUnit} with a forecast',
@@ -207,7 +211,7 @@ export const en: Record<MessageKey, string> = {
   'weather.empty': 'The trip has no days to show weather for.',
   'weather.loading': 'Fetching the forecast …',
   'weather.loadingDay': 'fetching …',
-  'weather.failed': 'The weather forecast is unavailable: {message}',
+  'weather.failed': 'The forecast is not available right now.',
   'weather.noForecast': 'The forecast is not available. Try Refresh.',
   'weather.networkError': 'the network did not respond',
   'weather.beyondHorizon': 'outside the forecast horizon',
