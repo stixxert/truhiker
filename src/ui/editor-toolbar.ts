@@ -92,6 +92,7 @@ export class EditorToolbar {
   private readonly selectionLabel: HTMLElement;
   private readonly legNameInput: HTMLInputElement;
   private readonly renameButton: HTMLButtonElement;
+  private readonly legNameField: HTMLElement;
   private readonly snapIndicator: HTMLElement;
   private readonly offTrail: HTMLElement;
   private readonly hint: HTMLElement;
@@ -110,6 +111,7 @@ export class EditorToolbar {
     this.selectionLabel = required(root, 'editor-selection');
     this.legNameInput = required<HTMLInputElement>(root, 'leg-name');
     this.renameButton = required<HTMLButtonElement>(root, 'editor-rename-apply');
+    this.legNameField = this.legNameInput.closest('.leg-name') ?? this.legNameInput;
     this.snapIndicator = required(root, 'snap-indicator');
     this.offTrail = required(root, 'offtrail-legend');
     this.hint = required(root, 'editor-hint');
@@ -167,20 +169,32 @@ export class EditorToolbar {
     this.redo.disabled = !model.available || !model.canRedo;
 
     const showActions = model.available && model.mode === 'edit';
-    this.actionsRow.hidden = !showActions;
+    // Show only what applies to the current selection. A row of greyed-out verbs
+    // is a menu the user has to read; a toolbar shows the three things that can
+    // be done now. The enable rules still come from `availableCommands()`.
+    let visibleActions = 0;
     for (const [action, flag] of Object.entries(ACTION_FLAGS) as Array<
       [keyof typeof ACTION_FLAGS, keyof CommandAvailability]
     >) {
       const button = this.actionButtons.get(action);
-      if (button) button.disabled = !showActions || !model.commands[flag];
+      if (!button) continue;
+      const enabled = showActions && model.commands[flag];
+      button.disabled = !enabled;
+      button.hidden = !enabled;
+      if (enabled) visibleActions += 1;
     }
 
     this.selectionLabel.textContent = model.selectionLabel ?? '';
     if (this.root.ownerDocument.activeElement !== this.legNameInput) {
       this.legNameInput.value = model.legName;
     }
-    this.legNameInput.disabled = !showActions || !model.renameEnabled;
-    this.renameButton.disabled = !showActions || !model.renameEnabled;
+    const rename = showActions && model.renameEnabled;
+    this.legNameField.hidden = !rename;
+    this.renameButton.hidden = !rename;
+    this.legNameInput.disabled = !rename;
+    this.renameButton.disabled = !rename;
+    if (rename) visibleActions += 1;
+    this.actionsRow.hidden = visibleActions === 0;
 
     this.snapIndicator.textContent = model.snapIndicator;
     this.snapIndicator.dataset.state = model.snapState;
