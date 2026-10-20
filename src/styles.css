@@ -306,6 +306,49 @@ input {
   padding-left: 12px;
 }
 
+/* Above the mobile breakpoint the ⋯ disclosure is not in play: its body lays out
+ * inline through `display: contents`. The toggle and its label were still in the
+ * row, though — the raw checkbox showed as a 13 px sliver at the far left, and the
+ * icon sat in front of a menu that was already open. Neither means anything here.
+ *
+ * Three classes for the label: it also matches `.topbar-more-label.btn`, which
+ * sets `display: contents` further down the file and would win at two. */
+@media (min-width: 761px) {
+  .topbar .topbar-actions .topbar-more-label,
+  .topbar .topbar-more-toggle {
+    display: none;
+  }
+
+  /* One line, never two: a wrapped header doubles its height and pushes the map
+     down. Whatever does not fit truncates or hides, it does not wrap. */
+  .topbar-row,
+  .topbar-actions {
+    flex-wrap: nowrap;
+  }
+
+  .route-meta {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  /* The analysis toggles keep their icon and drop the word: eleven text items in
+     one 56 px strip is a wall of words, not a toolbar. The tooltip and the
+     accessible name still carry the label. */
+  #btn-supply .btn-label,
+  #btn-weather .btn-label,
+  #btn-trips .btn-label {
+    display: none;
+  }
+}
+
+/* Below ~1120 px the row needs what it does not have. The route name goes first:
+ * it is in the tab title and in the editor header; the bar's actions are not. */
+@media (min-width: 761px) and (max-width: 1120px) {
+  .route-meta {
+    display: none;
+  }
+}
+
 /* Icon sprite: one definition of each glyph, sized by CSS. */
 .icon-sprite {
   position: absolute;
@@ -3477,11 +3520,12 @@ input {
   }
 }
 
-/* Below a comfortable desktop the action groups cannot share the row with the
- * route identity. The wrap is deliberate rather than a spill: identity on the
- * first tier, tools on a full-width second tier, so the gap is structured
- * instead of an accidental hole at the end of row one. */
-@media (min-width: 761px) and (max-width: 1280px) {
+/* A second tier is the last resort, not the default: it used to start at 1280 px,
+ * so every ordinary laptop ran a two-row header — identity on top, tools on a
+ * full-width row below — which reads as a broken bar rather than a grouped one.
+ * With the route name dropped below 1120 px and the analysis toggles reduced to
+ * icons, one line fits down to ~920 px; only below that does the bar wrap. */
+@media (min-width: 761px) and (max-width: 920px) {
   .topbar-row {
     flex-wrap: wrap;
     row-gap: 6px;
@@ -3493,9 +3537,11 @@ input {
     justify-content: flex-end;
     flex-wrap: nowrap;
   }
+}
 
-  /* The save status is a word; at this width the dot and its title say enough,
-     and the dock carries the words while editing. */
+/* The save status is a word; on a narrow desktop the dot and its title say
+   enough, and the dock carries the words while editing. */
+@media (min-width: 761px) and (max-width: 1280px) {
   .save-group .save-status {
     max-width: 0;
     overflow: hidden;
@@ -3505,11 +3551,5 @@ input {
 
   .save-group {
     gap: 4px;
-  }
-}
-
-@media (min-width: 761px) {
-  .topbar-actions {
-    flex-wrap: nowrap;
   }
 }
