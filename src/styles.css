@@ -1049,6 +1049,12 @@ input {
 
 .profile-readout {
   flex: none;
+  /* The only thing in the head whose content width changes. Without a reserve,
+     every value under the pointer nudges the provenance badge to its left, so
+     "Kartverket DTM" slides back and forth while the cursor moves. Reserve the
+     widest realistic reading and right-align inside it. */
+  min-width: 30ch;
+  text-align: left;
   font-size: 12.5px;
   font-weight: 550;
   font-variant-numeric: tabular-nums;
