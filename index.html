@@ -18,6 +18,157 @@
   </head>
   <body>
     <h1 class="sr-only" data-i18n="app.name">TruHiker</h1>
+    <!-- One icon family: 16 px box, 1.5 px stroke, currentColor. Inline symbols
+         keep a single definition of each glyph across the shell. -->
+    <svg class="icon-sprite" aria-hidden="true" focusable="false" width="0" height="0">
+      <defs>
+        <symbol
+          id="i-folder"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M2.2 4.6h3.4l1.5 1.8h6.7v6.2H2.2z" />
+        </symbol>
+        <symbol
+          id="i-terrain"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M1.7 12.6 6.1 4.6l2.6 4.6 1.6-2.3 4.1 5.7z" />
+        </symbol>
+        <symbol
+          id="i-trips"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M5.7 4.2V3.4c0-.5.4-.9.9-.9h6.1c.5 0 .9.4.9.9v6.1c0 .5-.4.9-.9.9h-.8" />
+          <rect x="2.3" y="5.2" width="8" height="8.2" rx="1.3" />
+        </symbol>
+        <symbol
+          id="i-settings"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M5 2.7v10.6M11 2.7v10.6" />
+          <path d="M3.4 6.2h3.2M9.4 10.1h3.2" />
+        </symbol>
+        <symbol id="i-more" viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="3.7" cy="8" r="1.35" />
+          <circle cx="8" cy="8" r="1.35" />
+          <circle cx="12.3" cy="8" r="1.35" />
+        </symbol>
+        <symbol
+          id="i-share"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12.1" cy="3.9" r="1.7" />
+          <circle cx="12.1" cy="12.1" r="1.7" />
+          <circle cx="3.9" cy="8" r="1.7" />
+          <path d="M5.4 7.2 10.6 4.6M5.4 8.8 10.6 11.4" />
+        </symbol>
+        <symbol
+          id="i-close"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+        >
+          <path d="M4.3 4.3 11.7 11.7M11.7 4.3 4.3 11.7" />
+        </symbol>
+        <symbol
+          id="i-plus"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+        >
+          <path d="M8 3.4v9.2M3.4 8h9.2" />
+        </symbol>
+        <symbol
+          id="i-minus"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+        >
+          <path d="M3.4 8h9.2" />
+        </symbol>
+        <symbol id="i-north" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 1.9 11.6 14.1 8 11.6 4.4 14.1z" />
+        </symbol>
+        <symbol
+          id="i-fit"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M2.9 6.1V2.9h3.2M9.9 2.9h3.2v3.2M13.1 9.9v3.2H9.9M6.1 13.1H2.9V9.9" />
+        </symbol>
+        <symbol
+          id="i-undo"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M5.6 3.9 2.7 6.8l2.9 2.9" />
+          <path d="M2.7 6.8h6.6a3.5 3.5 0 0 1 0 7H6.9" />
+        </symbol>
+        <symbol
+          id="i-redo"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M10.4 3.9l2.9 2.9-2.9 2.9" />
+          <path d="M13.3 6.8H6.7a3.5 3.5 0 0 0 0 7h2.4" />
+        </symbol>
+        <symbol
+          id="i-pace"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="8" cy="9.3" r="4.7" />
+          <path d="M8 9.3V6.8M6.3 2.5h3.4" />
+        </symbol>
+      </defs>
+    </svg>
     <div class="app">
       <header class="topbar">
         <div class="topbar-row">
@@ -75,153 +226,146 @@
             </details>
           </div>
 
-          <button
-            class="btn btn-primary"
-            id="btn-open"
-            type="button"
-            data-i18n="action.openGpx"
-            data-i18n-aria-label="action.openGpx"
-          >
-            Åpne GPX
+          <button class="btn btn-open" id="btn-open" type="button" data-i18n-aria-label="action.importGpx">
+            <svg class="i" aria-hidden="true"><use href="#i-folder" /></svg>
+            <span data-i18n="action.importGpx">Importer GPX</span>
           </button>
 
           <div class="topbar-actions">
             <label class="topbar-more-label btn btn-icon" for="topbar-more" aria-hidden="true">
-              <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
-                <circle cx="5" cy="10" r="1.6" fill="currentColor" />
-                <circle cx="10" cy="10" r="1.6" fill="currentColor" />
-                <circle cx="15" cy="10" r="1.6" fill="currentColor" />
-              </svg>
+              <svg class="i" aria-hidden="true"><use href="#i-more" /></svg>
             </label>
 
             <div class="topbar-more-body">
-              <div class="seg" role="group" data-i18n-aria-label="layers.label">
-                <button class="seg-btn" type="button" data-basemap="topo" aria-pressed="true" data-i18n="layers.topo">
-                  Topo
-                </button>
-                <button class="seg-btn" type="button" data-basemap="grey" aria-pressed="false" data-i18n="layers.grey">
-                  Grå
-                </button>
-                <button class="seg-btn" type="button" data-basemap="wms" aria-pressed="false" data-i18n="layers.wms">
-                  WMS
-                </button>
-              </div>
+              <!-- View: which map, and whether it is drawn in 3D. -->
+              <div class="tb-group">
+                <div class="seg" role="group" data-i18n-aria-label="layers.label">
+                  <button class="seg-btn" type="button" data-basemap="topo" aria-pressed="true" data-i18n="layers.topo">
+                    Topo
+                  </button>
+                  <button class="seg-btn" type="button" data-basemap="grey" aria-pressed="false" data-i18n="layers.grey">
+                    Grå
+                  </button>
+                  <button class="seg-btn" type="button" data-basemap="aerial" aria-pressed="false" data-i18n="layers.aerial">
+                    Flyfoto
+                  </button>
+                </div>
 
-              <button
-                class="btn btn-toggle"
-                id="btn-terrain"
-                type="button"
-                aria-pressed="false"
-                data-i18n-aria-label="terrain.enable"
-                data-i18n-title="terrain.enable"
-              >
-                <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
-                  <path d="M2 15l5-9 3.4 5.6L13 8l5 7H2z" fill="currentColor" />
-                </svg>
-                3D
-              </button>
-
-              <div class="seg seg-lang" role="group" data-i18n-aria-label="lang.label">
                 <button
-                  class="seg-btn"
+                  class="btn btn-toggle"
+                  id="btn-terrain"
                   type="button"
-                  data-lang="no"
-                  aria-pressed="true"
-                  data-i18n-aria-label="lang.no"
-                >
-                  NO
-                </button>
-                <button
-                  class="seg-btn"
-                  type="button"
-                  data-lang="en"
                   aria-pressed="false"
-                  data-i18n-aria-label="lang.en"
+                  data-i18n-aria-label="terrain.enable"
+                  data-i18n-title="terrain.enable"
                 >
-                  EN
+                  <svg class="i" aria-hidden="true"><use href="#i-terrain" /></svg>
+                  3D
                 </button>
               </div>
 
-              <button
-                class="btn btn-icon"
-                id="btn-share"
-                type="button"
-                data-i18n-aria-label="action.share"
-                data-i18n-title="action.share"
-              >
-                <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
-                  <path
-                    d="M7.5 11.5l5-3M7.5 8.5l5 3"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    fill="none"
-                    stroke-linecap="round"
-                  />
-                  <rect x="2.5" y="6.5" width="5" height="5" rx="2.5" fill="currentColor" opacity="0.85" />
-                  <rect x="12.5" y="2.5" width="5" height="5" rx="2.5" fill="currentColor" opacity="0.85" />
-                  <rect x="12.5" y="12.5" width="5" height="5" rx="2.5" fill="currentColor" opacity="0.85" />
-                </svg>
-              </button>
+              <!-- Panels: the two analysis drawers. Neither is a primary action. -->
+              <div class="tb-group">
+                <button
+                  class="btn btn-quiet"
+                  id="btn-supply"
+                  type="button"
+                  aria-expanded="false"
+                  aria-controls="supply-panel"
+                  data-i18n="supply.open"
+                  data-i18n-title="supply.title"
+                >
+                  Forsyning
+                </button>
 
-              <button class="btn btn-ghost" id="btn-about" type="button" data-i18n="action.about">Om data</button>
+                <button
+                  class="btn btn-quiet"
+                  id="btn-weather"
+                  type="button"
+                  aria-expanded="false"
+                  aria-controls="weather-panel"
+                  data-i18n="weather.open"
+                  data-i18n-title="weather.title"
+                >
+                  Vær
+                </button>
+              </div>
 
-              <button
-                class="btn btn-ghost"
-                id="btn-trips"
-                type="button"
-                data-i18n="trips.open"
-                data-i18n-title="trips.title"
-              >
-                Turer
-              </button>
+              <!-- Trip library and its settings, then everything occasional. -->
+              <div class="tb-group tb-group--nav">
+                <button class="btn btn-quiet btn-trips" id="btn-trips" type="button" data-i18n-title="trips.title">
+                  <svg class="i" aria-hidden="true"><use href="#i-trips" /></svg>
+                  <span data-i18n="trips.open">Turer</span>
+                </button>
 
-              <button
-                class="btn btn-ghost"
-                id="btn-supply"
-                type="button"
-                aria-expanded="false"
-                aria-controls="supply-panel"
-                data-i18n="supply.open"
-                data-i18n-title="supply.title"
-              >
-                Forsyning
-              </button>
+                <button
+                  class="btn btn-icon btn-quiet"
+                  id="btn-settings"
+                  type="button"
+                  data-i18n-aria-label="trips.settings"
+                  data-i18n-title="trips.settings"
+                >
+                  <svg class="i" aria-hidden="true"><use href="#i-settings" /></svg>
+                </button>
 
-              <button
-                class="btn btn-ghost"
-                id="btn-weather"
-                type="button"
-                aria-expanded="false"
-                aria-controls="weather-panel"
-                data-i18n="weather.open"
-                data-i18n-title="weather.title"
-              >
-                Vær
-              </button>
-
-              <button
-                class="btn btn-icon"
-                id="btn-settings"
-                type="button"
-                data-i18n-aria-label="trips.settings"
-                data-i18n-title="trips.settings"
-              >
-                <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
-                  <path
-                    d="M3 6h14M3 10h14M3 14h14"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                  />
-                  <circle cx="7" cy="6" r="1.8" fill="currentColor" />
-                  <circle cx="13" cy="10" r="1.8" fill="currentColor" />
-                  <circle cx="6" cy="14" r="1.8" fill="currentColor" />
-                </svg>
-              </button>
+                <details class="tb-menu">
+                  <summary
+                    class="btn btn-icon btn-quiet tb-menu-toggle"
+                    data-i18n-aria-label="action.more"
+                    data-i18n-title="action.more"
+                  >
+                    <svg class="i" aria-hidden="true"><use href="#i-more" /></svg>
+                  </summary>
+                  <div class="tb-menu-body" id="topbar-menu">
+                    <button class="menu-item" id="btn-about" type="button" data-i18n="action.about">Om data</button>
+                    <button
+                      class="menu-item"
+                      id="btn-share"
+                      type="button"
+                      data-i18n="action.share"
+                      data-i18n-title="action.share"
+                    >
+                      Kopier lenke
+                    </button>
+                    <button
+                      class="menu-item"
+                      id="btn-download-gpx"
+                      type="button"
+                      data-i18n="action.downloadGpx"
+                      data-i18n-title="action.downloadGpx"
+                    >
+                      Last ned GPX
+                    </button>
+                    <div class="menu-section">
+                      <span class="menu-label" data-i18n="lang.label">Språk</span>
+                      <div class="seg seg-lang" role="group" data-i18n-aria-label="lang.label">
+                        <button
+                          class="seg-btn"
+                          type="button"
+                          data-lang="no"
+                          aria-pressed="true"
+                          data-i18n-aria-label="lang.no"
+                        >
+                          NO
+                        </button>
+                        <button
+                          class="seg-btn"
+                          type="button"
+                          data-lang="en"
+                          aria-pressed="false"
+                          data-i18n-aria-label="lang.en"
+                        >
+                          EN
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+              </div>
             </div>
 
-            <span class="save-group">
+            <div class="tb-group tb-group--save save-group">
+              <span class="save-status" id="save-status" role="status" aria-live="polite"></span>
               <button
                 class="btn btn-primary btn-save"
                 id="btn-save"
@@ -232,8 +376,7 @@
               >
                 Lagre
               </button>
-              <span class="save-status" id="save-status" role="status" aria-live="polite"></span>
-            </span>
+            </div>
           </div>
         </div>
 
@@ -252,7 +395,7 @@
               data-i18n-aria-label="map.zoomIn"
               data-i18n-title="map.zoomIn"
             >
-              +
+              <svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>
             </button>
             <button
               class="map-btn"
@@ -261,7 +404,7 @@
               data-i18n-aria-label="map.zoomOut"
               data-i18n-title="map.zoomOut"
             >
-              −
+              <svg class="i" aria-hidden="true"><use href="#i-minus" /></svg>
             </button>
             <button
               class="map-btn"
@@ -270,9 +413,7 @@
               data-i18n-aria-label="map.resetNorth"
               data-i18n-title="map.resetNorth"
             >
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M10 2l4 12-4-3-4 3 4-12z" fill="currentColor" />
-              </svg>
+              <svg class="i" aria-hidden="true"><use href="#i-north" /></svg>
             </button>
             <button
               class="map-btn"
@@ -281,15 +422,7 @@
               data-i18n-aria-label="action.fitRoute"
               data-i18n-title="action.fitRoute"
             >
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <path
-                  d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  fill="none"
-                  stroke-linecap="round"
-                />
-              </svg>
+              <svg class="i" aria-hidden="true"><use href="#i-fit" /></svg>
             </button>
           </div>
 
@@ -313,7 +446,7 @@
                 data-i18n-aria-label="editor.undo"
                 data-i18n-title="editor.undo"
               >
-                ↶
+                <svg class="i" aria-hidden="true"><use href="#i-undo" /></svg>
               </button>
               <button
                 class="btn btn-small"
@@ -322,7 +455,7 @@
                 data-i18n-aria-label="editor.redo"
                 data-i18n-title="editor.redo"
               >
-                ↷
+                <svg class="i" aria-hidden="true"><use href="#i-redo" /></svg>
               </button>
               <label class="snap-toggle">
                 <input type="checkbox" id="snap-enabled" checked data-i18n-aria-label="editor.snap" />
@@ -338,11 +471,7 @@
                 data-i18n-aria-label="action.more"
               />
               <label class="editor-more-label btn btn-small" for="editor-more">
-                <svg viewBox="0 0 20 20" aria-hidden="true" class="btn-icon">
-                  <circle cx="5" cy="10" r="1.5" fill="currentColor" />
-                  <circle cx="10" cy="10" r="1.5" fill="currentColor" />
-                  <circle cx="15" cy="10" r="1.5" fill="currentColor" />
-                </svg>
+                <svg class="i" aria-hidden="true"><use href="#i-more" /></svg>
               </label>
               <div class="editor-more-body">
                 <label class="snap-radius">
@@ -412,11 +541,19 @@
                   type="button"
                   data-i18n-aria-label="action.close"
                 >
-                  ×
+                  <svg class="i" aria-hidden="true"><use href="#i-close" /></svg>
                 </button>
               </div>
             </header>
             <p class="panel-status" id="weather-status" role="status" aria-live="polite"></p>
+            <div class="seg weather-from" role="group" data-i18n-aria-label="weather.rangeLabel">
+              <button class="seg-btn" type="button" data-weather-from="now" aria-pressed="false" data-i18n="weather.fromNow">
+                Nå
+              </button>
+              <button class="seg-btn" type="button" data-weather-from="trip" aria-pressed="true" data-i18n="weather.fromTrip">
+                Turen
+              </button>
+            </div>
             <div class="weather-message" id="weather-message" hidden>
               <p id="weather-message-text"></p>
               <button class="btn btn-primary btn-small" id="weather-action" type="button" hidden></button>
@@ -478,7 +615,7 @@
                   type="button"
                   data-i18n-aria-label="action.close"
                 >
-                  ×
+                  <svg class="i" aria-hidden="true"><use href="#i-close" /></svg>
                 </button>
               </div>
             </header>
@@ -588,7 +725,7 @@
           <div class="terrain-hint" id="terrain-hint" role="status"></div>
 
           <div class="map-attrib">
-            <a href="https://www.kartverket.no" target="_blank" rel="noopener">©Kartverket</a>
+            <a id="attrib-basemap" href="https://www.kartverket.no" target="_blank" rel="noopener">©Kartverket</a>
             <a href="https://mapterhorn.com/attribution" target="_blank" rel="noopener">Mapterhorn</a>
           </div>
 
@@ -700,15 +837,7 @@
               data-i18n-aria-label="stats.pace"
               data-i18n-title="stats.pace"
             >
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <path
-                  d="M4 14L14 4M12.5 3.5l2 2M6 15.5l-1.8.4.4-1.9L14 4.5"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                />
-              </svg>
+              <svg class="i" aria-hidden="true"><use href="#i-pace" /></svg>
             </button>
           </span>
         </div>
@@ -723,7 +852,9 @@
       <div class="dialog-inner">
         <header class="dialog-head">
           <h2 id="about-title" data-i18n="about.title">Om data og bruk</h2>
-          <button class="icon-btn" type="button" data-close data-i18n-aria-label="action.close">×</button>
+          <button class="icon-btn" type="button" data-close data-i18n-aria-label="action.close">
+            <svg class="i" aria-hidden="true"><use href="#i-close" /></svg>
+          </button>
         </header>
         <div class="dialog-body">
           <div class="notice">
@@ -740,6 +871,12 @@
               <strong>Kartverket</strong>
               <span data-i18n="about.kartverket">Bakgrunnskart og høydedata: Kartverket (topo, DTM), CC BY 4.0.</span>
               <a href="https://www.kartverket.no" target="_blank" rel="noopener">kartverket.no</a>
+              <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>
+            </li>
+            <li>
+              <strong>EOX Cloudless</strong>
+              <span data-i18n="about.eox">Flyfoto: Sentinel-2 cloudless 2017, © EOX IT Services GmbH, CC BY 4.0.</span>
+              <a href="https://cloudless.eox.at" target="_blank" rel="noopener">cloudless.eox.at</a>
               <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>
             </li>
             <li>
@@ -793,7 +930,9 @@
       <form id="pace-form" class="dialog-inner" novalidate>
         <header class="dialog-head">
           <h2 id="pace-title" data-i18n="pace.title">Gangtempo</h2>
-          <button class="icon-btn" type="button" data-close data-i18n-aria-label="action.close">×</button>
+          <button class="icon-btn" type="button" data-close data-i18n-aria-label="action.close">
+            <svg class="i" aria-hidden="true"><use href="#i-close" /></svg>
+          </button>
         </header>
         <div class="dialog-body">
           <p data-i18n="pace.intro"></p>
@@ -819,7 +958,9 @@
       <div class="dialog-inner">
         <header class="dialog-head">
           <h2 id="trips-title" data-i18n="trips.title">Lagrede turer</h2>
-          <button class="icon-btn" type="button" data-close data-i18n-aria-label="action.close">×</button>
+          <button class="icon-btn" type="button" data-close data-i18n-aria-label="action.close">
+            <svg class="i" aria-hidden="true"><use href="#i-close" /></svg>
+          </button>
         </header>
         <div class="dialog-body">
           <p class="trips-problem" id="trips-problem" role="alert" hidden></p>
@@ -852,7 +993,9 @@
       <form id="settings-form" class="dialog-inner" novalidate>
         <header class="dialog-head">
           <h2 id="settings-title" data-i18n="settings.title">Turinnstillinger</h2>
-          <button class="icon-btn" type="button" data-close data-i18n-aria-label="action.close">×</button>
+          <button class="icon-btn" type="button" data-close data-i18n-aria-label="action.close">
+            <svg class="i" aria-hidden="true"><use href="#i-close" /></svg>
+          </button>
         </header>
         <div class="dialog-body">
           <p data-i18n="settings.intro"></p>

@@ -542,7 +542,7 @@ export class SupplyPanel {
     action.hidden = view.action === 'none' || view.action === 'retry';
     action.textContent =
       view.action === 'open-route'
-        ? this.i18n.t('action.openGpx')
+        ? this.i18n.t('action.importGpx')
         : this.i18n.t('supply.openSettings');
   }
 

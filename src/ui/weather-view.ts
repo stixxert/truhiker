@@ -24,7 +24,7 @@ export type WeatherPanelState =
   | { kind: 'needs-daily-km' }
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
-  | { kind: 'ready'; plan: WeatherPlan };
+  | { kind: 'ready'; plan: WeatherPlan; from?: 'trip' | 'now' };
 
 type WeatherPanelAction = 'none' | 'settings' | 'refresh' | 'open-route';
 
@@ -356,7 +356,8 @@ export function buildWeatherView(
           : null,
     detail: null,
     action: 'refresh',
-    note,
+    note:
+      state.from === 'now' ? `${i18n.t('weather.nowNote')} ${note}` : note,
     alertsNote,
     rows,
     warnings: plan.warnings.map((warning) => buildWarning(warning, i18n)),

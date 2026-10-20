@@ -49,6 +49,7 @@ is never merged with non-ODbL data in one file.
 | **Geonorge WMS** `wms.topo` | base map fallback | CC BY 4.0 | `©Kartverket` |
 | **Kartverket Turrutebasen** (WFS) | trail geometry, hut points | CC BY 4.0 (metadata says "no conditions"; we take the stricter reading) | `©Kartverket` |
 | **hoydedata.no** (Kartverket DTM ImageServer) | elevation profiles | CC BY 4.0 | `©Kartverket`, source shown with the profile |
+| **EOX Cloudless** — WMTS `s2cloudless-2017_3857` | aerial basemap (optional layer) | CC BY 4.0 | `Sentinel-2 cloudless 2017 © EOX IT Services GmbH (CC BY 4.0)`, linked in **About data** |
 | **Mapterhorn** | 3D terrain tiles | derived from Kartverket and others; see its attribution file | `Mapterhorn` in the map footer |
 | **MET Norway** (Locationforecast 2.0) | weather | NLOD / CC BY 4.0 | `MET Norway`, issue time shown |
 
@@ -61,6 +62,8 @@ in the bundle or re-served by us.
 | --- | --- |
 | **Nasjonal Turbase** | decommissioned; the terms document returns 410 Gone |
 | **FKB, Matrikkel** | not open; commercial access required |
+| **Esri World Imagery** | proprietary; its terms require an ArcGIS subscription for use in non-Esri software, so it cannot join this app |
+| **Norge i bilder / FKB orthophoto** | Norge digitalt-gated (499/500/auth exception measured); per-municipality files, never a tile service |
 | **Kartverket tile cache at z12–20** | copying requires permission from the Geovekst rights holders; live use only |
 
 A user may import a GPX from any other service. TruHiker treats it as **their

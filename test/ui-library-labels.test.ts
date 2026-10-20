@@ -59,7 +59,10 @@ describe('trip library view', () => {
       createI18n('en'),
     );
     expect(durable.storageLabel).toContain('IndexedDB');
-    expect(durable.storageLabel).toContain('12.3 MB of ~8 GB used');
+    expect(durable.storageLabel).toContain('12.3 MB');
+    // No quota: the browser's estimate is a disk heuristic, not a limit we can report.
+    expect(durable.storageLabel).not.toContain('~8 GB');
+    expect(durable.storageLabel).not.toContain('quota');
     expect(durable.storageLabel).toContain('persistent storage');
     expect(durable.storageLabel).toContain('2 trips moved from localStorage');
     expect(durable.storageNote).toBeNull();

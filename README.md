@@ -41,9 +41,9 @@ flowchart LR
 Everything runs in the browser. There is no account, no database and no server-side
 storage of routes; a trip lives in IndexedDB and can be downloaded as GPX.
 
-Five services are called directly by the browser — Kartverket's basemap and
-elevation, Turrutebasen's trails and huts, Mapterhorn's terrain, and MET Norway's
-weather. One data set is bundled: an OpenStreetMap extract of Norwegian resupply
+Six services are called directly by the browser — Kartverket's basemap and
+elevation, Turrutebasen's trails and huts, Mapterhorn's terrain, MET Norway's
+weather, and EOX's Sentinel-2 aerial mosaic. One data set is bundled: an OpenStreetMap extract of Norwegian resupply
 points. Nothing else is copied or re-hosted.
 
 ## Run it
@@ -83,6 +83,12 @@ npx wrangler deploy
 - Routing endpoints are placed with the pointer; there is no keyboard way to
   pick them yet.
 - Planning only: there is no offline mode for use on the trail.
+- **Basemap.** Kartverket topo in colour or grey, plus a **Flyfoto** layer from
+  the Sentinel-2 cloudless mosaic (© EOX, CC BY 4.0). It is 10 m imagery capped at
+  z14, so it shows the valley, not the bridge. Norway's own orthophoto is served
+  only to Norge digitalt subscribers (D17).
+- In 3D, labels near the horizon are soft: a raster tile draped over terrain is
+  minified there, and this style carries no vector label layer (D18).
 - Elevation covers mainland Norway.
 - A hut's food status is not published as data, so a hut never counts as resupply
   unless you opt in.

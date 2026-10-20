@@ -13,7 +13,8 @@ export const no = {
   'app.loading': 'Laster …',
   'action.more': 'Mer',
 
-  'action.openGpx': 'Åpne GPX',
+  'action.importGpx': 'Importer GPX',
+  'action.downloadGpx': 'Last ned GPX',
   'action.demo': 'Prøv demoruten',
   'action.retry': 'Prøv igjen',
   'action.close': 'Lukk',
@@ -36,7 +37,7 @@ export const no = {
   'layers.label': 'Kartlag',
   'layers.topo': 'Topo',
   'layers.grey': 'Grå',
-  'layers.wms': 'WMS',
+  'layers.aerial': 'Flyfoto',
 
   'demo.title': 'Om demoruten',
   'demo.name': 'Rute',
@@ -169,7 +170,7 @@ export const no = {
 
   'storage.indexeddb': 'IndexedDB',
   'storage.localstorage': 'localStorage',
-  'storage.usage': '{used} av ~{quota} brukt',
+  'storage.used': '{used}',
   'storage.persistent': 'varig lagring',
   'storage.notPersistent': 'kan ryddes av nettleseren',
   'storage.fallback':
@@ -178,6 +179,11 @@ export const no = {
   'storage.migrationFailed':
     'Turer fra localStorage kunne ikke flyttes. De ligger fortsatt i localStorage.',
 
+  'weather.fromNow': 'Nå',
+  'weather.fromTrip': 'Turen',
+  'weather.rangeLabel': 'Varsel fra',
+  'weather.nowNote':
+    'Hurtigkikk: regnet fra i dag, ikke fra startdatoen for turen.',
   'weather.open': 'Vær',
   'weather.title': 'Vær langs ruten',
   'weather.refresh': 'Oppdater',
@@ -344,6 +350,8 @@ export const no = {
     'Kartflisene fra Kartverkets hurtigbuffer svarte ikke. Viser WMS-kart fra Geonorge i stedet.',
   'banner.basemapFailed':
     'Kartflisene er utilgjengelige. Ruten og høydeprofilen virker fortsatt, men bakgrunnskartet mangler.',
+  'banner.aerialFailed':
+    'Flyfoto svarte ikke. Viser Topo i stedet.',
   'banner.basemapRetry': 'Prøv hurtigbufferen for kartfliser igjen',
   'banner.terrainFailed':
     '3D-terreng er utilgjengelig fordi Mapterhorn ikke svarte. Kartet vises flatt.',
@@ -352,10 +360,10 @@ export const no = {
   'banner.noTrack': 'Filen inneholder ingen spor eller ruter.',
   'banner.tooShort': 'Ruten er for kort til å analysere (minst to punkter trengs).',
   'banner.hashTooLong':
-    'Ruten er for lang til å deles via lenken (maks {max} tegn). Åpne filen i stedet.',
+    'Ruten er for lang til å få plass i en lenke (maks {max} tegn). Bruk Last ned GPX i stedet.',
   'banner.hashInvalid': 'Lenken inneholder en rute som ikke kunne leses.',
   'banner.shareCopied': 'Lenke til ruten er kopiert.',
-  'banner.shareFailed': 'Kunne ikke kopiere lenken. Kopier adressen fra nettleseren i stedet.',
+  'banner.shareFailed': 'Kunne ikke kopiere lenken. Bruk Last ned GPX i stedet.',
   'banner.offScope': 'Ruten går utenfor Norge – høydeprofil og statistikk er utilgjengelige.',
   'banner.demFailed': 'Høydedata er utilgjengelig: {message}',
   'banner.workerFailed': 'Høydeberegningen stoppet: {message}',
@@ -390,6 +398,10 @@ export const no = {
     'Tallene er estimater. Sjekk forholdene på bakken: vær, snø, elvekryssinger og stengsler endrer seg.',
   'about.dataTitle': 'Datakilder',
   'about.kartverket': 'Bakgrunnskart og høydedata: Kartverket (topo, DTM), CC BY 4.0.',
+  'attrib.kartverket': '©Kartverket',
+  'attrib.eox': 'Sentinel-2 © EOX (CC BY 4.0)',
+  'about.eox':
+    'Flyfoto: Sentinel-2 cloudless 2017, © EOX IT Services GmbH, CC BY 4.0.',
   'about.mapterhorn': '3D-terreng: Mapterhorn, avledet av Kartverkets høydedata.',
   'about.turrutebasen': 'Demorute: Kartverket Turrutebasen (jot21), CC BY 4.0.',
   'about.maplibre': 'Kartmotoren er MapLibre GL JS (BSD-3).',

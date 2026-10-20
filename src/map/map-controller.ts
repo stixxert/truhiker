@@ -1,6 +1,6 @@
 /**
- * MapLibre shell: live Kartverket basemap, hillshade, 3D terrain, route layer
- * and the profile cursor.
+ * MapLibre shell: live Kartverket basemap, 3D terrain, route layer and the
+ * profile cursor.
  *
  * Everything here degrades visibly. There are exactly three health signals and
  * every one of them is surfaced to the app:
@@ -34,12 +34,31 @@ const WMS_URL =
   '&layers=topo&styles=&format=image/png&transparent=false&crs=EPSG:3857' +
   '&width=256&height=256&bbox={bbox-epsg-3857}';
 const MAPTERHORN_TILEJSON = 'https://tiles.mapterhorn.com/tilejson.json';
+/**
+ * Sentinel-2 cloudless 2017 by EOX — the one key-free aerial mosaic that is
+ * openly licensed for commercial use (CC BY 4.0). Tile order is {z}/{y}/{x},
+ * 10 m native, so z14 is the last real level and MapLibre overzooms past it.
+ */
+const AERIAL_URL =
+  'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2017_3857/default/g/{z}/{y}/{x}.jpg';
+const AERIAL_MAX_ZOOM = 14;
 
-type BasemapKind = 'topo' | 'grey' | 'wms';
+/**
+ * What the user can choose. The Geonorge WMS renders the *same* cartography and
+ * is a fallback, never a choice of its own (see docs/DECISIONS.md D17).
+ */
+type BasemapKind = 'topo' | 'grey' | 'aerial';
+
+/** How the chosen basemap is currently being rendered. */
+type BasemapRenderer = 'wmts' | 'wms';
+
+/** Every basemap raster layer in the style, fallback included. */
+type BasemapSourceKind = BasemapKind | 'wms';
 
 export type BasemapState =
   | { status: 'ok' }
   | { status: 'fallback'; requested: 'topo' | 'grey'; failedSource: string }
+  | { status: 'aerial-failed' }
   | { status: 'failed' };
 
 export type TerrainState =
@@ -202,6 +221,14 @@ function buildStyle(): StyleSpecification {
         maxzoom: 18,
         attribution: '©Kartverket',
       },
+      'basemap-aerial': {
+        type: 'raster',
+        tiles: [AERIAL_URL],
+        tileSize: 256,
+        minzoom: 0,
+        maxzoom: AERIAL_MAX_ZOOM,
+        attribution: 'Sentinel-2 cloudless 2017 © EOX IT Services GmbH (CC BY 4.0)',
+      },
       'basemap-wms': {
         type: 'raster',
         tiles: [WMS_URL],
@@ -238,6 +265,15 @@ function buildStyle(): StyleSpecification {
           'raster-contrast': 0.06,
           'raster-brightness-max': 0.94,
         },
+      },
+      {
+        id: 'basemap-aerial',
+        type: 'raster',
+        source: 'basemap-aerial',
+        layout: { visibility: 'none' },
+        // No desaturation: this is a photograph, and the darkest thing on it is
+        // the route casing.
+        paint: { 'raster-opacity': 1, 'raster-contrast': 0.04 },
       },
       {
         id: 'basemap-wms',
@@ -328,6 +364,8 @@ export class MapController {
   private callbacks: MapCallbacks;
   private reducedMotion: boolean;
   private basemap: BasemapKind = 'topo';
+  private renderer: BasemapRenderer = 'wmts';
+  private basemapHealth: BasemapState = { status: 'ok' };
   private terrainState: TerrainState = { status: 'probing' };
   private terrainEnabled = false;
   private terrainTiles: string[] | null = null;
@@ -335,9 +373,10 @@ export class MapController {
   private wmtsTileLoaded = false;
   private wmsErrors = 0;
   private wmsTileLoaded = false;
+  private aerialErrors = 0;
+  private aerialTileLoaded = false;
   private terrainErrors = 0;
   private terrainTileLoaded = false;
-  private fallbackActive = false;
   private cameraFrame = 0;
   private ready = false;
   private disposed = false;
@@ -484,23 +523,15 @@ export class MapController {
       attribution: 'Mapterhorn',
     });
 
-    const before = this.map.getLayer('route-casing') ? 'route-casing' : undefined;
-    this.map.addLayer(
-      {
-        id: 'hillshade',
-        type: 'hillshade',
-        source: 'terrain-dem',
-        paint: {
-          'hillshade-exaggeration': 0.24,
-          'hillshade-shadow-color': '#08111a',
-          'hillshade-highlight-color': '#eef8f6',
-          'hillshade-accent-color': '#6fa39d',
-          'hillshade-illumination-direction': 315,
-          'hillshade-illumination-anchor': 'viewport',
-        },
-      },
-      before,
-    );
+    // The DEM feeds 3D only — there is deliberately no `hillshade` layer on top
+    // of it. Kartverket's topo and topograatone rasters already carry their own
+    // relief shading, and the place labels are *baked into those same tiles*
+    // (there is no glyph server in this style, so no label layer could be drawn
+    // above an overlay). An extra hillshade therefore paints over the labels:
+    // on the steep shaded faces of Surtningssue and Besshøe "2368"/"2258" and
+    // the summits' names wash out, and the wash moves as you pitch. Measured
+    // A/B: hide this layer and the labels are crisp in the same view. The relief
+    // that was wanted is already in the tiles; 3D terrain supplies the depth.
   }
 
   get terrain(): TerrainState {
@@ -535,17 +566,45 @@ export class MapController {
   }
 
   get basemapFallbackActive(): boolean {
-    return this.fallbackActive;
+    return this.renderer === 'wms';
+  }
+
+  /**
+   * The basemap health the app renders, kept here so a layer click cannot
+   * disagree with what is actually drawn: the button handler reads this instead
+   * of assuming a click fixed the cache.
+   */
+  get basemapState(): BasemapState {
+    return this.basemapHealth;
   }
 
   setBasemap(kind: BasemapKind): void {
     this.basemap = kind;
-    for (const candidate of ['topo', 'grey', 'wms'] as const) {
+    if (kind === 'aerial') {
+      this.aerialErrors = 0;
+      this.aerialTileLoaded = false;
+    }
+    // Choosing a layer is also a request to use it: while the WMS stands in for
+    // the cache, try the cache again rather than silently keep the fallback.
+    if (this.renderer === 'wms') this.rebuildBasemapSources();
+    this.setBasemapState({ status: 'ok' });
+    this.applyBasemapVisibility();
+  }
+
+  private setBasemapState(state: BasemapState): void {
+    this.basemapHealth = state;
+    this.callbacks.onBasemapState(state);
+  }
+
+  /** One raster visible at a time: the chosen WMTS layer, or the WMS fallback. */
+  private applyBasemapVisibility(): void {
+    const visible: BasemapSourceKind = this.renderer === 'wms' ? 'wms' : this.basemap;
+    for (const candidate of ['topo', 'grey', 'aerial', 'wms'] as const) {
       if (this.map.getLayer(`basemap-${candidate}`)) {
         this.map.setLayoutProperty(
           `basemap-${candidate}`,
           'visibility',
-          candidate === kind ? 'visible' : 'none',
+          candidate === visible ? 'visible' : 'none',
         );
       }
     }
@@ -553,19 +612,25 @@ export class MapController {
 
   /** Retry the WMTS cache after a fallback: rebuilds the failing source. */
   retryBasemap(): void {
+    this.rebuildBasemapSources();
+    this.setBasemapState({ status: 'ok' });
+    this.applyBasemapVisibility();
+    this.map.triggerRepaint();
+  }
+
+  /** Rebuild every basemap raster and go back to the WMTS renderer. */
+  private rebuildBasemapSources(): void {
     this.wmtsErrors = 0;
     this.wmsErrors = 0;
-    this.fallbackActive = false;
+    this.renderer = 'wmts';
     this.wmtsTileLoaded = false;
     this.wmsTileLoaded = false;
     this.terrainErrors = 0;
     for (const kind of ['topo', 'grey'] as const) this.rebuildBasemapSource(kind);
     this.rebuildBasemapSource('wms');
-    this.setBasemap(this.basemap === 'wms' ? 'topo' : this.basemap);
-    this.map.triggerRepaint();
   }
 
-  private rebuildBasemapSource(kind: BasemapKind): void {
+  private rebuildBasemapSource(kind: BasemapSourceKind): void {
     const sourceId = `basemap-${kind}`;
     const layerId = `basemap-${kind}`;
     if (!this.map.getLayer(layerId)) return;
@@ -576,6 +641,15 @@ export class MapController {
     const tileSource: RasterSourceSpecification =
       kind === 'wms'
         ? { type: 'raster', tiles: [WMS_URL], tileSize: 256, minzoom: 0, maxzoom: 16, attribution: '©Kartverket' }
+        : kind === 'aerial'
+        ? {
+            type: 'raster',
+            tiles: [AERIAL_URL],
+            tileSize: 256,
+            minzoom: 0,
+            maxzoom: AERIAL_MAX_ZOOM,
+            attribution: 'Sentinel-2 cloudless 2017 © EOX IT Services GmbH (CC BY 4.0)',
+          }
         : {
             type: 'raster',
             tiles: [wmtsUrl(kind === 'grey' ? 'topograatone' : 'topo')],
@@ -593,7 +667,9 @@ export class MapController {
         source: sourceId,
         layout: { visibility: visibility === 'none' ? 'none' : 'visible' },
         paint:
-          kind === 'grey'
+          kind === 'aerial'
+            ? { 'raster-opacity': 1, 'raster-contrast': 0.04 }
+            : kind === 'grey'
             ? { 'raster-opacity': 0.92, 'raster-saturation': -0.45, 'raster-contrast': 0.07 }
             : {
               'raster-opacity': 0.94,
@@ -606,9 +682,9 @@ export class MapController {
     );
   }
 
-  /** Keep rebuilt basemap layers under the hillshade / route layers. */
+  /** Keep rebuilt basemap layers under the route layers. */
   private findBasemapAnchor(): string | undefined {
-    for (const id of ['hillshade', 'route-casing', 'route-line', 'route-endpoints', 'route-cursor-halo', 'route-cursor']) {
+    for (const id of ['route-casing', 'route-line', 'route-endpoints', 'route-cursor-halo', 'route-cursor']) {
       if (this.map.getLayer(id)) return id;
     }
     return undefined;
@@ -616,8 +692,13 @@ export class MapController {
 
   private handleSourceData(event: { sourceId?: string; tile?: unknown; isSourceLoaded?: boolean }): void {
     if (!event.sourceId) return;
+    // Only the layer in use is evidence about the cache: a hidden raster that
+    // happens to have loaded says nothing about the one on screen.
+    const chosen = `basemap-${this.basemap}`;
     if (event.sourceId === 'basemap-topo' || event.sourceId === 'basemap-grey') {
-      if (event.tile) this.wmtsTileLoaded = true;
+      if (event.tile && event.sourceId === chosen) this.wmtsTileLoaded = true;
+    } else if (event.sourceId === 'basemap-aerial') {
+      if (event.tile && this.basemap === 'aerial') this.aerialTileLoaded = true;
     } else if (event.sourceId === 'basemap-wms') {
       if (event.tile) this.wmsTileLoaded = true;
     } else if (event.sourceId === 'terrain-dem') {
@@ -630,12 +711,17 @@ export class MapController {
     const message = event.error?.message ?? 'unknown map error';
 
     if (sourceId === 'basemap-topo' || sourceId === 'basemap-grey') {
+      // Only the layer the user actually chose counts: a hidden raster that
+      // failed once is not evidence about the chosen one.
+      const chosen = `basemap-${this.basemap}`;
+      if (sourceId !== chosen) return;
       this.wmtsErrors++;
-      if (!this.wmtsTileLoaded && this.wmtsErrors >= 3 && !this.fallbackActive) {
-        this.fallbackActive = true;
-        this.setBasemap('wms');
-        this.callbacks.onBasemapState({
+      if (!this.wmtsTileLoaded && this.wmtsErrors >= 3 && this.renderer !== 'wms') {
+        this.renderer = 'wms';
+        this.applyBasemapVisibility();
+        this.setBasemapState({
           status: 'fallback',
+          // Only the two WMTS cartographies can be served by the WMS.
           requested: this.basemap === 'grey' ? 'grey' : 'topo',
           failedSource: sourceId,
         });
@@ -643,10 +729,22 @@ export class MapController {
       return;
     }
 
+    if (sourceId === 'basemap-aerial') {
+      // The WMS is the same topo cartography, so it cannot stand in for a
+      // photograph: fall back to Topo and say so instead of showing a photo
+      // that will never arrive.
+      this.aerialErrors++;
+      if (this.basemap === 'aerial' && !this.aerialTileLoaded && this.aerialErrors >= 3) {
+        this.setBasemap('topo');
+        this.setBasemapState({ status: 'aerial-failed' });
+      }
+      return;
+    }
+
     if (sourceId === 'basemap-wms') {
       this.wmsErrors++;
       if (!this.wmsTileLoaded && this.wmsErrors >= 3) {
-        this.callbacks.onBasemapState({ status: 'failed' });
+        this.setBasemapState({ status: 'failed' });
       }
       return;
     }

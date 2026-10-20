@@ -12,7 +12,8 @@ export const en: Record<MessageKey, string> = {
   'app.loading': 'Loading …',
   'action.more': 'More',
 
-  'action.openGpx': 'Open GPX',
+  'action.importGpx': 'Import GPX',
+  'action.downloadGpx': 'Download GPX',
   'action.demo': 'Try the demo route',
   'action.retry': 'Try again',
   'action.close': 'Close',
@@ -32,7 +33,7 @@ export const en: Record<MessageKey, string> = {
   'layers.label': 'Map layer',
   'layers.topo': 'Topo',
   'layers.grey': 'Grey',
-  'layers.wms': 'WMS',
+  'layers.aerial': 'Aerial',
 
   'demo.title': 'About the demo route',
   'demo.name': 'Route',
@@ -165,7 +166,7 @@ export const en: Record<MessageKey, string> = {
 
   'storage.indexeddb': 'IndexedDB',
   'storage.localstorage': 'localStorage',
-  'storage.usage': '{used} of ~{quota} used',
+  'storage.used': '{used}',
   'storage.persistent': 'persistent storage',
   'storage.notPersistent': 'the browser may clear it',
   'storage.fallback':
@@ -174,6 +175,11 @@ export const en: Record<MessageKey, string> = {
   'storage.migrationFailed':
     'Trips in localStorage could not be moved. They are still in localStorage.',
 
+  'weather.fromNow': 'Now',
+  'weather.fromTrip': 'Trip',
+  'weather.rangeLabel': 'Forecast from',
+  'weather.nowNote':
+    'Quick look: counted from today, not from the start date set for the trip.',
   'weather.open': 'Weather',
   'weather.title': 'Weather along the route',
   'weather.refresh': 'Refresh',
@@ -340,6 +346,8 @@ export const en: Record<MessageKey, string> = {
     'The Kartverket tile cache did not respond. Showing the Geonorge WMS map instead.',
   'banner.basemapFailed':
     'Map tiles are unavailable. The route and profile still work, but the basemap is missing.',
+  'banner.aerialFailed':
+    'The aerial imagery did not respond. Showing Topo instead.',
   'banner.basemapRetry': 'Retry the tile cache',
   'banner.terrainFailed':
     '3D terrain is unavailable because Mapterhorn did not respond. The map is shown flat.',
@@ -348,10 +356,10 @@ export const en: Record<MessageKey, string> = {
   'banner.noTrack': 'The file contains no tracks or routes.',
   'banner.tooShort': 'The route is too short to analyse (at least two points are needed).',
   'banner.hashTooLong':
-    'The route is too long to share through the link (max {max} characters). Open the file instead.',
+    'This route is too long to fit in a link (max {max} characters). Use Download GPX instead.',
   'banner.hashInvalid': 'The link contains a route that could not be read.',
   'banner.shareCopied': 'Link to the route copied.',
-  'banner.shareFailed': 'Could not copy the link. Copy the address from the browser instead.',
+  'banner.shareFailed': 'Could not copy the link. Use Download GPX instead.',
   'banner.offScope': 'The route leaves Norway — elevation profile and statistics are unavailable.',
   'banner.demFailed': 'Elevation data is unavailable: {message}',
   'banner.workerFailed': 'The elevation calculation stopped: {message}',
@@ -386,6 +394,10 @@ export const en: Record<MessageKey, string> = {
     'The numbers are estimates. Check conditions on the ground: weather, snow, river crossings and closures change.',
   'about.dataTitle': 'Data sources',
   'about.kartverket': 'Basemap and elevation: Kartverket (topo, DTM), CC BY 4.0.',
+  'attrib.kartverket': '©Kartverket',
+  'attrib.eox': 'Sentinel-2 © EOX (CC BY 4.0)',
+  'about.eox':
+    'Aerial: Sentinel-2 cloudless 2017, © EOX IT Services GmbH, CC BY 4.0.',
   'about.mapterhorn': '3D terrain: Mapterhorn, derived from Kartverket elevation data.',
   'about.turrutebasen': 'Demo route: Kartverket Turrutebasen (jot21), CC BY 4.0.',
   'about.maplibre': 'The map engine is MapLibre GL JS (BSD-3).',

@@ -21,6 +21,7 @@ import {
   parseForecast,
   pickSample,
   roundedPoint,
+  todayInOslo,
 } from '../../src/weather/met';
 
 const HOUR = 3_600_000;
@@ -280,5 +281,16 @@ describe('osloMidday — 12:00 local, whatever the season', () => {
     expect(addDays('2026-07-15', 30)).toBe('2026-08-14');
     expect(() => osloMidday('15.07.2026')).toThrow(RangeError);
     expect(() => osloMidday('2026-02-31')).toThrow(RangeError);
+  });
+});
+
+describe('todayInOslo — the calendar date the quick look starts from', () => {
+  it('uses the Oslo date, not UTC and not the host timezone', () => {
+    // 23:30 UTC in winter is already the next day in Oslo (UTC+1).
+    expect(todayInOslo(new Date('2026-01-15T23:30:00Z'))).toBe('2026-01-16');
+    expect(todayInOslo(new Date('2026-01-15T22:30:00Z'))).toBe('2026-01-15');
+    // 23:30 UTC in summer is 01:30 the next day in Oslo (UTC+2).
+    expect(todayInOslo(new Date('2026-07-15T23:30:00Z'))).toBe('2026-07-16');
+    expect(todayInOslo(new Date('2026-07-15T21:30:00Z'))).toBe('2026-07-15');
   });
 });

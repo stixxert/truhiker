@@ -23,7 +23,25 @@
   --error: #cf7367;
   --grid: rgba(255, 255, 255, 0.07);
   --axis: rgba(255, 255, 255, 0.16);
-  --radius: 6px;
+  /* One radius scale: chips, controls, cards, panels. No pill except the demo
+     tag, which is a badge rather than a control. */
+  --r-chip: 3px;
+  --r-ctl: 6px;
+  --r-card: 8px;
+  --r-panel: 10px;
+  --radius: var(--r-ctl);
+  /* One type scale. Controls sit on 3, small buttons on 2, captions on 1. */
+  --fs-1: 10.5px;
+  --fs-2: 11.5px;
+  --fs-3: 12.5px;
+  --fs-4: 13.5px;
+  --fs-5: 15px;
+  /* Solid dock surface: the panels and their sticky heads share one colour, so
+     a scrolled card can never show through the header. */
+  --dock: #151d1e;
+  --sel: #302d28;
+  --scroll-thumb: rgba(236, 232, 225, 0.34);
+  --scroll-thumb-hover: rgba(236, 232, 225, 0.55);
   --shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   color-scheme: dark;
@@ -130,11 +148,11 @@ input {
 
 .route-tag {
   flex: none;
-  font-size: 10.5px;
+  font-size: var(--fs-1);
   letter-spacing: 0.01em;
-  color: var(--accent);
-  border: 1px solid rgba(79, 174, 156, 0.32);
-  background: rgba(79, 174, 156, 0.08);
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  background: var(--panel-3);
   border-radius: 999px;
   padding: 2px 7px;
   white-space: nowrap;
@@ -189,21 +207,38 @@ input {
 .route-popover {
   position: absolute;
   top: calc(100% + 8px);
-  right: 0;
+  /* Anchored to the tag's left edge, not its right: the badge sits near the
+     start of the bar, and `right: 0` pushed a 340 px panel off the viewport. */
+  left: 0;
+  right: auto;
   z-index: 40;
   width: min(340px, calc(100vw - 24px));
+  max-height: min(70vh, 460px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 14px 16px 12px;
-  border-radius: 12px;
+  border-radius: var(--r-panel);
   border: 1px solid var(--line-strong);
-  background: rgba(13, 22, 24, 0.98);
+  background: var(--dock);
   box-shadow: var(--shadow);
   text-align: left;
   white-space: normal;
 }
 
+.route-popover::-webkit-scrollbar {
+  width: 10px;
+}
+
+.route-popover::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-color: var(--scroll-thumb);
+  background-clip: content-box;
+}
+
 .route-popover h2 {
   margin: 0 0 10px;
-  font-size: 12.5px;
+  font-size: var(--fs-3);
   font-weight: 650;
   letter-spacing: 0.01em;
 }
@@ -223,14 +258,14 @@ input {
 }
 
 .meta-list dt {
-  font-size: 10.5px;
+  font-size: var(--fs-1);
   letter-spacing: 0.01em;
   color: var(--muted);
 }
 
 .meta-list dd {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-3);
   line-height: 1.4;
   color: var(--text);
   overflow-wrap: anywhere;
@@ -240,7 +275,7 @@ input {
   margin: 0;
   padding-top: 9px;
   border-top: 1px solid var(--line);
-  font-size: 10.5px;
+  font-size: var(--fs-1);
   line-height: 1.45;
   color: var(--muted);
 }
@@ -251,7 +286,116 @@ input {
   gap: 8px;
   margin-left: auto;
   flex-wrap: wrap;
+  row-gap: 6px;
   justify-content: flex-end;
+}
+
+/* Functional groups, separated by a hairline: [file] | [view] | [panels] |
+   [library] | [save]. Each group is one thought; the rules stop the bar from
+   reading as a row of equal-weight buttons. */
+.tb-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tb-group + .tb-group,
+.topbar-more-body + .tb-group {
+  border-left: 1px solid var(--line);
+  margin-left: 2px;
+  padding-left: 12px;
+}
+
+/* Icon sprite: one definition of each glyph, sized by CSS. */
+.icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.tb-menu {
+  position: relative;
+  flex: none;
+}
+
+.tb-menu-toggle {
+  list-style: none;
+}
+
+.tb-menu-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.tb-menu-body {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: max-content;
+  min-width: 200px;
+  padding: 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-panel);
+  background: var(--dock);
+  box-shadow: var(--shadow);
+}
+
+.tb-menu[open] > .tb-menu-toggle {
+  background: var(--sel);
+  color: var(--text);
+}
+
+.menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 7px 9px 3px;
+  border-top: 1px solid var(--line);
+}
+
+.menu-label {
+  font-size: var(--fs-1);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted-dim);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-3);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: var(--sel);
+}
+
+.menu-item:disabled {
+  color: var(--muted-dim);
+  cursor: default;
+}
+
+.menu-item:disabled:hover {
+  background: transparent;
+}
+
+.tb-menu-body .seg {
+  align-self: flex-start;
+  margin-top: 0;
+  border-radius: var(--r-ctl);
 }
 
 /* Mobile-only disclosure (the ⋯ control in the header and in the editor bar).
@@ -274,12 +418,6 @@ input {
   display: contents;
 }
 
-/* Settings sits inside .topbar-more-body in the markup (it has to be in the
-   mobile popover) but stays to the right of the save group on desktop. */
-#btn-settings {
-  order: 1;
-}
-
 /* Buttons ------------------------------------------------------------------ */
 
 .btn {
@@ -289,11 +427,11 @@ input {
   gap: 6px;
   height: 32px;
   padding: 0 11px;
-  border-radius: 7px;
+  border-radius: var(--r-ctl);
   border: 1px solid var(--line-strong);
   background: var(--panel-2);
   color: var(--text);
-  font-size: 12.5px;
+  font-size: var(--fs-3);
   font-weight: 500;
   line-height: 1;
   cursor: pointer;
@@ -305,7 +443,6 @@ input {
 }
 
 .btn:hover:not(:disabled) {
-  border-color: var(--accent-dim);
   background: var(--panel-3);
 }
 
@@ -318,6 +455,15 @@ input {
   cursor: not-allowed;
 }
 
+.btn .i,
+.icon-btn .i,
+.map-btn .i {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* The one accent-filled control on the screen: the recurring action, Save. */
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
@@ -330,37 +476,62 @@ input {
   border-color: var(--accent-strong);
 }
 
-.btn-ghost {
+/* Secondary weight: the first-run action (Åpne GPX), dialog actions. */
+.btn-open .i {
+  color: var(--muted);
+}
+
+.btn-open:hover:not(:disabled) .i {
+  color: var(--text);
+}
+
+/* Quiet weight: panels and the trip library. Visible by position and label,
+   loud only when they are the thing that is open. */
+.btn-quiet {
   background: transparent;
   border-color: transparent;
   color: var(--muted);
 }
 
-.btn-ghost:hover:not(:disabled) {
+.btn-quiet:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: transparent;
   color: var(--text);
-  border-color: var(--line-strong);
-  background: var(--panel-2);
+}
+
+/* An open drawer is state, not decoration: surface fill and brighter text.
+ * Never a font-weight change: a heavier label is a wider label, and the bar
+ * would shove its neighbours sideways the moment a panel opens. */
+.btn-quiet[aria-expanded='true'] {
+  background: var(--sel);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.btn-quiet[aria-expanded='true']:hover:not(:disabled) {
+  background: var(--sel);
+  color: var(--text);
 }
 
 .btn-icon {
-  width: 34px;
+  width: 32px;
   padding: 0;
 }
 
+.btn-toggle {
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .btn-toggle[aria-pressed='true'] {
-  background: rgba(79, 174, 156, 0.16);
-  border-color: rgba(79, 174, 156, 0.5);
-  color: var(--accent-strong);
+  background: var(--sel);
+  border-color: var(--line-strong);
+  color: var(--text);
 }
 
-.btn-icon svg,
-.btn > svg.btn-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.btn > svg.btn-icon {
-  margin-right: 1px;
+.btn-toggle[aria-pressed='true']:hover:not(:disabled) {
+  background: var(--sel);
 }
 
 .seg {
@@ -368,18 +539,17 @@ input {
   align-items: stretch;
   border: 1px solid var(--line-strong);
   background: var(--panel-2);
-  border-radius: 7px;
+  border-radius: var(--r-ctl);
   overflow: hidden;
   height: 32px;
 }
 
 .seg-btn {
   border: 0;
-  border-right: 1px solid var(--line);
   background: transparent;
   color: var(--muted);
-  padding: 0 9px;
-  font-size: 12px;
+  padding: 0 11px;
+  font-size: var(--fs-3);
   font-weight: 500;
   cursor: pointer;
   transition:
@@ -387,8 +557,8 @@ input {
     color 140ms ease;
 }
 
-.seg-btn:last-child {
-  border-right: 0;
+.seg-btn + .seg-btn {
+  border-left: 1px solid var(--line);
 }
 
 .seg-btn:hover {
@@ -396,42 +566,44 @@ input {
   background: rgba(255, 255, 255, 0.04);
 }
 
+/* Selected is a filled surface with brighter, heavier text — not a coloured
+   border. Accent stays reserved for the primary action and the active tab. */
 .seg-btn[aria-pressed='true'] {
-  background: rgba(79, 174, 156, 0.18);
+  background: var(--sel);
   color: var(--text);
   font-weight: 650;
 }
 
+.seg-btn[aria-selected='true'] {
+  background: var(--sel);
+  color: var(--data);
+  font-weight: 650;
+}
+
 .seg-lang .seg-btn {
-  padding: 0 8px;
-  font-size: 11.5px;
-  letter-spacing: 0.04em;
+  padding: 0 9px;
+  font-size: var(--fs-2);
+  letter-spacing: 0.06em;
 }
 
 .icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--r-ctl);
   background: transparent;
   color: var(--muted);
-  font-size: 16px;
   line-height: 1;
   cursor: pointer;
 }
 
-.icon-btn svg {
-  width: 15px;
-  height: 15px;
-}
-
 .icon-btn:hover {
-  color: var(--accent);
-  background: rgba(79, 174, 156, 0.08);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* Banners ------------------------------------------------------------------ */
@@ -450,7 +622,7 @@ input {
   align-items: center;
   gap: 9px;
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-card);
   border: 1px solid var(--line-strong);
   background: var(--panel-2);
   font-size: 12.5px;
@@ -546,6 +718,8 @@ input {
   min-height: 0;
   overflow: hidden;
   background: var(--bg);
+  /* Width of the right-hand dock, so the map chrome can step out of its way. */
+  --dock-w: min(430px, calc(100% - 24px));
 }
 
 .map {
@@ -585,7 +759,7 @@ input {
   flex-direction: column;
   background: rgba(13, 22, 24, 0.9);
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: var(--r-card);
   overflow: hidden;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
 }
@@ -600,7 +774,6 @@ input {
   border-bottom: 1px solid var(--line);
   background: transparent;
   color: var(--text);
-  font-size: 17px;
   line-height: 1;
   cursor: pointer;
   transition:
@@ -613,8 +786,8 @@ input {
 }
 
 .map-btn:hover {
-  background: rgba(79, 174, 156, 0.12);
-  color: var(--accent-strong);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
 }
 
 .map-btn svg {
@@ -700,7 +873,7 @@ input {
   pointer-events: auto;
   width: min(430px, 100%);
   padding: 26px 26px 22px;
-  border-radius: 16px;
+  border-radius: var(--r-panel);
   border: 1px solid var(--line-strong);
   background: rgba(15, 24, 26, 0.94);
   box-shadow: var(--shadow);
@@ -762,7 +935,7 @@ input {
   padding: 18px 20px;
   border: 1px solid rgba(231, 130, 118, 0.4);
   background: rgba(231, 130, 118, 0.08);
-  border-radius: 12px;
+  border-radius: var(--r-panel);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -774,7 +947,7 @@ input {
   display: grid;
   place-items: center;
   border: 2px dashed rgba(79, 174, 156, 0.65);
-  border-radius: 14px;
+  border-radius: var(--r-panel);
   background: rgba(7, 18, 20, 0.72);
   pointer-events: none;
 }
@@ -837,7 +1010,7 @@ input {
   font-weight: 650;
   letter-spacing: 0.01em;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: var(--r-ctl);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1075,7 +1248,7 @@ input {
 
 .dialog {
   border: 1px solid var(--line-strong);
-  border-radius: 14px;
+  border-radius: var(--r-panel);
   background: var(--panel);
   color: var(--text);
   padding: 0;
@@ -1112,8 +1285,28 @@ input {
 .dialog-body {
   padding: 14px 16px 18px;
   overflow: auto;
+  scrollbar-gutter: stable;
   font-size: 12.5px;
   line-height: 1.55;
+}
+
+.dialog-body::-webkit-scrollbar,
+.banners::-webkit-scrollbar {
+  width: 11px;
+}
+
+.dialog-body::-webkit-scrollbar-thumb,
+.banners::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-color: var(--scroll-thumb);
+  background-clip: content-box;
+}
+
+.dialog-body::-webkit-scrollbar-thumb:hover,
+.banners::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scroll-thumb-hover);
+  background-clip: content-box;
 }
 
 .dialog-body p {
@@ -1136,7 +1329,7 @@ input {
 
 .notice {
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--r-card);
   border: 1px solid rgba(227, 178, 105, 0.28);
   background: rgba(227, 178, 105, 0.08);
 }
@@ -1202,7 +1395,7 @@ input {
 .field-row input {
   width: 120px;
   padding: 7px 9px;
-  border-radius: 7px;
+  border-radius: var(--r-ctl);
   border: 1px solid var(--line-strong);
   background: var(--panel-2);
   color: var(--text);
@@ -1217,7 +1410,7 @@ input {
 .formula {
   margin: 12px 0 0;
   padding: 9px 11px;
-  border-radius: 8px;
+  border-radius: var(--r-card);
   background: var(--panel-2);
   border: 1px solid var(--line);
   font-size: 11.5px;
@@ -1254,7 +1447,7 @@ input {
   transform: translateX(-50%);
   z-index: 100;
   padding: 9px 15px;
-  border-radius: 9px;
+  border-radius: var(--r-card);
   border: 1px solid rgba(79, 174, 156, 0.4);
   background: rgba(13, 23, 25, 0.97);
   box-shadow: var(--shadow);
@@ -1272,40 +1465,73 @@ input {
    Phase 3 — save status, editor toolbar, weather panel, trip library
    -------------------------------------------------------------------------- */
 
+/* Save: one accent button, and a quiet state line to its left. The status is
+   its own element — a dot and a word — never a label glued into the fill. */
 .save-group {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 9px;
   flex: none;
 }
 
 .save-status {
-  font-size: 10.5px;
-  line-height: 1.2;
+  display: inline-block;
+  font-size: var(--fs-2);
+  line-height: 1.25;
   color: var(--muted-dim);
-  max-width: 17ch;
+  font-variant-numeric: tabular-nums;
+  max-width: 18ch;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: right;
+}
+
+.save-status::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 0.05em;
+  opacity: 0.9;
+}
+
+.save-status:empty {
+  display: none;
 }
 
 .save-status[data-kind='dirty'] {
-  color: var(--warn);
+  color: var(--muted);
+}
+
+.save-status[data-kind='dirty']::before {
+  background: var(--warn);
 }
 
 /* A write that has been requested but has not committed: still not saved. */
 .save-status[data-kind='saving'] {
-  color: var(--warn);
-  opacity: 0.85;
+  color: var(--muted);
+}
+
+.save-status[data-kind='saving']::before {
+  background: var(--warn);
+  animation: pulse 1.2s ease-in-out infinite;
 }
 
 .save-status[data-kind='saved'] {
-  color: var(--accent-dim);
+  color: var(--muted);
+}
+
+.save-status[data-kind='saved']::before {
+  background: var(--data);
 }
 
 .save-status[data-kind='error'] {
   color: var(--error);
-  max-width: 22ch;
+  max-width: 24ch;
 }
 
 .save-status[data-kind='unavailable'] {
@@ -1315,8 +1541,8 @@ input {
 .btn-small {
   height: 26px;
   padding: 0 8px;
-  font-size: 11.5px;
-  border-radius: 6px;
+  font-size: var(--fs-2);
+  border-radius: var(--r-ctl);
 }
 
 .btn-danger {
@@ -1341,7 +1567,7 @@ input {
   flex-direction: column;
   gap: 6px;
   padding: 7px 8px;
-  border-radius: 10px;
+  border-radius: var(--r-panel);
   border: 1px solid var(--line-strong);
   background: rgba(13, 22, 24, 0.92);
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.38);
@@ -1418,7 +1644,7 @@ input {
   width: 56px;
   height: 24px;
   padding: 0 5px;
-  border-radius: 5px;
+  border-radius: var(--r-ctl);
   border: 1px solid var(--line-strong);
   background: var(--panel-2);
   color: var(--text);
@@ -1429,7 +1655,7 @@ input {
   width: 150px;
   height: 24px;
   padding: 0 6px;
-  border-radius: 5px;
+  border-radius: var(--r-ctl);
   border: 1px solid var(--line-strong);
   background: var(--panel-2);
   color: var(--text);
@@ -1473,7 +1699,7 @@ input {
 
 .offtrail-chip {
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--r-chip);
   border: 1px dashed rgba(227, 178, 105, 0.5);
   color: var(--warn);
   font-size: 10px;
@@ -1491,42 +1717,109 @@ input {
 
 
 .btn-reroute {
-  border-color: rgba(79, 174, 156, 0.32);
-  color: var(--accent);
+  border-color: var(--line-strong);
+  color: var(--text);
 }
 
 /* Weather panel ------------------------------------------------------------ */
 
+/* "Now | Trip": a compact switch under the status line, not in the head — the
+ * head is already title + Refresh + close at 430 px. */
+.weather-from {
+  align-self: flex-start;
+  margin: 2px 0 2px;
+}
+
+.weather-from .seg-btn {
+  height: 26px;
+  padding: 0 10px;
+  font-size: var(--fs-3);
+}
+
+.weather-from .seg-btn:disabled {
+  color: var(--muted-dim);
+  cursor: default;
+}
+
+/* The dock owns the map's whole height on desktop and scrolls internally. The
+   panel is the scroll container, so its head can stay pinned to the top edge
+   while the body passes underneath. */
 .weather-panel,
 .side-panel {
   position: absolute;
   top: 12px;
-  right: 58px;
+  right: 12px;
   z-index: 14;
-  width: min(430px, calc(100% - 24px));
+  width: var(--dock-w);
   max-height: calc(100% - 24px);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 13px 11px;
-  border-radius: 12px;
+  gap: 9px;
+  padding: 0 13px 12px;
+  border-radius: var(--r-panel);
   border: 1px solid var(--line-strong);
-  background: rgba(13, 22, 24, 0.96);
+  background: var(--dock);
   box-shadow: var(--shadow);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
+.weather-panel::-webkit-scrollbar,
+.side-panel::-webkit-scrollbar {
+  width: 11px;
+}
+
+.weather-panel::-webkit-scrollbar-track,
+.side-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.weather-panel::-webkit-scrollbar-thumb,
+.side-panel::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-color: var(--scroll-thumb);
+  background-clip: content-box;
+}
+
+.weather-panel::-webkit-scrollbar-thumb:hover,
+.side-panel::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scroll-thumb-hover);
+  background-clip: content-box;
+}
+
+/* A pinned head is only convincing if the body visibly disappears under it. */
 .panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  margin: 0 -13px;
+  padding: 12px 13px 10px;
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--r-panel) var(--r-panel) 0 0;
+  background: var(--dock);
+}
+
+.panel-head::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 10px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0));
+  pointer-events: none;
 }
 
 .panel-head h2 {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-4);
   font-weight: 650;
   letter-spacing: -0.005em;
 }
@@ -1539,7 +1832,7 @@ input {
 
 .panel-status {
   margin: 0;
-  font-size: 10.5px;
+  font-size: var(--fs-1);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1550,7 +1843,7 @@ input {
   align-items: flex-start;
   gap: 9px;
   padding: 10px 11px;
-  border-radius: 9px;
+  border-radius: var(--r-card);
   border: 1px solid var(--line);
   background: var(--panel-2);
 }
@@ -1570,7 +1863,7 @@ input {
 .weather-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11.5px;
+  font-size: var(--fs-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1591,7 +1884,7 @@ input {
 }
 
 .weather-table thead th {
-  font-size: 9.5px;
+  font-size: var(--fs-1);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1668,7 +1961,7 @@ input {
 
 .wx-sub {
   display: block;
-  font-size: 10px;
+  font-size: var(--fs-1);
   color: var(--muted-dim);
   margin-top: 1px;
 }
@@ -1676,8 +1969,8 @@ input {
 .wx-badge {
   display: inline-block;
   padding: 2px 7px;
-  border-radius: 999px;
-  font-size: 10px;
+  border-radius: var(--r-chip);
+  font-size: var(--fs-1);
   line-height: 1.45;
   border: 1px solid var(--line-strong);
   color: var(--muted);
@@ -1729,7 +2022,7 @@ input {
 
 .wx-severity {
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--r-chip);
   font-size: 9.5px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1746,7 +2039,7 @@ input {
   margin: 0;
   padding-top: 8px;
   border-top: 1px solid var(--line);
-  font-size: 10.5px;
+  font-size: var(--fs-1);
   line-height: 1.5;
   color: var(--muted-dim);
 }
@@ -1761,8 +2054,8 @@ input {
 }
 
 .seg-tabs .seg-btn {
-  padding: 4px 10px;
-  font-size: 11.5px;
+  padding: 4px 11px;
+  font-size: var(--fs-3);
 }
 
 .supply-section {
@@ -1794,7 +2087,7 @@ input {
 .supply-huts-error {
   margin: 0;
   padding: 7px 9px;
-  border-radius: 8px;
+  border-radius: var(--r-card);
   border: 1px solid rgba(227, 178, 105, 0.4);
   background: rgba(227, 178, 105, 0.08);
   color: var(--warn);
@@ -1811,7 +2104,7 @@ input {
 .supply-chip {
   min-height: 24px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--r-chip);
   border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--muted);
@@ -1821,13 +2114,15 @@ input {
 }
 
 .supply-chip[aria-pressed='true'] {
-  border-color: rgba(79, 174, 156, 0.55);
-  background: rgba(79, 174, 156, 0.12);
-  color: var(--accent-strong);
+  border-color: var(--line-strong);
+  background: var(--sel);
+  color: var(--text);
+  font-weight: 600;
 }
 
 .supply-chip:hover {
-  border-color: var(--accent-dim);
+  border-color: var(--line-strong);
+  color: var(--text);
 }
 
 .supply-empty {
@@ -1850,7 +2145,7 @@ input {
 
 .supply-point {
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--r-card);
   background: var(--panel-2);
   overflow: hidden;
 }
@@ -1876,7 +2171,7 @@ input {
 }
 
 .supply-point-main:hover {
-  background: rgba(79, 174, 156, 0.07);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .supply-point-head {
@@ -1897,24 +2192,23 @@ input {
 .supply-flag {
   flex: none;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--r-chip);
   border: 1px solid rgba(255, 158, 100, 0.45);
   color: #ff9e64;
-  font-size: 9.5px;
+  font-size: var(--fs-1);
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
 .supply-point-meta,
 .supply-provenance {
-  font-size: 10.5px;
+  font-size: var(--fs-1);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
 .supply-provenance {
   color: var(--muted-dim);
-  font-size: 9.5px;
 }
 
 .supply-point-gap {
@@ -1937,10 +2231,10 @@ input {
 
 .supply-badge {
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--r-chip);
   border: 1px solid var(--line-strong);
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: var(--fs-1);
   line-height: 1.5;
 }
 
@@ -1950,7 +2244,7 @@ input {
   display: inline-block;
   padding: 3px 9px 7px;
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--fs-2);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -1971,7 +2265,7 @@ input {
 
 .supply-h3 {
   margin: 6px 0 0;
-  font-size: 10px;
+  font-size: var(--fs-1);
   font-weight: 650;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1983,7 +2277,7 @@ input {
   flex-direction: column;
   gap: 2px;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: var(--r-card);
   border: 1px solid var(--line);
   background: rgba(22, 33, 36, 0.6);
 }
@@ -1993,7 +2287,7 @@ input {
 }
 
 .supply-leg-title {
-  font-size: 11.5px;
+  font-size: var(--fs-3);
   font-weight: 600;
 }
 
@@ -2040,7 +2334,7 @@ input {
 
 .supply-line {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--fs-2);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -2088,7 +2382,7 @@ input {
   gap: 9px;
   flex-wrap: wrap;
   padding: 7px 9px;
-  border-radius: 8px;
+  border-radius: var(--r-card);
   border: 1px solid rgba(232, 200, 120, 0.42);
   background: rgba(232, 200, 120, 0.1);
   color: #f0d9a0;
@@ -2218,7 +2512,7 @@ input {
   margin: 4px 0 0;
   padding: 8px 9px 4px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--r-card);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2294,15 +2588,15 @@ input {
 
 .maplibregl-popup-content {
   padding: 7px 9px;
-  border-radius: 8px;
+  border-radius: var(--r-card);
   border: 1px solid var(--line-strong);
-  background: rgba(13, 22, 24, 0.97);
+  background: var(--dock);
   color: var(--text);
   box-shadow: var(--shadow);
 }
 
 .maplibregl-popup-tip {
-  border-top-color: rgba(13, 22, 24, 0.97);
+  border-top-color: var(--dock);
 }
 
 /* Trip library ------------------------------------------------------------- */
@@ -2314,7 +2608,7 @@ input {
 .trips-problem {
   margin: 0 0 10px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-card);
   border: 1px solid rgba(231, 130, 118, 0.4);
   background: rgba(231, 130, 118, 0.08);
   color: var(--error);
@@ -2334,7 +2628,7 @@ input {
 .trips-storage-note {
   margin: 6px 0 0;
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-card);
   border: 1px solid rgba(227, 178, 105, 0.4);
   background: rgba(227, 178, 105, 0.08);
   color: var(--warn);
@@ -2356,7 +2650,7 @@ input {
   flex-direction: column;
   gap: 5px;
   padding: 10px 11px;
-  border-radius: 9px;
+  border-radius: var(--r-card);
   border: 1px solid var(--line);
   background: var(--panel-2);
 }
@@ -2388,7 +2682,7 @@ input {
   letter-spacing: 0.07em;
   color: var(--accent);
   border: 1px solid rgba(79, 174, 156, 0.32);
-  border-radius: 999px;
+  border-radius: var(--r-chip);
   padding: 1px 6px;
 }
 
@@ -2435,7 +2729,7 @@ input {
 .trip-import {
   margin-top: 12px;
   padding: 14px;
-  border-radius: 10px;
+  border-radius: var(--r-panel);
   border: 1px dashed var(--line-strong);
   display: flex;
   flex-direction: column;
@@ -2479,7 +2773,7 @@ input {
   width: 100%;
   height: 32px;
   padding: 0 9px;
-  border-radius: 7px;
+  border-radius: var(--r-ctl);
   border: 1px solid var(--line-strong);
   background: var(--panel-2);
   color: var(--text);
@@ -2500,7 +2794,7 @@ input {
 #settings-errors {
   margin-top: 12px;
   padding: 9px 11px;
-  border-radius: 8px;
+  border-radius: var(--r-card);
   border: 1px solid rgba(231, 130, 118, 0.4);
   background: rgba(231, 130, 118, 0.07);
   color: var(--error);
@@ -2638,53 +2932,85 @@ input {
   }
 
   .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-label {
-    background: rgba(79, 174, 156, 0.16);
-    border-color: rgba(79, 174, 156, 0.5);
-    color: var(--accent-strong);
+    background: var(--sel);
+    border-color: transparent;
+    color: var(--text);
   }
 
+  /* The popover is a stack of full-width rows: view, panels, library, then the
+     occasional actions. One column reads better than a 2-up grid of controls. */
   .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-body {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: center;
-    gap: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
     position: absolute;
     top: calc(100% + 6px);
     right: 8px;
     left: 8px;
     z-index: 30;
     /* The top padding reserves the pinned "Åpne GPX" row (see #btn-open). */
-    padding: 56px 8px 8px;
+    padding: 56px 10px 10px;
     border: 1px solid var(--line-strong);
-    border-radius: 14px;
-    background: rgba(11, 18, 20, 0.98);
+    border-radius: var(--r-panel);
+    background: var(--dock);
     box-shadow: var(--shadow);
+    max-height: calc(100dvh - 78px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
-  .topbar-more-body > .seg {
-    width: 100%;
+  .topbar-actions .tb-group {
+    border-left: 0;
+    margin-left: 0;
+    padding-left: 0;
   }
 
-  .topbar-more-body > .seg:not(.seg-lang) {
-    grid-column: 1 / -1;
+  .topbar-actions .tb-group + .tb-group {
+    border-top: 1px solid var(--line);
+    padding-top: 8px;
   }
 
-  .topbar-more-body > .seg .seg-btn {
+  .tb-group > .btn,
+  .tb-group > .seg {
+    flex: 1 1 auto;
+  }
+
+  .tb-group > .seg .seg-btn {
     flex: 1 1 0;
   }
 
-  .topbar-more-body > .btn {
+  .tb-group--save {
+    border-left: 0 !important;
+    margin-left: 0;
+    padding-left: 0;
+  }
+
+  .tb-menu {
+    flex: 1 1 auto;
+  }
+
+  .tb-menu-toggle {
     width: 100%;
+  }
+
+  .tb-menu-toggle.btn {
+    width: 100%;
+  }
+
+  .tb-menu-body {
+    width: auto;
+    margin-top: 6px;
   }
 
   .save-group {
     order: 1;
-    gap: 5px;
+    gap: 6px;
   }
 
   .save-status {
     max-width: 13ch;
-    font-size: 11px;
+    font-size: var(--fs-2);
   }
 
   .save-status[data-kind='error'] {
@@ -2925,8 +3251,8 @@ input {
     z-index: 12;
     padding: 8px 10px;
     border: 1px solid var(--line-strong);
-    border-radius: 10px;
-    background: rgba(11, 18, 20, 0.98);
+    border-radius: var(--r-panel);
+    background: var(--dock);
     box-shadow: var(--shadow);
   }
 
@@ -2984,10 +3310,10 @@ input {
     right: 0;
     bottom: 0;
     width: auto;
-    /* Cap the sheet below the phone's 62vh and always leave a strip of live
-       map (plus the editor bar) visible above it. */
-    max-height: min(62vh, calc(100% - 144px));
-    border-radius: 16px 16px 0 0;
+    /* The sheet takes what it needs and always leaves a strip of live map
+       (plus the editor bar) above it; below that it scrolls, never clips. */
+    max-height: min(74vh, calc(100% - 88px));
+    border-radius: var(--r-panel) var(--r-panel) 0 0;
     border-left: 0;
     border-right: 0;
     border-bottom: 0;
@@ -3005,8 +3331,8 @@ input {
     margin: 0 -12px;
     padding: 10px 12px 8px;
     border-bottom: 1px solid var(--line);
-    border-radius: 16px 16px 0 0;
-    background: rgba(13, 22, 24, 0.98);
+    border-radius: var(--r-panel) var(--r-panel) 0 0;
+    background: var(--dock);
   }
 
   .panel-head h2 {
@@ -3057,7 +3383,6 @@ input {
   }
 
   .supply-chip {
-  min-height: 24px;
     min-height: 40px;
     padding: 0 13px;
     font-size: 13px;
@@ -3327,6 +3652,16 @@ input {
   }
 }
 
+/* Short phones (360x560 and similar): too little map is left to dock a sheet
+ * inside it, so the sheet takes the viewport below the header and scrolls. */
+@media (max-width: 760px) and (max-height: 680px) {
+  .weather-panel,
+  .side-panel {
+    position: fixed;
+    max-height: min(84vh, calc(100dvh - 68px));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -3339,45 +3674,68 @@ input {
 }
 
 /* Right edge layout -------------------------------------------------------- *
- * The panels dock flush to the right and stop above the map chrome: the zoom
- * stack sits underneath them and the attribution stays at the bottom. Previously
- * the panel was inset 58px to dodge the controls and ran to the bottom edge,
- * covering the attribution.
+ * On desktop the dock is a full-height column on the right edge. Nothing is
+ * reserved for the map chrome underneath: the zoom stack and the attribution
+ * step to the left of the dock instead, so the panel never clips its own
+ * content and no licence line is ever covered.
  */
 @media (min-width: 761px) {
   .weather-panel,
   .side-panel {
+    top: 12px;
     right: 12px;
-    /* Clears the four-button zoom stack (138 px) sitting at bottom: 44px, plus
-       the attribution underneath it. Fixed because the stack is a fixed set of
-       buttons; if a control is added, raise this. */
-    bottom: 196px;
-    max-height: none;
+    bottom: 12px;
+    max-height: calc(100% - 24px);
   }
 
   .map-controls {
     top: auto;
-    right: 12px;
+    left: 12px;
+    right: auto;
     bottom: 44px;
+  }
+
+  /* The editor bar sits top-left, so the stack lives bottom-left for good and is
+     never moved by the dock: only the attribution steps out of its way. */
+  .map-wrap:has(.side-panel:not([hidden])) .map-attrib,
+  .map-wrap:has(.weather-panel:not([hidden])) .map-attrib {
+    right: calc(var(--dock-w) + 22px);
+  }
+
+  /* Nothing occupies the top-right on desktop any more, and the dock owns the
+     right edge: the bar wraps inside the free map area instead of running
+     underneath the panel. */
+  .editor-toolbar {
+    max-width: calc(100% - 24px);
+    max-height: calc(100% - 24px);
+    overflow-y: auto;
+  }
+
+  .map-wrap:has(.side-panel:not([hidden])) .editor-toolbar,
+  .map-wrap:has(.weather-panel:not([hidden])) .editor-toolbar {
+    max-width: calc(100% - var(--dock-w) - 36px);
   }
 }
 
 /* Phone: a panel is a bottom sheet, so the two pieces of map chrome it would
- * otherwise cover move out of its way. The attribution goes to the top-right,
- * clear of both the sheet and the editor bar; the sheet is capped so it starts
- * below the zoom stack (which ends ~230px into a 390px map area). */
+ * otherwise cover move out of its way. The attribution steps below the editor
+ * bar and left of the zoom stack: it stays on the map, readable, and outside
+ * the sheet — a licence line is never the thing that gets covered. */
 @media (max-width: 760px) {
   .map-wrap:has(.side-panel:not([hidden])) .map-attrib,
   .map-wrap:has(.weather-panel:not([hidden])) .map-attrib {
-    top: 8px;
-    right: 8px;
+    top: 68px;
+    right: auto;
     bottom: auto;
-    left: auto;
+    left: 8px;
+    max-width: calc(100% - 64px);
   }
 
-  .map-wrap:has(.side-panel:not([hidden])) .side-panel,
-  .map-wrap:has(.weather-panel:not([hidden])) .weather-panel {
-    max-height: calc(100% - 240px);
+  .map-wrap:has(.side-panel:not([hidden])):has(.editor-toolbar[data-mode='draw']:not([hidden])) .map-attrib,
+  .map-wrap:has(.side-panel:not([hidden])):has(.editor-toolbar[data-mode='edit']:not([hidden])) .map-attrib,
+  .map-wrap:has(.weather-panel:not([hidden])):has(.editor-toolbar[data-mode='draw']:not([hidden])) .map-attrib,
+  .map-wrap:has(.weather-panel:not([hidden])):has(.editor-toolbar[data-mode='edit']:not([hidden])) .map-attrib {
+    top: 96px;
   }
 }
 
@@ -3390,5 +3748,182 @@ input {
     left: 8px;
     right: 8px;
     width: auto;
+  }
+}
+
+/* Scroll affordance -------------------------------------------------------- *
+ * A panel that scrolls must look like it scrolls. Chromium and Safari get the
+ * classic, always-visible scrollbar (styled thumb, stable gutter) because the
+ * standard properties below would hand it back to the OS's auto-hiding overlay
+ * scrollbar — which is exactly what made a clipped panel read as broken.
+ * Firefox has no ::-webkit-scrollbar, so it gets the standard equivalent.
+ */
+@supports not (selector(::-webkit-scrollbar)) {
+  .weather-panel,
+  .side-panel,
+  .route-popover,
+  .dialog-body,
+  .banners,
+  .tb-menu-body,
+  .topbar-more-body {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-thumb) transparent;
+  }
+}
+
+.tb-menu-body {
+  overflow-y: auto;
+  max-height: min(70vh, 420px);
+}
+
+/* The file group sits outside .topbar-more-body, so its trailing rule needs
+ * the group rule spelled out. */
+@media (min-width: 761px) {
+  .topbar-more-body > .tb-group:first-child {
+    border-left: 1px solid var(--line);
+    margin-left: 2px;
+    padding-left: 12px;
+  }
+}
+
+.tb-menu-body::-webkit-scrollbar,
+.topbar-more-body::-webkit-scrollbar {
+  width: 11px;
+}
+
+.tb-menu-body::-webkit-scrollbar-thumb,
+.topbar-more-body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-color: var(--scroll-thumb);
+  background-clip: content-box;
+}
+
+/* Phone: a drawer owns the screen while it is open. The menu that launched it
+ * steps aside (its ⋯ control loses the pressed look), so the sheet's pinned head
+ * — tabs, refresh, close — is never covered by the popover it came from. */
+@media (max-width: 760px) {
+  .app:has(.side-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-body,
+  .app:has(.weather-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-body,
+  .app:has(.side-panel:not([hidden])) .topbar-more-toggle:checked ~ #btn-open,
+  .app:has(.weather-panel:not([hidden])) .topbar-more-toggle:checked ~ #btn-open {
+    display: none;
+  }
+
+  .app:has(.side-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-label,
+  .app:has(.weather-panel:not([hidden])) .topbar-more-toggle:checked ~ .topbar-actions .topbar-more-label {
+    background: transparent;
+    color: var(--muted);
+  }
+
+  /* The library row: the label hugs its icon, the two icon buttons sit together
+     at the far right instead of floating in the middle of the row. */
+  .tb-group--nav {
+    justify-content: space-between;
+  }
+
+  .tb-group--nav > .btn-trips {
+    flex: 1 1 auto;
+    justify-content: flex-start;
+  }
+
+  .tb-group--nav > .tb-menu {
+    flex: 0 0 auto;
+  }
+
+  .tb-group--nav .tb-menu-toggle {
+    width: 40px;
+  }
+}
+
+/* Resupply hover card: MapLibre caps the popup at 240 px, but a long name or a
+ * long provenance line can still overflow the map edge — clamp and scroll it. */
+.maplibregl-popup {
+  max-width: calc(100vw - 24px);
+}
+
+.maplibregl-popup-content {
+  max-height: 45vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+}
+
+.maplibregl-popup-content::-webkit-scrollbar {
+  width: 9px;
+}
+
+.maplibregl-popup-content::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-color: var(--scroll-thumb);
+  background-clip: content-box;
+}
+
+/* Phone: the sheet leaves only a strip of map, which is shorter than the zoom
+ * stack — so the stack is not left half-covered by the drawer. */
+@media (max-width: 760px) {
+  .map-wrap:has(.side-panel:not([hidden])) .map-controls,
+  .map-wrap:has(.weather-panel:not([hidden])) .map-controls {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  /* The menu's own "more" is a sheet of its own: the popover clips its
+     contents, and a nested disclosure 40 px wide is not a menu. */
+  .tb-menu-body {
+    position: fixed;
+    top: auto;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    left: 8px;
+    width: auto;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 6px;
+    box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.5);
+  }
+
+  .menu-item {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  .menu-section {
+    padding-bottom: 6px;
+  }
+
+  .menu-label {
+    font-size: var(--fs-2);
+  }
+
+  /* Inside the popover a quiet control still has to look tappable. */
+  .tb-group > .btn-quiet {
+    background: rgba(255, 255, 255, 0.045);
+  }
+
+  .tb-group > .btn-quiet[aria-expanded='true'] {
+    background: var(--sel);
+  }
+
+  .tb-group--nav > .btn-icon,
+  .tb-group--nav > .tb-menu .tb-menu-toggle {
+    flex: 0 0 auto;
+    width: 40px;
+  }
+}
+
+/* Between the phone layout and a comfortable desktop the action groups cannot
+ * share the row with the route identity. Wrapping the row keeps each group
+ * whole (and the whole toolbar on one line) instead of splitting it mid-bar. */
+@media (min-width: 761px) {
+  .topbar-row {
+    flex-wrap: wrap;
+    row-gap: 7px;
+  }
+
+  .topbar-actions {
+    flex-wrap: nowrap;
   }
 }

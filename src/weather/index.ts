@@ -70,6 +70,7 @@ export {
   parseForecast,
   pickSample,
   roundedPoint,
+  todayInOslo,
 } from './met';
 export type { MetForecast, MetForecastEntry, MetSample, RoundedPoint } from './met';
 export type { WeatherDay, WeatherPlan, WeatherSample, WeatherWarning } from '../contracts';

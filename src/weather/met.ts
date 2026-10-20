@@ -437,6 +437,18 @@ export function addDays(isoDate: string, days: number): string {
   return new Date(isoDateToUtcMidnight(isoDate) + days * DAY_MS).toISOString().slice(0, 10);
 }
 
+/** Today's calendar date in Europe/Oslo, as `YYYY-MM-DD`. */
+export function todayInOslo(now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Oslo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const part = (type: string): string => parts.find((entry) => entry.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
 /**
  * Local midday (12:00 Europe/Oslo) of a calendar date, as a UTC instant.
  *

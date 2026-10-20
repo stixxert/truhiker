@@ -87,13 +87,11 @@ function storageParts(
   if (!storage) return { storageLabel: '', storageNote: null, storageDetail: null };
 
   const parts: string[] = [i18n.t(storage.backend === 'indexeddb' ? 'storage.indexeddb' : 'storage.localstorage')];
-  if (storage.usedBytes !== null && storage.quotaBytes !== null && storage.quotaBytes > 0) {
-    parts.push(
-      i18n.t('storage.usage', {
-        used: formatBytes(storage.usedBytes, i18n.locale),
-        quota: formatBytes(storage.quotaBytes, i18n.locale),
-      }),
-    );
+  // The size of what we store, and nothing else. `navigator.storage.estimate()
+  // .quota` is a browser heuristic about the disk (it reads as "~247 GB" on a
+  // laptop), not a limit this origin can fill or that a user can act on.
+  if (storage.usedBytes !== null) {
+    parts.push(i18n.t('storage.used', { used: formatBytes(storage.usedBytes, i18n.locale) }));
   }
   if (storage.backend === 'indexeddb') {
     parts.push(i18n.t(storage.persistent ? 'storage.persistent' : 'storage.notPersistent'));

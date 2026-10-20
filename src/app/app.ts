@@ -54,6 +54,7 @@ import {
   type CameraInfo,
   type TerrainState,
 } from '../map/map-controller';
+import { todayInOslo } from '../weather';
 import { BannerHost } from '../ui/banners';
 import { loadPace, savePace } from '../ui/pace-store';
 import { ProfileChart, type CursorSource } from '../ui/profile-chart';
@@ -231,6 +232,14 @@ export class App {
   private overlay: EditOverlay | null = null;
   private toolbar: EditorToolbar | null = null;
   private weatherPanel: WeatherPanel | null = null;
+  /** What the user asked for: the trip's own dates, or a quick look from today. */
+  private weatherFrom: 'trip' | 'now' = 'trip';
+  /**
+   * What is actually on screen. A trip without a start date can only be shown as
+   * a quick look, but that must not overwrite the preference: set a start date and
+   * the panel should return to the trip timeline, not stay in quick look.
+   */
+  private weatherFromEffective: 'trip' | 'now' = 'trip';
   private trips: TripLibraryDialog | null = null;
   private settings: TripSettingsDialog | null = null;
   private editorUi: EditorUiState = initialEditorState(null);
@@ -304,6 +313,7 @@ export class App {
     routeMeta: HTMLElement;
     routeName: HTMLElement;
     routeTag: HTMLElement;
+    attribBasemap: HTMLAnchorElement;
     demoDetails: HTMLDetailsElement;
     demoSummary: HTMLElement;
     demoPopover: HTMLElement;
@@ -327,6 +337,7 @@ export class App {
     toast: HTMLElement;
     saveButton: HTMLButtonElement;
     saveStatus: HTMLElement;
+    downloadGpxButton: HTMLButtonElement;
     tripsButton: HTMLButtonElement;
     weatherButton: HTMLButtonElement;
     supplyButton: HTMLButtonElement;
@@ -366,6 +377,8 @@ export class App {
       routeMeta: byId('route-meta'),
       routeName: byId('route-name'),
       routeTag: byId('route-tag'),
+      attribBasemap: byId<HTMLAnchorElement>('attrib-basemap'),
+      downloadGpxButton: byId<HTMLButtonElement>('btn-download-gpx'),
       demoDetails: byId<HTMLDetailsElement>('demo-details'),
       demoSummary: byId('demo-summary'),
       demoPopover: byId('demo-popover'),
@@ -531,6 +544,10 @@ export class App {
 
     this.weatherPanel = new WeatherPanel(this.elements.weatherPanel, this.i18n, {
       onRefresh: () => void this.refreshWeather(),
+      onFromChange: (from) => {
+        this.weatherFrom = from;
+        void this.refreshWeather();
+      },
       onSettings: () => this.openSettings(),
       onOpenRoute: () => this.openFilePicker(),
       onClose: () => this.hideWeatherPanel(),
@@ -969,6 +986,23 @@ export class App {
     this.resetWeatherForTrip();
   }
 
+  /**
+   * Download the open route as GPX, saved or not. The library's export works
+   * from storage by id; this one works from the trip in memory, so the button
+   * does not have to be preceded by Save.
+   */
+  private downloadCurrentGpx(): void {
+    const session = this.session;
+    if (!session) return;
+    const text = session.exportGpx();
+    if (text === null) {
+      this.showToast(this.i18n.t('store.unsupported'), 'warning');
+      return;
+    }
+    const name = this.state.route?.name ?? this.i18n.t('route.unnamed');
+    this.downloadText(this.safeFileName(name, '.gpx'), text, 'application/gpx+xml');
+  }
+
   private async exportSavedTrip(id: string, format: 'gpx' | 'geojson'): Promise<void> {
     const session = this.session;
     if (!session) return;
@@ -1176,10 +1210,19 @@ export class App {
   }
 
   private renderWeather(): void {
+    const profile = this.session?.trip?.profile ?? null;
+    // "Now" plans from today, so the view must be told today is the day it is
+    // looking at — otherwise it reports a missing start date over a full table.
+    const effective =
+      profile && this.weatherFromEffective === 'now'
+        ? { ...profile, startDate: todayInOslo() }
+        : profile;
     this.weatherPanel?.render(
       this.weatherState,
-      this.session?.trip?.profile ?? null,
+      effective,
       this.horizonDays,
+      this.weatherFromEffective,
+      Boolean(profile?.startDate),
     );
   }
 
@@ -1191,6 +1234,8 @@ export class App {
     // Invalidate an in-flight fetch as well, or it lands on the new trip.
     this.weatherToken += 1;
     this.weatherState = { kind: 'no-trip' };
+    this.weatherFrom = 'trip';
+    this.weatherFromEffective = 'trip';
     this.renderWeather();
     if (this.weatherPanel?.isOpen) void this.refreshWeather();
   }
@@ -1208,7 +1253,13 @@ export class App {
       this.renderWeather();
       return;
     }
-    if (!trip.profile.startDate) {
+    // A trip without a start date has no timeline to draw, so "now" stops being
+    // a preference and becomes the only honest mode — never a dead end that tells
+    // the user to go and set a trip date before the weather will appear.
+    const from: 'trip' | 'now' = trip.profile.startDate ? this.weatherFrom : 'now';
+    this.weatherFromEffective = from;
+    const startDate = from === 'now' ? todayInOslo() : trip.profile.startDate;
+    if (!startDate) {
       this.weatherState = { kind: 'needs-start-date' };
       this.renderWeather();
       return;
@@ -1218,11 +1269,16 @@ export class App {
       this.renderWeather();
       return;
     }
+    // A quick look does not rewrite the trip: it plans the same route from today.
+    const planned =
+      from === 'now' && trip.profile.startDate !== startDate
+        ? { ...trip, profile: { ...trip.profile, startDate } }
+        : trip;
 
     this.weatherState = { kind: 'loading' };
     this.renderWeather();
     try {
-      const plan = await this.engines.planTripWeather(trip, {
+      const plan = await this.engines.planTripWeather(planned, {
         fetch: window.fetch.bind(window),
         cache: this.weatherCache,
         now: () => new Date(),
@@ -1230,7 +1286,7 @@ export class App {
         concurrency: 2,
       });
       if (token !== this.weatherToken) return;
-      this.weatherState = { kind: 'ready', plan };
+      this.weatherState = { kind: 'ready', plan, ...(from === 'now' ? { from } : {}) };
     } catch (error) {
       if (token !== this.weatherToken) return;
       this.weatherState = { kind: 'error', message: messageOf(error) };
@@ -2100,6 +2156,12 @@ export class App {
 
   private async loadInitialRoute(): Promise<void> {
     const hash = window.location.hash;
+    // A shared demo link names the demo instead of relying on "no hash means
+    // demo": the two are not the same promise.
+    if (hash === '#demo') {
+      await this.loadDemo();
+      return;
+    }
     if (hasRouteHash(hash)) {
       const text = decodeRouteHash(hash);
       if (text !== null) {
@@ -2133,13 +2195,13 @@ export class App {
         message: text(),
         detail: reason,
         action: {
-          label: this.i18n.t('action.openGpx'),
+          label: this.i18n.t('action.importGpx'),
           onClick: () => this.openFilePicker(),
         },
         retext: () => ({
           message: text(),
           detail: reason,
-          actionLabel: this.i18n.t('action.openGpx'),
+          actionLabel: this.i18n.t('action.importGpx'),
         }),
       });
     }
@@ -2501,6 +2563,9 @@ export class App {
 
   private updateRouteMeta(): void {
     const { route, fatal, demoMeta } = this.state;
+    // There is nothing to download without a route, and a menu entry that does
+    // nothing is worse than one that is visibly unavailable.
+    this.elements.downloadGpxButton.disabled = route === null;
     if (!route) {
       this.elements.routeMeta.hidden = fatal === null;
       this.elements.demoDetails.hidden = true;
@@ -2621,9 +2686,16 @@ export class App {
           onClick: () => this.retryBasemap(),
         },
       });
+    } else if (this.state.basemap.status === 'aerial-failed') {
+      this.banners.show({
+        id: 'basemap-aerial-failed',
+        kind: 'warning',
+        message: this.i18n.t('banner.aerialFailed'),
+      });
     } else {
       this.banners.dismiss('basemap-fallback');
       this.banners.dismiss('basemap-failed');
+      this.banners.dismiss('basemap-aerial-failed');
     }
 
     if (this.state.terrain.status === 'failed') {
@@ -2717,9 +2789,11 @@ export class App {
     for (const button of this.elements.basemapButtons) {
       button.addEventListener('click', () => {
         const kind = button.dataset.basemap;
-        if (kind !== 'topo' && kind !== 'grey' && kind !== 'wms') return;
+        if (kind !== 'topo' && kind !== 'grey' && kind !== 'aerial') return;
         this.map?.setBasemap(kind);
-        this.state.basemap = { status: 'ok' };
+        // Read the controller's verdict: a layer click retries the cache, and
+        // the map may still be on the fallback while it does.
+        this.state.basemap = this.map?.basemapState ?? { status: 'ok' };
         this.updateBasemapButtons();
         this.refreshBanners();
       });
@@ -2743,6 +2817,11 @@ export class App {
 
     byId<HTMLButtonElement>('btn-share').addEventListener('click', () => {
       void this.copyShareLink();
+    });
+
+    this.elements.downloadGpxButton.addEventListener('click', () => {
+      this.closeTopbarMenu();
+      this.downloadCurrentGpx();
     });
 
     byId<HTMLButtonElement>('btn-about').addEventListener('click', () => {
@@ -2836,26 +2915,76 @@ export class App {
   }
 
   private async copyShareLink(): Promise<void> {
+    this.closeTopbarMenu();
     const route = this.state.route;
+    const base = `${window.location.pathname}${window.location.search}`;
     let url = window.location.href;
-    if (route && route.origin !== 'demo' && route.gpxText) {
+    if (route && route.origin === 'demo') {
+      url = `${base}#demo`;
+    } else if (route && route.gpxText) {
       const hash = encodeRouteHash(compactGpx(route.gpxText));
       if (hash === null) {
-        this.showHashTooLong();
+        // Refusing is correct; refusing silently is not. Say it where the click
+        // happened (a toast, over the menu) as well as in the banner, and name
+        // the way out that always works.
+        const text = (): string =>
+          this.i18n.t('banner.hashTooLong', {
+            max: this.i18n.format.number(MAX_HASH_CHARS, { maximumFractionDigits: 0 }),
+          });
+        this.showToast(text(), 'warning');
+        this.banners.show({ id: 'hash-too-long', kind: 'info', message: text(), retext: () => ({ message: text() }) });
         return;
       }
-      url = `${window.location.pathname}${window.location.search}${hash}`;
-    } else if (route && route.origin === 'demo') {
-      url = `${window.location.pathname}${window.location.search}`;
+      url = `${base}${hash}`;
     }
 
+    const copied = await this.writeClipboard(url);
+    this.showToast(
+      this.i18n.t(copied ? 'banner.shareCopied' : 'banner.shareFailed'),
+      copied ? 'info' : 'warning',
+    );
+  }
+
+  /**
+   * Copy through the Clipboard API, falling back to the selection path.
+   *
+   * `navigator.clipboard` only exists in a secure context, and a dev server
+   * opened over a LAN address (`http://192.168.x.x:5173`) is not one — the
+   * fallback keeps "Copy link" working there instead of failing with a message
+   * about permissions the user cannot grant.
+   */
+  private async writeClipboard(text: string): Promise<boolean> {
     try {
-      if (!navigator.clipboard) throw new Error('Clipboard API unavailable');
-      await navigator.clipboard.writeText(url);
-      this.showToast(this.i18n.t('banner.shareCopied'));
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
     } catch {
-      this.showToast(this.i18n.t('banner.shareFailed'), 'warning');
+      // Fall through: a denied permission is the same problem as a missing API.
     }
+    try {
+      const area = this.doc.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.top = '0';
+      area.style.opacity = '0';
+      this.doc.body.append(area);
+      area.select();
+      const copied = this.doc.execCommand('copy');
+      area.remove();
+      return copied;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Close the header menu, so its own action's feedback is not hidden behind it. */
+  private closeTopbarMenu(): void {
+    const menu = this.doc.querySelector<HTMLDetailsElement>('.tb-menu');
+    if (menu) menu.open = false;
+    const more = this.doc.querySelector<HTMLInputElement>('#topbar-more');
+    if (more) more.checked = false;
   }
 
   private showToast(message: string, kind: 'info' | 'warning' = 'info'): void {
@@ -2931,6 +3060,15 @@ export class App {
     for (const button of this.elements.basemapButtons) {
       button.setAttribute('aria-pressed', String(button.dataset.basemap === current));
     }
+    // Attribution follows what is on the map: the aerial layer is CC BY, and a
+    // licence line for a basemap that is not displayed is not attribution.
+    const aerial = current === 'aerial';
+    this.elements.attribBasemap.href = aerial
+      ? 'https://cloudless.eox.at'
+      : 'https://www.kartverket.no';
+    this.elements.attribBasemap.textContent = this.i18n.t(
+      aerial ? 'attrib.eox' : 'attrib.kartverket',
+    );
   }
 
   private syncTerrainButton(): void {

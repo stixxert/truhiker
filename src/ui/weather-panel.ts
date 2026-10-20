@@ -18,8 +18,12 @@ import {
   type WeatherViewModel,
 } from './weather-view';
 
+type WeatherFrom = 'trip' | 'now';
+
 interface WeatherPanelHandlers {
   onRefresh: () => void;
+  /** "Now" is a quick look from today; "trip" follows the trip's start date. */
+  onFromChange: (from: WeatherFrom) => void;
   onSettings: () => void;
   onOpenRoute: () => void;
   onClose: () => void;
@@ -42,9 +46,15 @@ export class WeatherPanel {
   private readonly tableBody: HTMLElement;
   private readonly warnings: HTMLElement;
   private readonly close: HTMLButtonElement;
+  private readonly fromButtons: HTMLButtonElement[];
 
-  private last: { state: WeatherPanelState; profile: UserProfile | null; horizonDays: number } | null =
-    null;
+  private last: {
+    state: WeatherPanelState;
+    profile: UserProfile | null;
+    horizonDays: number;
+    from: WeatherFrom;
+    hasStartDate: boolean;
+  } | null = null;
   private actionKind: WeatherViewModel['action'] = 'none';
   /** Where focus was when the panel opened, so `hide()` can put it back. */
   private returnFocus: HTMLElement | null = null;
@@ -64,8 +74,15 @@ export class WeatherPanel {
     this.tableBody = required(root, 'weather-table-body');
     this.warnings = required(root, 'weather-warnings');
     this.close = required<HTMLButtonElement>(root, 'weather-close');
+    this.fromButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-weather-from]')];
 
     this.refresh.addEventListener('click', () => this.handlers.onRefresh());
+    for (const button of this.fromButtons) {
+      button.addEventListener('click', () => {
+        const from = button.dataset.weatherFrom === 'now' ? 'now' : 'trip';
+        this.handlers.onFromChange(from);
+      });
+    }
     this.close.addEventListener('click', () => this.handlers.onClose());
     this.action.addEventListener('click', () => {
       if (this.actionKind === 'settings') this.handlers.onSettings();
@@ -116,11 +133,34 @@ export class WeatherPanel {
 
   /** Re-render after a language change with the last known state. */
   refreshLanguage(): void {
-    if (this.last) this.render(this.last.state, this.last.profile, this.last.horizonDays);
+    if (this.last) {
+      this.render(
+        this.last.state,
+        this.last.profile,
+        this.last.horizonDays,
+        this.last.from,
+        this.last.hasStartDate,
+      );
+    }
   }
 
-  render(state: WeatherPanelState, profile: UserProfile | null, horizonDays: number): void {
-    this.last = { state, profile, horizonDays };
+  render(
+    state: WeatherPanelState,
+    profile: UserProfile | null,
+    horizonDays: number,
+    from: WeatherFrom = 'trip',
+    hasStartDate = Boolean(profile?.startDate),
+  ): void {
+    this.last = { state, profile, horizonDays, from, hasStartDate };
+    // The range switch is state, and a trip without a start date has only one
+    // honest position: from today. `hasStartDate` is passed in because the
+    // profile reaching this method already carries the effective date.
+    const hasStart = hasStartDate;
+    for (const button of this.fromButtons) {
+      const value = button.dataset.weatherFrom === 'now' ? 'now' : 'trip';
+      button.setAttribute('aria-pressed', String(value === from));
+      button.disabled = value === 'trip' && !hasStart;
+    }
     const view = buildWeatherView(state, profile, horizonDays, this.i18n);
     this.renderStatus(view);
     // D12: an empty warning list is not a clearance, so the panel states that
@@ -150,7 +190,7 @@ export class WeatherPanel {
     this.action.hidden = view.action === 'none';
     if (view.action === 'settings') this.action.textContent = this.i18n.t('weather.openSettings');
     else if (view.action === 'refresh') this.action.textContent = this.i18n.t('action.retry');
-    else if (view.action === 'open-route') this.action.textContent = this.i18n.t('action.openGpx');
+    else if (view.action === 'open-route') this.action.textContent = this.i18n.t('action.importGpx');
   }
 
   private renderRows(view: WeatherViewModel): void {
