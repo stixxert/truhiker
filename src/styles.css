@@ -1559,7 +1559,10 @@ input {
   position: absolute;
   top: 12px;
   left: 12px;
-  bottom: 12px;
+  /* Hug the content. A full-height column with a short dock leaves a tall empty
+   * card over the map, which reads as a broken panel. The cap keeps a long leg
+   * list scrolling instead of growing past the viewport. */
+  max-height: calc(100% - 24px);
   width: 330px;
   max-width: calc(100% - 24px);
   display: flex;
@@ -1577,8 +1580,9 @@ input {
  * it belongs to. Now the panel is the surface and the bar is its first section. */
 .editor-panel {
   position: static;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1836,7 +1840,13 @@ input {
   color: var(--warn);
 }
 
+.seg-mode {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .seg-mode .seg-btn {
+  flex: 1 1 0;
   height: 26px;
   padding: 0 9px;
   font-size: 11.5px;
