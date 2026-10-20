@@ -257,6 +257,17 @@
             <span data-i18n="action.importGpx">Importer GPX</span>
           </button>
 
+            <button
+              class="btn btn-quiet topbar-new"
+              id="btn-new"
+              type="button"
+              data-i18n-aria-label="action.newRoute"
+              data-i18n-title="action.newRoute"
+            >
+              <svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>
+              <span class="btn-label" data-i18n="action.newRoute">Ny rute</span>
+            </button>
+
 
           <div class="topbar-actions">
             <label class="topbar-more-label btn btn-icon" for="topbar-more" aria-hidden="true">
@@ -264,33 +275,6 @@
             </label>
 
             <div class="topbar-more-body">
-              <!-- View: which map, and whether it is drawn in 3D. -->
-              <div class="tb-group">
-                <div class="seg" role="group" data-i18n-aria-label="layers.label">
-                  <button class="seg-btn" type="button" data-basemap="topo" aria-pressed="true" data-i18n="layers.topo">
-                    Topo
-                  </button>
-                  <button class="seg-btn" type="button" data-basemap="grey" aria-pressed="false" data-i18n="layers.grey">
-                    Grå
-                  </button>
-                  <button class="seg-btn" type="button" data-basemap="aerial" aria-pressed="false" data-i18n="layers.aerial">
-                    Flyfoto
-                  </button>
-                </div>
-
-                <button
-                  class="btn btn-toggle"
-                  id="btn-terrain"
-                  type="button"
-                  aria-pressed="false"
-                  data-i18n-aria-label="terrain.enable"
-                  data-i18n-title="terrain.enable"
-                >
-                  <svg class="i" aria-hidden="true"><use href="#i-terrain" /></svg>
-                  3D
-                </button>
-              </div>
-
               <!-- Panels: the two analysis drawers. Neither is a primary action. -->
               <div class="tb-group">
                 <button
@@ -418,6 +402,34 @@
         <div class="map-wrap">
           <div id="map" class="map" role="region" data-i18n-aria-label="map.ariaLabel"></div>
 
+          <!-- Map options belong to the map: a basemap switch is a property of what
+               you are looking at, and in the header it was both the widest thing in
+               the row and a neighbour of route actions it has nothing to do with. -->
+          <div class="map-style" role="group" data-i18n-aria-label="layers.label">
+            <div class="seg">
+                            <button class="seg-btn" type="button" data-basemap="topo" aria-pressed="true" data-i18n="layers.topo">
+                              Topo
+                            </button>
+                            <button class="seg-btn" type="button" data-basemap="grey" aria-pressed="false" data-i18n="layers.grey">
+                              Grå
+                            </button>
+                            <button class="seg-btn" type="button" data-basemap="aerial" aria-pressed="false" data-i18n="layers.aerial">
+                              Flyfoto
+                            </button>
+                          </div>
+                            <button
+                              class="btn btn-toggle"
+                              id="btn-terrain"
+                              type="button"
+                              aria-pressed="false"
+                              data-i18n-aria-label="terrain.enable"
+                              data-i18n-title="terrain.enable"
+                            >
+                              <svg class="i" aria-hidden="true"><use href="#i-terrain" /></svg>
+                              3D
+                            </button>
+          </div>
+
           <div class="map-controls" role="group" data-i18n-aria-label="layers.label">
             <button
               class="map-btn"
@@ -472,17 +484,7 @@
               </header>
             <div class="editor-toolbar" id="editor-toolbar" hidden>
               <div class="editor-row editor-row--main">
-                <div class="seg seg-mode" role="group" data-i18n-aria-label="editor.mode">
-                  <button class="seg-btn" type="button" data-mode="view" aria-pressed="true" data-i18n="editor.view">
-                    Vis
-                  </button>
-                  <button class="seg-btn" type="button" data-mode="draw" aria-pressed="false" data-i18n="editor.draw">
-                    Tegn
-                  </button>
-                  <button class="seg-btn" type="button" data-mode="edit" aria-pressed="false" data-i18n="editor.edit">
-                    Rediger
-                  </button>
-                </div>
+                
                 <button
                   class="btn btn-small"
                   id="btn-undo"
@@ -506,6 +508,17 @@
 
               <div class="editor-dock-head">
                 <p class="editor-trip" id="editor-trip"></p>
+<div class="seg seg-mode" role="group" data-i18n-aria-label="editor.mode">
+                  <button class="seg-btn" type="button" data-mode="view" aria-pressed="true" data-i18n="editor.view">
+                    Vis
+                  </button>
+                  <button class="seg-btn" type="button" data-mode="draw" aria-pressed="false" data-i18n="editor.draw">
+                    Tegn
+                  </button>
+                  <button class="seg-btn" type="button" data-mode="edit" aria-pressed="false" data-i18n="editor.edit">
+                    Rediger
+                  </button>
+                </div>
                 <button class="btn btn-small" id="editor-new" type="button" data-i18n="action.newRoute">Ny rute</button>
               </div>
               <div class="editor-legs" id="editor-legs" data-i18n-aria-label="editor.legsTitle" role="list"></div>

@@ -112,7 +112,12 @@ export class EditorToolbar {
     this.root = root;
     this.i18n = i18n;
     this.handlers = handlers;
-    this.modeButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-mode]')];
+    // The mode switch lives with the planning group in the dock head, not in the
+    // toolbar strip, so the dock is the scope that always contains it — and the
+    // `button` qualifier matters: the toolbar element itself carries `data-mode`
+    // for its own CSS, and listening on it turned every mode click into "view".
+    const modeScope = root.closest<HTMLElement>('#editor-column') ?? dock;
+    this.modeButtons = [...modeScope.querySelectorAll<HTMLButtonElement>('button[data-mode]')];
     this.snapToggle = required<HTMLInputElement>(dock, 'snap-enabled');
     this.radius = required<HTMLInputElement>(dock, 'snap-radius');
     this.undo = required<HTMLButtonElement>(root, 'btn-undo');

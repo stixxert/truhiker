@@ -3051,6 +3051,9 @@ export class App {
 
     this.elements.editorPanelClose.addEventListener('click', () => this.switchMode('view'));
     this.elements.editorNew.addEventListener('click', () => this.startNewTrip());
+    // The header's "New route" is the same action as the dock's, and it is the
+    // entry point for someone who has not started editing yet.
+    byId<HTMLButtonElement>('btn-new').addEventListener('click', () => this.startNewTrip());
     this.elements.editorSave.addEventListener('click', () => void this.saveTrip());
 
     this.elements.fileInput.addEventListener('change', () => {
