@@ -107,19 +107,47 @@ function buildFromPbf(pbf) {
   });
 }
 
-/** Fetch the published artefact (consumer mode, when nothing is on disk). */
+/**
+ * Fetch the published copy (consumer mode, when nothing is on disk).
+ *
+ * Both files are required, not just the artefact: the app reads the extract date
+ * out of the provenance and the ODbL notice is generated from it, so a published
+ * copy that carries only the binary is not a copy a build can use. Fetching one
+ * and then failing later at `copy-data` would be a worse error than this one.
+ */
 async function fetchPublished(entry) {
   const base = process.env.TRUHIKER_DATA_URL;
   if (!base) return { ok: false, reason: 'no local artefact and $TRUHIKER_DATA_URL is not set' };
-  const url = `${base.replace(/\/$/, '')}/${entry.file}`;
+  const root = base.replace(/\/$/, '');
+  const url = `${root}/${entry.file}`;
   const response = await fetch(url);
   if (!response.ok) return { ok: false, reason: `HTTP ${response.status} from ${url}` };
   const bytes = Buffer.from(await response.arrayBuffer());
   const verdict = verifyPinned(bytes, entry);
   if (!verdict.ok) return { ok: false, reason: `${url}: ${verdict.reason}` };
+
+  const provenanceUrl = `${root}/${entry.provenance}`;
+  const provenanceResponse = await fetch(provenanceUrl);
+  if (!provenanceResponse.ok) {
+    return {
+      ok: false,
+      reason:
+        `HTTP ${provenanceResponse.status} from ${provenanceUrl} — the published copy must carry ` +
+        `${entry.provenance} beside ${entry.file}, because the app reads the extract date from it`,
+    };
+  }
+  const provenance = await provenanceResponse.json();
+  if (typeof entry.counts?.total === 'number' && provenance?.counts?.total !== entry.counts.total) {
+    return {
+      ok: false,
+      reason: `${provenanceUrl} records ${String(provenance?.counts?.total)} records, the pin says ${entry.counts.total}`,
+    };
+  }
+
   mkdirSync(DATA_DIR, { recursive: true });
   writeFileSync(join(DATA_DIR, entry.file), bytes);
-  return { ok: true, how: `fetched ${url}` };
+  writeFileSync(join(DATA_DIR, entry.provenance), `${JSON.stringify(provenance, null, 2)}\n`);
+  return { ok: true, how: `fetched ${url} and ${provenanceUrl}` };
 }
 
 async function main() {
