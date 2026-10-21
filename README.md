@@ -81,7 +81,17 @@ npx wrangler deploy
 
 - Routing uses Turrutebasen marked trails only, for a box up to 1.5° around the
   two points. Where the network does not connect them, it says so; it never
-  bridges a gap or draws a straight line. OSM routing is not available yet.
+  bridges a gap or draws a straight line. OSM is not used, and that is measured
+  rather than assumed: its path layer is mapped as chains, not a network (in
+  Jotunheimen 470 paths share only 414 nodes — 72 components, 31 % of drawn pairs
+  routable, against Turrutebasen's 23 components and 67 %). See D25.
+- **Drawing** is click-by-click with a live preview to the snapped cursor; a
+  double-click finishes the leg. There is no freehand drag and no keyboard way to
+  place a vertex, and the trail network is fetched only at z10 and above, so a
+  country-sized view is a picture of shops, not of trails.
+- **The trail network shown on the map is the network that will be used**: the
+  same lines the pointer snaps to. It is hidden in view mode, because a trail the
+  app is not going to route on is decoration.
 - Routing endpoints are placed with the pointer; there is no keyboard way to
   pick them yet.
 - Planning only: there is no offline mode for use on the trail.

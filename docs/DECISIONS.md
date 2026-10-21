@@ -602,3 +602,49 @@ the only thing in git.**
 
 **Why:** a rule that lives only in a commit message is not a rule. It is only as
 load-bearing as the gate that fails when it is broken.
+
+## D25. The routing graph stays Turrutebasen; OSM is measured and declined
+
+**Default: no OSM in the snapping or routing graph. Turrutebasen is the only
+source of trail geometry, and it stays live (D16).**
+
+The question was whether OSM's much larger path network would make drawing and
+routing materially better. It was measured, over two boxes, with this repository's
+own `buildTrailGraph` (5 m node merge, D16) and A*, on 200 seeded node pairs at
+least 1 km apart:
+
+| Box | Graph | lines | km | components | km in largest | pairs routed |
+|---|---|---|---|---|---|---|
+| Jotunheimen 1 416 km² | Turrutebasen | 278 | 439 | 23 | 84 % | **67.5 %** |
+| | OSM `highway=path` | 470 | 683 | 72 | 56 % | 31.0 % |
+| | union | 748 | 1 122 | 70 | 89 % | 77.5 % |
+| | union, Turrutebasen precedence | 558 | 839 | 85 | 70 % | 51.5 % |
+| Reisadalen 878 km² | Turrutebasen | 9 | 30 | 2 | 82 % | **72.5 %** |
+| | OSM `highway=path` | 132 | 98 | 80 | 25 % | 7.0 % |
+| | union | 141 | 129 | 78 | 39 % | 9.5 % |
+
+- **OSM is more kilometres and less network.** In Jotunheimen 470 path ways share
+  only 414 node ids, 39 share none, and 19.9 % of endpoints have another vertex
+  within 5 m; even at a 50 m merge tolerance it is 59 components holding 60 % of
+  the length. Marked routes interconnect where people actually change route — at
+  the huts — which is why 84 % of Turrutebasen's length sits in one component.
+- **More path is not more routing.** OSM loses on pair routability in both boxes,
+  including the one where the official register is thinnest (Reisadalen: 18 km of
+  marked routes against 98 km mapped as paths, and still 7 % vs 72.5 %).
+- **The union is the one case that helps, and it does not survive deduplication.**
+  C gives 77.5 % against 67.5 %, but only by proximity-bridging two sources that
+  then double-count the same paths; removing OSM where it runs along Turrutebasen
+  (41 % of its length) drops it to 51.5 %, i.e. worse than Turrutebasen alone.
+  In Reisadalen the two layers barely overlap (14.4 %), so dedupe changes nothing
+  and the union stays at 9.5 %.
+- **The licence is the smaller half of the argument.** OSM would mean a second
+  committed-to-ODbL artefact, a second build pipeline, and a second layer that
+  cannot share a file with the CC BY 4.0 data (D24, `docs/LICENSES.md`). Given the
+  numbers above, that cost buys nothing.
+- **What OSM would still be good for** — snapping candidates in regions where the
+  official register is nearly empty — is not worth a pipeline either: a 7 %
+  routable fragment set would put a user on a path the app cannot continue.
+
+**Why:** the honest unit for routing is connectivity, not kilometres. Counting
+kilometres is what made OSM look like the answer; measuring components is what
+made the answer "no".

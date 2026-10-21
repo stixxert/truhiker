@@ -1883,8 +1883,12 @@ export class App {
     // Not `isPlaceholderLeg`: after the first click the leg is the padded pair
     // [p, p], which that helper calls placeholder (because it is all one
     // coordinate) — but p is exactly the point the next click extends from. The
-    // only geometry with no anchor is the emptyTrip sentinel at 0°/0°.
-    if (leg.points.every((point) => point.lon === 0 && point.lat === 0)) return null;
+    // only geometry with no anchor is `emptyLeg()` itself: exactly two points at
+    // the 0°/0° sentinel. Checked by length, because this runs on every pointer
+    // move and an imported trip can carry 100 000 vertices.
+    const sentinelLeg =
+      leg.points.length === 2 && last.lon === 0 && last.lat === 0 && leg.points[0].lon === 0;
+    if (sentinelLeg) return null;
     return { lon: last.lon, lat: last.lat };
   }
 

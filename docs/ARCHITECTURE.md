@@ -136,7 +136,16 @@ failure-path run, licence audit and hosting contract.
   points. Where the network does not connect them, it says so. OSM routing is not
   implemented; snapping still covers drawing and editing.
 - Routing endpoints are placed with the pointer; the keyboard can pan and zoom the
-  map but cannot place a route endpoint.
+  map but cannot place a route endpoint. Drawing has a preview and a double-click
+  finish, but no freehand drag.
+- The trail network is drawn from the same `SnapIndex` the snapper queries, and
+  only while it is actionable (draw/edit with snapping on). Prefetch is skipped
+  below z10 and on a data-saver connection; the index is pruned back to the view
+  past 20 000 lines.
+- OSM is not a routing source. Measured in two boxes, its `highway=path` layer is
+  chains rather than a network: it lost to Turrutebasen on pair routability in
+  both (31 % vs 67 % in Jotunheimen, 7 % vs 72 % in Reisadalen) and made the
+  union worse as soon as it was deduplicated against Turrutebasen. See D25.
 - No offline mode; the app is a planning tool, not a trail companion.
 - Elevation is mainland Norway only.
 - Hut food status is not machine-readable; the app will not guess it.
