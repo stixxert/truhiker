@@ -291,8 +291,6 @@ export class App {
    */
   private editorMode: InteractionMode = 'view';
   private snapTrackerLine: string | null = null;
-  /** Did the last committed drawn vertex snap to a trail? Which one? */
-  private lastDrawnSnap: { lineId: string } | null = null;
   /** The trail graph built from the indexed lines, keyed by the index's shape. */
   private trailGraph: { key: string; graph: TrailGraph } | null = null;
   private routePick: { start: LonLat | null; busy: boolean } | null = null;
@@ -1872,7 +1870,12 @@ export class App {
     // happen always. The decision and the command are pure (`drawStepCommand`), so
     // they are tested without a map or a network; this method only supplies the
     // path and applies the result.
-    const wantsPath = Boolean(leg && snap && this.lastDrawnSnap && anchor && leg.points.length >= 2);
+    // Ask the snapper about the anchor *now*, rather than remembering that the
+    // last click snapped: an undo, a vertex move or a reload can leave a remembered
+    // flag pointing at a vertex that is no longer on a trail, and a path would then
+    // start from the trail instead of from where the leg actually is.
+    const anchorSnapped = anchor && this.snapService ? this.snapService.snap(anchor, this.editorUi.radiusM, null) : null;
+    const wantsPath = Boolean(leg && snap && anchorSnapped && anchor && leg.points.length >= 2);
     const path = wantsPath && anchor ? this.pathBetween(anchor, point) : null;
     const routePoint = { lon: point.lon, lat: point.lat };
     const command = drawStepCommand({
@@ -1888,7 +1891,6 @@ export class App {
       const appended = command.type === 'replace-span';
       const committed = appended ? command.points[command.points.length - 1] : routePoint;
       if (committed) this.editorUi = noteDrawnPoint(this.editorUi, committed);
-      this.lastDrawnSnap = snap ? { lineId: snap.lineId } : null;
       this.afterTripChange();
     }
   }
