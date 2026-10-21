@@ -28,12 +28,27 @@ type SnapNetworkStatus = 'idle' | 'loading' | 'ready' | 'failed';
  */
 const MAX_INDEX_LINES = 20_000;
 
+/**
+ * How long one viewport prefetch may take before it is called failed.
+ *
+ * The WFS client retries a hung request (3 attempts, 30 s each, with backoff), and
+ * a viewport plans up to six boxes — so "Load trails…" could sit there for minutes
+ * while the service accepted connections and never answered. Measured today:
+ * `wfs.geonorge.no` answered `200` on `/` in 0.12 s and never answered
+ * `/skwms1/wfs.turogfriluftsruter` at all. An interactive snap layer is worth a
+ * dozen seconds, not a coffee break: the deadline turns a hang into a visible
+ * failure the user can retry.
+ */
+export const PREFETCH_DEADLINE_MS = 12_000;
+
 interface SnapServiceOptions {
   index?: SnapIndex;
   prefetcher?: Prefetcher;
   /** Injected fetcher for tests; wins over the WFS client. */
   fetchBox?: FetchBox;
   onChange?: (service: SnapService) => void;
+  /** Override the viewport-prefetch deadline. Tests set a small one. */
+  prefetchDeadlineMs?: number;
 }
 
 function messageOf(error: unknown): string {
@@ -44,8 +59,11 @@ export class SnapService {
   readonly index: SnapIndex;
   private readonly prefetcher: Prefetcher;
   private readonly onChange: ((service: SnapService) => void) | undefined;
+  private readonly deadlineMs: number;
   private state: SnapNetworkStatus = 'idle';
   private error: string | null = null;
+  /** Why the last load failed, in a form the UI can translate. */
+  private errorKind: 'timeout' | 'failed' | null = null;
   private report: PrefetchReport | null = null;
   private inFlight = false;
   /** The newest viewport that arrived while a prefetch was running. */
@@ -54,6 +72,7 @@ export class SnapService {
   constructor(options: SnapServiceOptions = {}) {
     this.index = options.index ?? new SnapIndex();
     this.onChange = options.onChange;
+    this.deadlineMs = options.prefetchDeadlineMs ?? PREFETCH_DEADLINE_MS;
     this.prefetcher =
       options.prefetcher ??
       new Prefetcher({
@@ -70,6 +89,11 @@ export class SnapService {
 
   get errorMessage(): string | null {
     return this.error;
+  }
+
+  /** `timeout` when the service accepted the request and never answered. */
+  get failureKind(): 'timeout' | 'failed' | null {
+    return this.errorKind;
   }
 
   get lastReport(): PrefetchReport | null {
@@ -117,13 +141,30 @@ export class SnapService {
   private async loadOne(bbox: LonLatBBox): Promise<void> {
     this.state = 'loading';
     this.error = null;
+    this.errorKind = null;
     this.notify();
+    let timer: ReturnType<typeof setTimeout> | null = null;
     try {
-      const report = await this.prefetcher.prefetchViewport(bbox, {
-        debounceMs: 120,
-        maxRequests: 6,
-        concurrency: 2,
+      const deadline = new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), this.deadlineMs);
       });
+      const report = await Promise.race([
+        this.prefetcher.prefetchViewport(bbox, {
+          debounceMs: 120,
+          maxRequests: 6,
+          concurrency: 2,
+        }),
+        deadline,
+      ]);
+      if (report === null) {
+        // Stop the requests still in flight: a late answer would otherwise land in
+        // the index after the user has been told the network is unavailable.
+        this.prefetcher.cancel();
+        this.state = 'failed';
+        this.errorKind = 'timeout';
+        this.error = `the trail service did not answer within ${Math.round(this.deadlineMs / 1000)} s`;
+        return;
+      }
       this.report = report;
       if (report.aborted) {
         this.state = 'idle';
@@ -137,13 +178,17 @@ export class SnapService {
       // work; the index is already usable after the first one.
       if (report.failed > 0 && report.lines === 0 && this.index.lineCount === 0) {
         this.state = 'failed';
+        this.errorKind = 'failed';
         this.error = report.failures[0]?.error ?? 'trail network unavailable';
       } else {
         this.state = 'ready';
       }
     } catch (error) {
       this.state = 'failed';
+      this.errorKind = 'failed';
       this.error = messageOf(error);
+    } finally {
+      if (timer !== null) clearTimeout(timer);
     }
   }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { TurruteLine } from '../src/snap/wfs';
-import { SnapService } from '../src/app/snap-service';
+import { PREFETCH_DEADLINE_MS, SnapService } from '../src/app/snap-service';
 import { MemoryWeatherCache } from '../src/lib/weather-cache';
 
 function line(id: string, lon: number, lat: number): TurruteLine {
@@ -49,6 +49,52 @@ describe('SnapService', () => {
     expect(hit?.attributes.rutenummer).toBe('jot21');
     // Nothing within 10 m of a point a kilometre away.
     expect(service.snap({ lon: 9.5, lat: 62.5 }, 75)).toBeNull();
+  });
+
+  /**
+   * A hung service must become a *visible* failure, not an endless "Load trails…".
+   *
+   * Measured against the real service: `wfs.geonorge.no` answered `/` in 0.12 s and
+   * never answered the WFS path at all, while the client retries three times with
+   * backoff — minutes of a spinner the user cannot act on. The deadline is the fix.
+   *
+   * (The fake here deliberately ignores the abort signal, which the real client does
+   * not: a request that never settles leaves its own run wedged, so the retry is
+   * covered by the next case rather than by a second call in this one.)
+   */
+  it('gives up on a service that never answers, within the deadline', async () => {
+    const service = new SnapService({
+      fetchBox: () => new Promise<never[]>(() => {}),
+      // A 150 ms deadline: the behaviour under test is "bounded", not "12 s".
+      prefetchDeadlineMs: 150,
+    });
+    const started = Date.now();
+    await service.loadViewport(BBOX);
+    const elapsed = Date.now() - started;
+
+    expect(service.status).toBe('failed');
+    expect(service.errorMessage).toContain('did not answer');
+    // Bounded by the deadline, not by the client's own retry ladder.
+    expect(elapsed).toBeGreaterThanOrEqual(140);
+    expect(elapsed).toBeLessThan(2000);
+    // The shipped default is a dozen seconds, not the test's 150 ms.
+    expect(PREFETCH_DEADLINE_MS).toBeGreaterThan(5000);
+  });
+
+  /** The retry the banner offers must actually retry, and recover when the service does. */
+  it('recovers when a retry succeeds after a failure', async () => {
+    let attempt = 0;
+    const service = new SnapService({
+      fetchBox: () => {
+        attempt += 1;
+        return attempt === 1 ? Promise.reject(new Error('HTTP 503')) : Promise.resolve<never[]>([]);
+      },
+    });
+    await service.loadViewport(BBOX);
+    expect(service.status).toBe('failed');
+    await service.loadViewport(BBOX);
+    expect(service.status).toBe('ready');
+    expect(service.errorMessage).toBeNull();
   });
 
   it('reports a failure instead of an empty network', async () => {

@@ -737,6 +737,7 @@ export class App {
       onChange: () => {
         this.renderEditor();
         this.renderTrails();
+        this.reportTrailState();
         this.scheduleOffTrail();
       },
     });
@@ -1811,6 +1812,42 @@ export class App {
     map.setTrailLines(trailLinesToGeoJson(service.index.lines));
     const actionable = this.editorUi.mode !== 'view' && this.editorUi.snapping && service.lineCount > 0;
     map.setTrailsVisible(actionable);
+  }
+
+  /**
+   * Say it when the trail network is unavailable, and offer the retry.
+   *
+   * "Laster stier…" that never resolves is the worst of both worlds: the user is
+   * told to wait for something that is not coming, and drawing silently stops
+   * snapping. D7 asks for visible degradation — so a failure becomes a banner that
+   * names the reason, says what still works, and can be retried. A successful load
+   * takes it away.
+   */
+  private reportTrailState(): void {
+    const service = this.snapService;
+    if (!service) return;
+    const text = (): string =>
+      this.i18n.t(
+        service.failureKind === 'timeout' ? 'banner.trailsTimeout' : 'banner.trailsFailed',
+      );
+    if (service.status === 'failed') {
+      this.banners.show({
+        id: 'trails-failed',
+        kind: 'warning',
+        message: text(),
+        detail: service.errorMessage ?? undefined,
+        action: {
+          label: this.i18n.t('banner.trailsRetry'),
+          onClick: () => {
+            this.banners.dismiss('trails-failed');
+            this.ensureSnapNetwork();
+          },
+        },
+        retext: () => ({ message: text(), actionLabel: this.i18n.t('banner.trailsRetry') }),
+      });
+      return;
+    }
+    this.banners.dismiss('trails-failed');
   }
 
   private snapAt(point: LonLat): SnapResult | null {

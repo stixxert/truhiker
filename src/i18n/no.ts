@@ -287,6 +287,9 @@ export const no = {
   'editor.snapDisabled': 'snapping er av',
   'editor.snapLoading': 'henter stinett …',
   'editor.snapFailed': 'stinettet er ikke tilgjengelig',
+  'banner.trailsTimeout': 'Stinettet svarte ikke. Du kan tegne, men punktene snapper ikke til sti.',
+  'banner.trailsFailed': 'Stinettet kunne ikke lastes. Du kan tegne, men punktene snapper ikke til sti.',
+  'banner.trailsRetry': 'Prøv igjen',
   'editor.snapIdle': 'stinettet lastes når du tegner eller redigerer',
   'editor.snapReady': 'stinettet er lastet – før musepekeren over kartet for å se hva den snapper til',
   // "avstikk" is the plan's detour (supply.detourValue); geometry that leaves a
