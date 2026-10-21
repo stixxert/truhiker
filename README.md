@@ -70,6 +70,21 @@ One command reaches the network on purpose:
 npm run test:live     # real Kartverket and MET requests
 ```
 
+**The data files are build outputs, not repository files** (D24). `npm run build`
+needs `data/shops.osm.bin` and its provenance, so a fresh clone has two ways to get
+them (the deploy pipeline does the first automatically, D23):
+
+```bash
+npm run data:build                            # rebuild from the Geofabrik PBF
+OSM_PBF=/path/to/norway-latest.osm.pbf npm run data:build
+
+TRUHIKER_DATA_URL=https://... npm run build    # or fetch a published, pinned copy
+```
+
+Either way the result is verified against `tools/data-manifest.json` before
+anything is served, and a build with no data fails loudly rather than shipping an
+empty index.
+
 ## Deploy
 
 ```bash
