@@ -37,6 +37,7 @@ ceremony, and it belongs to the agent's workflow, not to the repository.
 | `refresh-shops.sh` | download the PBF and rebuild + verify it (what the deploy container runs, D23) | `npm run refresh:shops` |
 | `verify/*.mjs` | the gate steps (render, e2e, a11y, failure paths, budgets, licences, hosting) | `npm run verify` |
 | `verify/import-route.mjs` | hands a gate the route fixture through the real file input — the app ships no sample (D26) | e2e, a11y, visual-check, failure-paths |
+| `verify/served-headers.mjs` | asserts the `Cache-Control` production actually serves per asset kind, under workerd — a source-text test cannot see the multi-pattern `_headers` rule | `npm run verify` |
 
 `npm run size` (bundle-size.mjs) and `npm run perf` are **not** steps of
 `npm run verify`: the dist budget is enforced by the gate, the *JS* budget and the

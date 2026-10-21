@@ -138,10 +138,13 @@ Static-asset requests are free and unlimited; there is no dynamic budget to
 exhaust. Bundle: 18 files, ~605 KB brotli against a 620 KB gate and a
 20,000-file ceiling — 15 KB of headroom, not room.
 
-`npm run verify` runs the gate: preflight, typecheck, hermetic tests (≤320 cases, ≤12 s),
-build, bundle budget, a headless render and an end-to-end journey under workerd
-with the production CSP, an axe and keyboard accessibility audit, a blocked-network
-failure-path run, licence audit and hosting contract.
+`npm run verify` runs the gate, in order: preflight, typecheck, hermetic tests
+(≤320 cases, ≤12 s), build, dist budget, a headless render at two breakpoints under
+the production CSP (which also asserts the **empty state**, the screen most visitors
+see), the end-to-end journey, an axe and keyboard accessibility audit, data
+integrity against the committed pin, a deploy dry run, a blocked-network
+failure-path run, i18n parity, the licence audit, the **served cache headers** (one
+path per asset kind, under workerd) and the hosting contract.
 
 ## Known limits
 
