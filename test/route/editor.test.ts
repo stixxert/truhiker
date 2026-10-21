@@ -344,6 +344,51 @@ describe('geometry commands', () => {
 describe('validation', () => {
   const trip = (): Trip => makeTrip(straightPoints(8.3, 8.4, 61.5, 4, ELEVATED));
 
+  /**
+   * Provenance is per vertex (D5): the leg-level `snapped` marker could only say
+   * "some of this leg touched a trail", which is not what a reader needs.
+   */
+  it('records snapped per vertex: on insert, on move, and on a snapped span', () => {
+    const trip = makeTrip(straightPoints(8.3, 8.34, 61.5, 3, () => 1200));
+    const editor = createEditor(trip, { now: fixedClock() });
+    const leg = trip.legs[0];
+
+    editor.apply({ type: 'insert', legId: leg.id, index: 1, point: { lon: 8.32, lat: 61.5 }, snapped: true });
+    expect(editor.trip.legs[0].points[1].snapped).toBe(true);
+    // The vertices already there are untouched: they were not snapped, and the
+    // command must not claim they were.
+    expect(editor.trip.legs[0].points[0].snapped).toBeUndefined();
+    expect(editor.trip.legs[0].points[3].snapped).toBeUndefined();
+
+    editor.apply({ type: 'move', legId: leg.id, index: 0, point: { lon: 8.3005, lat: 61.5005 }, snapped: true });
+    expect(editor.trip.legs[0].points[0]).toMatchObject({ lon: 8.3005, snapped: true });
+
+    editor.apply({
+      type: 'replace-span',
+      legId: leg.id,
+      from: 1,
+      to: 2,
+      points: [
+        { lon: 8.31, lat: 61.5001 },
+        { lon: 8.32, lat: 61.5002 },
+        { lon: 8.33, lat: 61.5003 },
+      ],
+      snapped: true,
+    });
+    expect(editor.trip.legs[0].points.slice(1, 4).every((point) => point.snapped === true)).toBe(true);
+
+    // ... and an unsnapped replace-span marks nothing.
+    editor.apply({
+      type: 'replace-span',
+      legId: leg.id,
+      from: 1,
+      to: 1,
+      points: [{ lon: 8.3105, lat: 61.5001 }],
+      snapped: false,
+    });
+    expect(editor.trip.legs[0].points[1].snapped).toBeUndefined();
+  });
+
   it('rejects a leg below the two-point floor, bad indices, unknown legs, bad points and merge-self', () => {
     const editor = createEditor(trip(), { now: fixedClock() });
     editor.apply({ type: 'trim-leg', legId: 'leg-1', from: 0, to: 1 });

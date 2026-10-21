@@ -253,13 +253,16 @@ export function deleteLegCommand(state: EditorUiState, trip: Trip | null): EditC
   return { type: 'delete-leg', legId: leg.id };
 }
 
-/** Move one vertex to a new position. */
+/** Move one vertex to a new position; `snapped` when it was dropped onto a trail. */
 export function moveVertexCommand(
   legId: string,
   index: number,
   point: RoutePoint,
+  snapped = false,
 ): EditCommand {
-  return { type: 'move', legId, index, point };
+  return snapped
+    ? { type: 'move', legId, index, point, snapped: true }
+    : { type: 'move', legId, index, point };
 }
 
 /**
@@ -320,6 +323,43 @@ export function drawPointCommand(
  * `null` when there is nothing to append: a path of two points is just the chord
  * the fallback would draw anyway.
  */
+/**
+ * What one drawn click becomes.
+ *
+ * The decision lives here, not in the app, so it can be tested without a map,
+ * without a network and — this is the point — without Turrutebasen being up: the
+ * caller supplies the path (or `null`), and this decides between
+ *   - `append`  — the click extends the leg along a trail path (one command), or
+ *   - `point`   — the click is a single vertex (the old behaviour), or
+ *   - `null`    — nothing to do.
+ *
+ * A trail path is only used when **both** ends snapped: the path starts at the
+ * *snapped* anchor, so extending from an off-trail anchor would silently teleport
+ * the line onto the trail. Everything else falls back to a plain vertex, and the
+ * off-trail styling says so on the map.
+ */
+export function drawStepCommand(options: {
+  state: EditorUiState;
+  trip: Trip | null;
+  point: RoutePoint;
+  snapped: boolean;
+  /** The anchor the step extends from, or `null` for the first point of a leg. */
+  anchor: RoutePoint | null;
+  /** The trail path between `anchor` and `point`, when the network connects them. */
+  path: readonly { lon: number; lat: number }[] | null;
+}): EditCommand | null {
+  const { state, trip, point, snapped, anchor, path } = options;
+  const leg = findLeg(trip, state.activeLegId);
+  if (leg && snapped && anchor && path) {
+    // `lastDrawnSnap` lives in the app; the caller has already checked that the
+    // anchor itself snapped before asking for a path, so reaching here with a path
+    // means the step is on the trail at both ends.
+    const append = trailAppendCommand(leg.id, leg.points.length - 1, anchor, path);
+    if (append) return append;
+  }
+  return drawPointCommand(state, trip, point, snapped);
+}
+
 export function trailAppendCommand(
   legId: string,
   lastIndex: number,

@@ -108,8 +108,7 @@ import {
   clearSelection,
   deleteLegCommand,
   deleteVertexCommand,
-  drawPointCommand,
-  trailAppendCommand,
+  drawStepCommand,
   editorKeyAction,
   initialEditorState,
   insertVertexCommand,
@@ -766,7 +765,7 @@ export class App {
         snap: (point) => this.snapAt(point),
         onDrawPoint: (point, snap) => this.drawPoint(point, snap),
         onSelect: (legId, index, extend) => this.selectVertexAt(legId, index, extend),
-        onMoveVertex: (legId, index, point) => this.moveVertex(legId, index, point),
+        onMoveVertex: (legId, index, point, snap) => this.moveVertex(legId, index, point, snap),
         onInsertPoint: (legId, index, point) => this.insertVertex(legId, index, point),
         onSnapIndicator: (snap, hovering) => this.setSnapIndicator(snap, hovering),
         onRoutePoint: (point) => this.handleRoutePoint(point),
@@ -1868,32 +1867,27 @@ export class App {
     const leg = findLeg(trip, this.editorUi.activeLegId);
     const anchor = this.drawAnchor();
 
-    // Draw *along* the trail when both ends snapped and the network connects them.
-    // Otherwise a click is a vertex and the leg is a chord — which is what used to
-    // happen always, so "draw a route" could not follow a path it was standing on.
-    if (leg && anchor && snap && this.lastDrawnSnap && leg.points.length >= 2) {
-      const path = this.pathBetween(anchor, point);
-      const append = path
-        ? trailAppendCommand(leg.id, leg.points.length - 1, { lon: anchor.lon, lat: anchor.lat }, path)
-        : null;
-      if (append && session.apply(append)) {
-        const last = append.type === 'replace-span' ? append.points[append.points.length - 1] : undefined;
-        if (last) this.editorUi = noteDrawnPoint(this.editorUi, last);
-        this.lastDrawnSnap = { lineId: snap.lineId };
-        this.afterTripChange();
-        return;
-      }
-    }
-
-    const command = drawPointCommand(
-      this.editorUi,
+    // Draw *along* the trail when both ends snapped and the network connects them:
+    // otherwise a click is a vertex and the leg is a chord, which is what used to
+    // happen always. The decision and the command are pure (`drawStepCommand`), so
+    // they are tested without a map or a network; this method only supplies the
+    // path and applies the result.
+    const wantsPath = Boolean(leg && snap && this.lastDrawnSnap && anchor && leg.points.length >= 2);
+    const path = wantsPath && anchor ? this.pathBetween(anchor, point) : null;
+    const routePoint = { lon: point.lon, lat: point.lat };
+    const command = drawStepCommand({
+      state: this.editorUi,
       trip,
-      { lon: point.lon, lat: point.lat },
-      snap !== null,
-    );
+      point: routePoint,
+      snapped: snap !== null,
+      anchor: wantsPath ? anchor : null,
+      path,
+    });
     if (!command) return;
     if (session.apply(command)) {
-      this.editorUi = noteDrawnPoint(this.editorUi, { lon: point.lon, lat: point.lat });
+      const appended = command.type === 'replace-span';
+      const committed = appended ? command.points[command.points.length - 1] : routePoint;
+      if (committed) this.editorUi = noteDrawnPoint(this.editorUi, committed);
       this.lastDrawnSnap = snap ? { lineId: snap.lineId } : null;
       this.afterTripChange();
     }
@@ -1972,12 +1966,16 @@ export class App {
     this.switchMode('view');
   }
 
-  private moveVertex(legId: string, index: number, point: LonLat): void {
+  private moveVertex(legId: string, index: number, point: LonLat, snap: SnapResult | null = null): void {
     const session = this.session;
     if (!session?.trip) return;
-    if (session.apply(moveVertexCommand(legId, index, { lon: point.lon, lat: point.lat }))) {
-      this.afterTripChange();
-    }
+    const command = moveVertexCommand(
+      legId,
+      index,
+      { lon: point.lon, lat: point.lat },
+      snap !== null,
+    );
+    if (session.apply(command)) this.afterTripChange();
   }
 
   private insertVertex(legId: string, index: number, point: LonLat): void {
@@ -2129,9 +2127,42 @@ export class App {
       this.showToast(this.i18n.t('route.needsLeg'), 'warning');
       return;
     }
+    // With a span selected, "route along the trail" needs no picks: the span's own
+    // endpoints are the question, and the answer replaces only that span. Without
+    // one, the two-click pick starts, and the result replaces the active leg.
+    const span = this.selectedSpan();
+    if (span) {
+      void this.runRoute(span.from, span.to);
+      return;
+    }
     this.routePick = { start: null, busy: false };
     this.overlay?.setRouteMode(true);
     this.showToast(this.i18n.t('route.pickStart'));
+  }
+
+  /**
+   * The endpoints of the selected span, when there is one to route inside.
+   *
+   * `null` means "the whole active leg", which is the behaviour every existing
+   * caller and the e2e journey rely on.
+   */
+  private selectedSpan(): { from: LonLat; to: LonLat; fromIndex: number; toIndex: number } | null {
+    const trip = this.session?.trip;
+    const selection = this.editorUi.selection;
+    if (!trip || !selection || selection.to === null) return null;
+    const leg = findLeg(trip, selection.legId);
+    if (!leg) return null;
+    const fromIndex = Math.min(selection.from, selection.to);
+    const toIndex = Math.max(selection.from, selection.to);
+    const first = leg.points[fromIndex];
+    const last = leg.points[toIndex];
+    if (!first || !last) return null;
+    return {
+      from: { lon: first.lon, lat: first.lat },
+      to: { lon: last.lon, lat: last.lat },
+      fromIndex,
+      toIndex,
+    };
   }
 
   private cancelRoute(): void {
@@ -2215,16 +2246,26 @@ export class App {
     const session = this.session;
     const trip = session?.trip;
     if (!session || !trip) return;
-    const leg = findLeg(trip, this.editorUi.activeLegId) ?? trip.legs[0];
+    const selection = this.editorUi.selection;
+    const selectedLeg = selection ? findLeg(trip, selection.legId) : undefined;
+    const spanless = selection === null || selection?.to === null;
+    const leg = spanless ? findLeg(trip, this.editorUi.activeLegId) ?? trip.legs[0] : selectedLeg;
     if (!leg) {
       this.failRoute('network-unavailable', null);
       return;
     }
+    // Span-scoped when a span is selected: routing inside a leg must not rewrite
+    // the parts of it the user did not select.
+    const from = selection && selection.to !== null ? Math.min(selection.from, selection.to) : 0;
+    const to =
+      selection && selection.to !== null
+        ? Math.max(selection.from, selection.to)
+        : leg.points.length - 1;
     const applied = session.apply({
       type: 'replace-span',
       legId: leg.id,
-      from: 0,
-      to: leg.points.length - 1,
+      from,
+      to,
       points: result.points,
       snapped: true,
       provenance: [

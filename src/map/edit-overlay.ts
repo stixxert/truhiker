@@ -233,6 +233,7 @@ export class EditOverlay {
   setMode(mode: InteractionMode): void {
     this.mode = mode;
     this.drag = null;
+    this.clearDragPreview();
     this.hideSnapPreview();
     this.updateDraft(null);
     this.deps.onSnapIndicator(null, false);
@@ -442,7 +443,13 @@ export class EditOverlay {
     const point: LonLat = { lon: event.lngLat.lng, lat: event.lngLat.lat };
     if (this.drag) {
       this.previewPoint = point;
-      this.showSnapPreview(point);
+      const snapped = this.deps.isSnapping() ? this.deps.snap(point) : null;
+      const target = snapped ? snapped.snappedPoint : point;
+      this.showSnapPreview(target);
+      // Show the shape the leg is about to take: the two segments either side of the
+      // dragged vertex, following the snapped position. Without it a drag was blind
+      // until release — the same problem the draw preview exists to solve.
+      this.updateDragPreview(this.drag, target);
       return;
     }
     if (this.mode !== 'draw' && this.mode !== 'edit') return;
@@ -462,6 +469,7 @@ export class EditOverlay {
     if (!this.drag) return;
     const drag = this.drag;
     this.drag = null;
+    this.clearDragPreview();
     this.map.dragPan.enable();
     const point = this.previewPoint;
     this.previewPoint = null;
@@ -474,6 +482,7 @@ export class EditOverlay {
   private onMouseLeave = (): void => {
     this.hideSnapPreview();
     this.updateDraft(null);
+    if (this.drag) this.clearDragPreview();
     if (!this.drag) this.deps.onSnapIndicator(null, false);
   };
 
@@ -523,6 +532,45 @@ export class EditOverlay {
           ]
         : [],
     });
+  }
+
+  /**
+   * The two segments a vertex drag would produce, drawn on the draft layer.
+   *
+   * One layer, two uses: the segment a *click* would commit, and the shape a
+   * *drag* would commit. They are never live at the same time (a drag has no
+   * anchor), so they share the source rather than doubling the overlay's state.
+   */
+  private updateDragPreview(drag: { legId: string; index: number }, target: LonLat): void {
+    const source = this.map.getSource(SOURCE_DRAFT);
+    if (!source || !('setData' in source)) return;
+    const leg = findLeg(this.deps.getTrip(), drag.legId);
+    if (!leg) return;
+    const points = leg.points;
+    const before = points[drag.index - 1];
+    const after = points[drag.index + 1];
+    const features: Array<GeoJSON.Feature<GeoJSON.LineString>> = [];
+    for (const neighbour of [before, after]) {
+      if (!neighbour) continue;
+      features.push({
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [neighbour.lon, neighbour.lat],
+            [target.lon, target.lat],
+          ],
+        },
+      });
+    }
+    (source as GeoJSONSource).setData({ type: 'FeatureCollection', features });
+  }
+
+  private clearDragPreview(): void {
+    const source = this.map.getSource(SOURCE_DRAFT);
+    if (!source || !('setData' in source)) return;
+    (source as GeoJSONSource).setData({ type: 'FeatureCollection', features: [] });
   }
 
   private onCameraChange = (): void => {

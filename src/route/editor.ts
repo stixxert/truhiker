@@ -148,7 +148,8 @@ export function applyCommand(
       const leg = trip.legs[legIndex];
       assertIndex(command.index, 0, leg.points.length, `insert into leg '${leg.id}'`);
       const point = assertRoutePoint(command.point, 'insert: point');
-      const points = [...leg.points.slice(0, command.index), point, ...leg.points.slice(command.index)];
+      const placed: RoutePoint = command.snapped === true ? { ...point, snapped: true } : point;
+      const points = [...leg.points.slice(0, command.index), placed, ...leg.points.slice(command.index)];
       assertMinPoints(points, leg.id, 'insert');
       const inserted = edited(recomputeLeg({ ...leg, points }));
       // A drawn point that snapped to a trail says so. This is the flow that used
@@ -166,7 +167,7 @@ export function applyCommand(
       assertIndex(command.index, 0, leg.points.length - 1, `move on leg '${leg.id}'`);
       const point = assertRoutePoint(command.point, 'move: point');
       const points = leg.points.slice();
-      points[command.index] = point;
+      points[command.index] = command.snapped ? { ...point, snapped: true } : point;
       return commit(legIndex, edited(recomputeLeg({ ...leg, points })));
     }
 
@@ -266,9 +267,11 @@ export function applyCommand(
           `replace-span on leg '${leg.id}': to (${command.to}) is before from (${command.from})`,
         );
       }
-      const replacement = command.points.map((point, index) =>
-        assertRoutePoint(point, `replace-span: points[${index}]`),
-      );
+      const replacement = command.points.map((point, index) => {
+        const asserted = assertRoutePoint(point, `replace-span: points[${index}]`);
+        // A snapped span places its vertices on a trail, so each one records it.
+        return command.snapped ? { ...asserted, snapped: true } : asserted;
+      });
       const points = [
         ...leg.points.slice(0, command.from),
         ...replacement,

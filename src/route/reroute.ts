@@ -150,11 +150,20 @@ function stretchToPoints(
   });
 }
 
-/** A single snapped vertex: new position, elevation untouched. */
+/** A single snapped vertex: new position, elevation untouched, and marked snapped. */
 function snappedVertex(original: RoutePoint, snap: SnapResult): RoutePoint {
-  const point: { lon: number; lat: number; ele?: number; eleSource?: ElevationSource } = {
+  const point: {
+    lon: number;
+    lat: number;
+    ele?: number;
+    eleSource?: ElevationSource;
+    snapped?: boolean;
+  } = {
     lon: snap.snappedPoint.lon,
     lat: snap.snappedPoint.lat,
+    // Per-vertex provenance (D5): this vertex is on a trail, and the ones the
+    // re-snap could not place are not — a leg-level flag could not say that.
+    snapped: true,
   };
   if (original.ele !== undefined) point.ele = original.ele;
   if (original.eleSource !== undefined) point.eleSource = original.eleSource;

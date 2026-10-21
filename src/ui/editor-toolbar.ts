@@ -184,16 +184,20 @@ export class EditorToolbar {
     this.redo.disabled = !model.available || !model.canRedo;
 
     const showActions = model.available && model.mode === 'edit';
-    // Show only what applies to the current selection. A row of greyed-out verbs
-    // is a menu the user has to read; a toolbar shows the three things that can
-    // be done now. The enable rules still come from `availableCommands()`.
+    // Routing belongs to drawing as much as to editing: "route along the trail"
+    // is what a hiker wants while placing points, and it used to be reachable only
+    // after switching mode. Span re-snapping still needs a span, so it stays in
+    // edit. A row of greyed-out verbs is a menu the user has to read; a toolbar
+    // shows the things that can be done now — the enable rules still come from
+    // `availableCommands()`.
+    const showRouting = model.available && (model.mode === 'edit' || model.mode === 'draw');
     let visibleActions = 0;
     for (const [action, flag] of Object.entries(ACTION_FLAGS) as Array<
       [keyof typeof ACTION_FLAGS, keyof CommandAvailability]
     >) {
       const button = this.actionButtons.get(action);
       if (!button) continue;
-      const enabled = showActions && model.commands[flag];
+      const enabled = (action === 'route' ? showRouting : showActions) && model.commands[flag];
       button.disabled = !enabled;
       button.hidden = !enabled;
       if (enabled) visibleActions += 1;

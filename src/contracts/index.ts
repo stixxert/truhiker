@@ -18,6 +18,14 @@ export interface RoutePoint extends LonLat {
   /** Metres above sea level. Absent/undefined is distinct from 0. */
   readonly ele?: number;
   readonly eleSource?: ElevationSource;
+  /**
+   * This vertex landed on a mapped trail (D5).
+   *
+   * Per vertex, not per leg: a leg with one snapped corner and three invented ones
+   * is not a snapped leg, and the leg-level `snapped` marker alone said it was.
+   * Absent means "not known to be on a trail" — never "off trail".
+   */
+  readonly snapped?: boolean;
 }
 
 /** How a leg came to exist. Shown in the UI; never omitted. */
@@ -108,7 +116,14 @@ export type EditCommand =
        */
       readonly snapped?: boolean;
     }
-  | { readonly type: 'move'; readonly legId: string; readonly index: number; readonly point: RoutePoint }
+  | {
+      readonly type: 'move';
+      readonly legId: string;
+      readonly index: number;
+      readonly point: RoutePoint;
+      /** The vertex was dropped onto a trail (D5). */
+      readonly snapped?: boolean;
+    }
   | { readonly type: 'delete-vertex'; readonly legId: string; readonly index: number }
   | { readonly type: 'delete-leg'; readonly legId: string }
   | { readonly type: 'split-leg'; readonly legId: string; readonly index: number }

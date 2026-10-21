@@ -50,7 +50,10 @@ step("typecheck", () => {
   return "clean";
 });
 
-const TEST_BUDGET = 280;
+// Raised from 280 when trail drawing/snapping gained its own coverage (per-point
+// provenance, the trail-following step, span routing). The budget exists to stop
+// suites growing by accident, not to be a ceiling on a feature's acceptance tests.
+const TEST_BUDGET = 320;
 const TEST_WALL_BUDGET_MS = 12_000;
 
 if (!skipTests) {

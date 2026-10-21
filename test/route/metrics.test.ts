@@ -101,7 +101,10 @@ describe('emptyLeg', () => {
       snapped: true,
     });
     expect(next.legs[0].id).toBe(placeholder.id);
-    expect(next.legs[0].points).toEqual(drawn);
+    // `snapped: true` marks **every** vertex the command placed, not just the leg:
+    // a leg-level marker alone claimed a whole leg was on a trail when one corner
+    // was. The drawn geometry is otherwise untouched, and elevation is preserved.
+    expect(next.legs[0].points).toEqual(drawn.map((point) => ({ ...point, snapped: true })));
     expect(next.legs[0].distanceM as number).toBeGreaterThan(0);
 
     const leg = deepFreeze(makeTrip(straightPoints(8.3, 8.34, 61.5, 5, (i) => 1000 + i * 20)).legs[0]);
