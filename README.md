@@ -53,7 +53,7 @@ points. Nothing else is copied or re-hosted.
 Node 22 or newer.
 
 ```bash
-npm install
+npm ci                 # installs exactly what package-lock.json pins
 npm run dev            # http://localhost:5173
 ```
 

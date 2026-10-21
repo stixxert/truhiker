@@ -45,6 +45,14 @@ function run(cmd, args) {
 
 console.log("\nverify — integration gate\n");
 
+step("preflight", () => {
+  // Dependencies and generated data, before anything tries to use them: the
+  // alternative is Vite's ENOENT on node_modules/.vite-temp, which names a temp
+  // directory instead of the cause.
+  run("node", ["tools/preflight.mjs"]);
+  return "dependencies + data present";
+});
+
 step("typecheck", () => {
   run("npx", ["tsc", "--noEmit"]);
   return "clean";
