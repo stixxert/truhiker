@@ -72,7 +72,10 @@ if (!skipTests) {
       "vitest",
       "run",
       "--exclude",
-      "**/*.live.test.ts",
+      // `*.live.test.ts` also matches `test/weather/live.test.ts`; the old glob did
+      // not, so that file was collected and skipped here while `npm test` excluded
+      // it — two different numbers for the same suite.
+      "**/*live.test.ts",
       "--reporter=json",
       "--outputFile=.vitest-report.json",
     ]);
