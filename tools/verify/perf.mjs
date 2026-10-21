@@ -83,12 +83,17 @@ const metrics = await page.evaluate(() => {
     transferKB: Math.round(scripts.reduce((sum, r) => sum + (r.transferSize || 0), 0) / 1024),
   };
 });
+// "Interactive" means the map is usable, not that a route has been loaded: the app
+// boots to an empty state (D26), and requiring a stat with a number made this probe
+// wait for something that only appears after an import.
 const interactive = await page
   .waitForFunction(
     () => {
       const canvas = document.querySelector('canvas.maplibregl-canvas');
-      const stat = [...document.querySelectorAll('.stat-value')].some((el) => /\d/.test(el.textContent ?? ''));
-      return !!canvas && canvas.width > 0 && stat;
+      const emptyState = document.querySelector('#empty-state');
+      const routeName = document.querySelector('.route-name')?.textContent?.trim() ?? '';
+      const rendered = (emptyState !== null && !emptyState.hidden) || routeName.length > 0;
+      return !!canvas && canvas.width > 0 && rendered;
     },
     { timeout: BUDGET.interactiveMs + 4000 },
   )

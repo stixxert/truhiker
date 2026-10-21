@@ -95,7 +95,7 @@ export interface ResupplyGap {
   readonly distanceM: number;
   readonly days: number;
   readonly foodKg: number;
-  /** Stop ids. They are not human names — see the review note in docs/14. */
+  /** Stop ids. They are not human names — they are opaque ids, not labels. */
   readonly fromId: string;
   readonly toId: string;
   readonly exceedsMaxCarry: boolean;

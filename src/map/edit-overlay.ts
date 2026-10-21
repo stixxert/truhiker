@@ -209,6 +209,10 @@ export class EditOverlay {
     map.on('click', this.onClick);
     map.on('mousemove', this.onMouseMove);
     map.on('mouseup', this.onMouseUp);
+    // The map's own mouseup only fires over the canvas; a release anywhere else
+    // (the dock, another window) must still end a vertex drag and re-enable panning.
+    window.addEventListener('pointerup', this.onWindowRelease);
+    window.addEventListener('blur', this.onWindowRelease);
     map.on('mouseout', this.onMouseLeave);
     map.on('mousedown', LAYER_HANDLES, this.onHandleDown);
     map.on('dblclick', this.onDoubleClick);
@@ -222,6 +226,7 @@ export class EditOverlay {
   // -------------------------------------------------------------------------
 
   setEnabled(enabled: boolean): void {
+    if (!enabled) this.cancelDrag();
     this.enabled = enabled;
     this.updateCursor();
     if (!enabled) {
@@ -232,8 +237,7 @@ export class EditOverlay {
 
   setMode(mode: InteractionMode): void {
     this.mode = mode;
-    this.drag = null;
-    this.clearDragPreview();
+    this.cancelDrag();
     this.hideSnapPreview();
     this.updateDraft(null);
     this.deps.onSnapIndicator(null, false);
@@ -256,7 +260,7 @@ export class EditOverlay {
   /** Pick two endpoints for a route; clicks stop editing the trip. */
   setRouteMode(active: boolean): void {
     this.routeMode = active;
-    this.drag = null;
+    this.cancelDrag();
     this.hideSnapPreview();
     this.deps.onSnapIndicator(null, false);
     if (!active) this.setRoutePick(null, null);
@@ -303,6 +307,9 @@ export class EditOverlay {
 
   dispose(): void {
     if (!this.installed) return;
+    this.cancelDrag();
+    window.removeEventListener('pointerup', this.onWindowRelease);
+    window.removeEventListener('blur', this.onWindowRelease);
     this.map.off('click', this.onClick);
     this.map.off('mousemove', this.onMouseMove);
     this.map.off('mouseup', this.onMouseUp);
@@ -465,18 +472,56 @@ export class EditOverlay {
     this.deps.onSnapIndicator(snap, true);
   };
 
-  private onMouseUp = (): void => {
-    if (!this.drag) return;
+  /**
+   * End a vertex drag wherever the pointer was released.
+   *
+   * `onMouseUp` is bound to the canvas, so releasing outside it (over the dock, the
+   * browser chrome, another window) used to leave `dragPan` disabled for the rest
+   * of the session — the map simply stopped panning, with no error and no way back
+   * but a reload. This is also called from mode changes, route-pick, disabling and
+   * dispose, so every exit re-enables panning.
+   */
+  /**
+   * Abandon a drag: no command, panning restored.
+   *
+   * Escape, a mode switch or disabling the editor must not *commit* the vertex
+   * where the pointer happens to be — the user asked to stop, not to move it.
+   */
+  private cancelDrag(): void {
+    this.drag = null;
+    this.previewPoint = null;
+    this.clearDragPreview();
+    this.hideSnapPreview();
+    this.map.dragPan.enable();
+  }
+
+  /** Commit a drag at the pointer's last position (or where it was released). */
+  private endDrag(releaseAt: LonLat | null): void {
+    if (!this.drag) {
+      this.map.dragPan.enable();
+      return;
+    }
     const drag = this.drag;
     this.drag = null;
     this.clearDragPreview();
     this.map.dragPan.enable();
-    const point = this.previewPoint;
+    const point = releaseAt ?? this.previewPoint;
     this.previewPoint = null;
     this.hideSnapPreview();
     if (!point) return;
     const snap = this.deps.snap(point);
     this.deps.onMoveVertex(drag.legId, drag.index, snap ? snap.snappedPoint : point, snap);
+  }
+
+  private onMouseUp = (event: MapMouseEvent): void => {
+    if (!this.drag) return;
+    this.endDrag({ lon: event.lngLat.lng, lat: event.lngLat.lat });
+  };
+
+  /** Pointer released outside the map: finish the drag where it was last seen. */
+  private onWindowRelease = (): void => {
+    if (!this.drag) return;
+    this.endDrag(null);
   };
 
   private onMouseLeave = (): void => {

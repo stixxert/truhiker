@@ -29,7 +29,7 @@ Live sources, all CORS-enabled and called directly by the browser:
 | `api.met.no` | weather | 4-decimal coordinates, `Origin` identifies us |
 
 One bundled data set: an OpenStreetMap extract of resupply points (ODbL), because every
-live alternative measured 40 s+ or was prohibited. It is **generated at build time**
+live alternative measured 38.2 s or was prohibited. It is **generated at build time**
 by `tools/ensure-data.mjs` — from the Geofabrik PBF when one is available, otherwise
 from a verified local or published copy — and it is never committed (D24);
 `tools/data-manifest.json` is the committed pin (SHA-256, size, counts, source
@@ -54,6 +54,8 @@ requires.
 | `ui` / `app` / `map` | panels, dialogs, MapLibre integration |
 | `i18n` | typed NO/EN dictionaries, `Intl` formatting |
 | `workers` | the DEM sampling worker |
+| `contracts` | the document types every other module implements: `Trip`, `Leg`, `RoutePoint`, `EditCommand`, `Provenance` |
+| `lib` | the glue the layers share: route geometry, elevation client, share encoding, GPX metadata, chart, cross-tab sync, format, ids |
 
 ## Invariants
 
@@ -66,6 +68,8 @@ These are enforced in code and pinned by tests, not just described:
 5. Snapping never bridges two trails that do not connect.
 6. A stale write cannot mark a different, newer trip as saved.
 7. Every shipped file has a licence entry; every live source has an attribution.
+   An asset that matches no rule is reported as a *warning* by the licence audit,
+   and `docs/LICENSES.md` is the list it has to agree with.
 8. A route is returned only when the fetched trail graph connects the endpoints;
    nothing is bridged and no straight line is substituted.
 
@@ -111,22 +115,30 @@ test, and Chromium is the only engine available here (see Known limits).
 Measured by `npm run perf` under throttled Slow 4G (200 kb/s, 150 ms RTT) through
 a compressing server, which is what Cloudflare serves:
 
-| Metric | Budget | Measured |
+| Metric | Budget | Measured (2026-10-21) |
 | --- | ---: | ---: |
-| First contentful paint | < 1 500 ms | **592 ms** |
-| Map interactive (canvas + a numeric stat) | < 8 000 ms | **5 195 ms** |
-| JS + CSS transfer | < 500 KB | **408 KB** |
+| First contentful paint | < 1 500 ms | **608 ms** |
+| Map interactive (canvas + the empty state) | < 8 000 ms | **6 094 ms** |
+| JS transfer | < 500 KB | **425 KB** |
 
-MapLibre is roughly 85 % of that transfer; it is the renderer and the 3D terrain.
-The gate fails if any of the three regresses.
+MapLibre is roughly 75 % of that transfer; it is the renderer and the 3D terrain.
+
+**`perf` is not a step of `npm run verify`**: it needs the live tile hosts, and the
+gate is hermetic apart from the browser gates' four tolerated origins. It is run by
+hand before a release (`npm run perf`), which means a regression is caught by the
+release checklist, not by the gate. The budgets above are enforced *by that run* —
+the numbers are a measurement, not a promise. (The "interactive" predicate used to
+require a numeric stat, which no longer exists before an import; it now waits for
+the canvas and the empty state, which is what a first visit actually shows.)
 
 ## Deployment
 
 Cloudflare Workers **Static Assets** only: `wrangler.jsonc` has no `main`.
 Static-asset requests are free and unlimited; there is no dynamic budget to
-exhaust. Bundle: 19 files, ~0.59 MB brotli, against a 20,000-file ceiling.
+exhaust. Bundle: 18 files, ~605 KB brotli against a 620 KB gate and a
+20,000-file ceiling — 15 KB of headroom, not room.
 
-`npm run verify` runs the gate: typecheck, hermetic tests (≤280 cases, ≤12 s),
+`npm run verify` runs the gate: preflight, typecheck, hermetic tests (≤320 cases, ≤12 s),
 build, bundle budget, a headless render and an end-to-end journey under workerd
 with the production CSP, an axe and keyboard accessibility audit, a blocked-network
 failure-path run, licence audit and hosting contract.

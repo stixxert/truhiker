@@ -607,7 +607,7 @@ export function pandolfKcalPerHour(input: {
 }
 
 /**
- * Santee/USARIEM walking equation (kcal/h), as specified in docs/01 §D8.
+ * Santee/USARIEM walking equation (kcal/h), per D10.
  *
  *   level = (3.28 × mTotal + 71.1) × (V / 1.33)
  *   uphill   + 3.5 × mTotal × g × h

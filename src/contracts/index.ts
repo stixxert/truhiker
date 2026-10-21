@@ -141,7 +141,7 @@ export type EditCommand =
       readonly provenance?: readonly Provenance[];
     }
   /**
-   * Merge `withLegId` into `legId` and remove it. Required by `docs/09` §2:
+   * Merge `withLegId` into `legId` and remove it. It is what makes split→merge lossless (D21):
    * every documented edit must be a command, and split→merge must be lossless.
    */
   | { readonly type: 'merge-legs'; readonly legId: string; readonly withLegId: string };

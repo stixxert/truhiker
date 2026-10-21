@@ -1,7 +1,7 @@
 /**
  * The energy panel, as data.
  *
- * Two rules from `docs/DECISIONS.md` D10 and `docs/13` §2 shape everything here:
+ * Two rules from `docs/DECISIONS.md` D10 shape everything here:
  *
  *  1. **A range, never a point estimate.** The band is TDEE × 0.75 … × 1.30.
  *     The midpoint is shown only *with* the band, labelled as the model's

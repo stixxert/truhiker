@@ -19,7 +19,7 @@ import type { SnapIndex } from '../snap';
 import type { TripStoreLike } from '../store/types';
 
 /**
- * Weather cache contract, as specified in docs/09 §7. Declared structurally
+ * Weather cache contract, as specified in D4 and D7. Declared structurally
  * here so this file does not import `src/weather`.
  */
 export interface WeatherCacheLike {

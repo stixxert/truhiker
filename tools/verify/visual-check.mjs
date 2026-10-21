@@ -574,17 +574,55 @@ async function checkViewport(browser, viewport, expectedHeaders) {
         waitUntil: 'domcontentloaded',
         timeout: NAV_TIMEOUT_MS,
       });
-      // The app ships no sample route (D26), so the render gate imports one: the
-      // stats panel is only meaningful with a route, and this also exercises the
-      // import path under the real CSP.
-      await page.setInputFiles('#file-input', ROUTE_FIXTURE);
     } catch (error) {
       throw new GateFailure(
         viewport,
-        [{ assertion: 'navigation', detail: error instanceof Error ? error.message : String(error) }],
+        [{ assertion: 'navigation', detail: error instanceof Error ? error.message : String(error), entries: [] }],
         observed,
       );
     }
+
+    // The first screen is now the empty state (D26), and it is the screen most
+    // visitors ever see — so it is asserted before a route is imported, which no
+    // other gate does.
+    // It appears once boot finishes (the app decides there is no route to open),
+    // so wait for it rather than sampling one frame after DOMContentLoaded.
+    await page
+      .waitForFunction(
+        () => {
+          const empty = document.querySelector('#empty-state');
+          return !!empty && !empty.hidden;
+        },
+        { timeout: 15_000 },
+      )
+      .catch(() => {});
+    const firstScreen = await page.evaluate(() => {
+      const empty = document.querySelector('#empty-state');
+      const cta = document.querySelector('#btn-empty-new');
+      const ctaBox = cta?.getBoundingClientRect();
+      return {
+        emptyShown: !!empty && !empty.hidden,
+        cta: cta?.textContent?.trim() ?? null,
+        ctaVisible: !!ctaBox && ctaBox.width > 0 && ctaBox.height > 0,
+      };
+    });
+    if (!firstScreen.emptyShown || !firstScreen.ctaVisible || !firstScreen.cta) {
+      throw new GateFailure(
+        viewport,
+        [
+          {
+            assertion: 'empty state',
+            detail: `first screen: empty=${firstScreen.emptyShown} cta="${firstScreen.cta ?? ''}" visible=${firstScreen.ctaVisible}`,
+            entries: [],
+          },
+        ],
+        observed,
+      );
+    }
+
+    // Then import a route: the stats panel is only meaningful with one, and this
+    // exercises the import path a real visitor takes, under the real CSP.
+    await page.setInputFiles('#file-input', ROUTE_FIXTURE);
 
     let state = await waitForReady(page);
     // Give late errors (tile aborts, async failures) a moment to surface.

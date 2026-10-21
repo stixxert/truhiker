@@ -67,4 +67,6 @@ console.log(
   `\nJS budget: ${status} — ${(jsTotals.gzip / 1024).toFixed(1)} KiB gzip ` +
     `/ ${(jsTotals.brotli / 1024).toFixed(1)} KiB brotli of ${(budget / 1024).toFixed(0)} KiB`,
 );
-process.exitCode = jsTotals.gzip <= budget ? 0 : 1;
+// Decide on the same number the status line prints. It used to exit on gzip while
+// reporting brotli, so an otherwise-passing run exited 1 (observed twice).
+process.exitCode = jsTotals.brotli <= budget ? 0 : 1;

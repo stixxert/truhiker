@@ -13,7 +13,7 @@
   // Re-add a Worker ONLY when something genuinely needs server-side execution:
   // a secret we cannot ship to the browser, or traffic high enough that MET asks
   // us to proxy (their terms permit low-volume browser requests identified by
-  // Origin — see docs/notes/08-corrections.md). Neither applies today.
+  // Origin — see docs/ARCHITECTURE.md). Neither applies today.
   // The previous Worker entry point is preserved in git history and is roughly
   // 80 lines; the trigger above is the reason to bring it back.
   "assets": {

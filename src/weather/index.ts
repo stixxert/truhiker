@@ -92,6 +92,16 @@ interface WeatherDeps {
   concurrency?: number;
 }
 
+/**
+ * Hard ceiling on one MET request.
+ *
+ * `fetch` has no default timeout: against a MET that accepts the connection and
+ * never answers, the weather plan waited for the browser's own timeout — minutes
+ * of "Henter varsel …" with no way out. Every other live client in this app has a
+ * timeout; this one did not.
+ */
+const MET_REQUEST_TIMEOUT_MS = 15_000;
+
 const DEFAULT_MAX_POINTS = 40;
 const DEFAULT_CONCURRENCY = 2;
 
@@ -465,7 +475,9 @@ export async function planTripWeather(
     const probePoint = probeKey !== undefined ? uniquePoints.get(probeKey) : undefined;
     if (probeKey !== undefined && probePoint) {
       try {
-        const response = await fetchImpl(buildForecastUrl(probePoint));
+        const response = await fetchImpl(buildForecastUrl(probePoint), {
+          signal: AbortSignal.timeout(MET_REQUEST_TIMEOUT_MS),
+        });
         if (!response.ok) throw new Error(`HTTP ${response.status} from MET Locationforecast`);
         const body: unknown = await response.json();
         const expiresAt = cacheExpiry(response, nowMs);
@@ -515,7 +527,9 @@ export async function planTripWeather(
         try {
           if (!point) throw new Error(`internal: no point for cache key ${key}`);
           const url = buildForecastUrl(point);
-          const response = await fetchImpl(url);
+          const response = await fetchImpl(url, {
+            signal: AbortSignal.timeout(MET_REQUEST_TIMEOUT_MS),
+          });
           if (!response.ok) {
             throw new Error(`HTTP ${response.status} from MET Locationforecast`);
           }

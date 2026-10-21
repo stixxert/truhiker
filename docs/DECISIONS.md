@@ -27,8 +27,10 @@ three days of food is not.
 
 **Default: assume closed unless the data says open.**
 
-- `opening_hours` is present for 75.5 % of Norwegian groceries, 96.3 % of
-  supermarkets, 39.5 % of fuel stations. Absence is shown as **unverified**, not
+- `opening_hours` is present for **97.2 % of supermarkets, 75.0 % of groceries,
+  42.8 % of convenience stores, 40.7 % of fuel stations, 98.5 % of post offices**
+  — 76.9 % overall, 6 594 of 8 571 records (measured from the shipped extract's
+  own provenance, `data/shops.osm.json`). Absence is shown as **unverified**, not
   as "open".
 - Sunday: Norwegian law closes fixed retail; small shops (≤100 m²) and fuel
   stations (≤150 m²) may open. The app treats a shop as Sunday-open only when its
@@ -618,9 +620,11 @@ not the build notes. The pin is `tools/data-manifest.json`.**
   the source URL and extract date, not the PBF's own hash.
 - **What is *not* an artefact.** Sourced fixtures are inputs and stay committed:
   the route fixture (`test/fixtures/memurubu-glitterheim-jot21.gpx`, CC BY 4.0
-  Turrutebasen — formerly the bundled demo, D26) and the other test fixtures (a
-  captured DEM window, three GPX files). They are hand-picked inputs with their own
-  licence entries, not outputs of a build.
+  Turrutebasen — formerly the bundled demo, D26) and the other test fixtures: a
+  captured Kartverket DEM window (`galdhopiggen-128.tif`), a captured Turrutebasen
+  WFS response (`huts-wfs.xml`), and two small GPX files. They are hand-picked
+  inputs with their own licence entries in `docs/LICENSES.md`, not outputs of a
+  build.
 - **History, because it matters.** This was decided once before (`c9e889c`:
   release asset + SHA-256 manifest + `tools/fetch-data.mjs`) and reverted silently
   inside a commit about security headers (`bf71ca4`), which re-added the 175 KB
@@ -700,7 +704,8 @@ primary action starts a new route.**
   needs no migration and has none. `ProvenanceKind` lost `'demo'` too; the store's
   reader keeps only known kinds — generic schema validation that predates this
   change and would drop *any* unrecognised marker — so an old trip loses that one
-  marker and nothing else. Nothing in the codebase mentions the demo any more.
+  marker and nothing else. No demo behaviour remains (`grep -rn demo src/` finds
+  only the word "demoted" in a CSS comment).
 - **The share link** no longer has a `#demo` form: a shared route is the encoded
   route, as it always was for imports and drawings.
 

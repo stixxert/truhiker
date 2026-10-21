@@ -310,7 +310,11 @@ describe('planTripWeather — one request per unique rounded point', () => {
 
     // No headers at all: no User-Agent (browsers cannot set it), no
     // If-Modified-Since (it would trigger a preflight MET does not support).
-    expect(init).toBeUndefined();
+    // The only option is the timeout — a MET that accepts and never answers used
+    // to hang the plan until the browser's own timeout.
+    expect(init).toBeDefined();
+    expect(init?.headers).toBeUndefined();
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
 
     // Truncation, not rounding: 61.636399 must not become 61.6364.
     const rounding = fakeFetch(() => seriesResponse());

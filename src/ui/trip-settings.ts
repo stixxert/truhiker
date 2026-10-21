@@ -2,7 +2,7 @@
  * Trip settings dialog: body, pack, pace, start date, support model.
  *
  * The dialog states plainly that these are the user's numbers, not defaults
- * assumed about them (docs/09 §0–§4). Validation comes from `settings-view.ts`;
+ * assumed about them (D8, D9; see `docs/DECISIONS.md`). Validation comes from `settings-view.ts`;
  * this file only moves values in and out of the form and renders the errors
  * next to a list labelled with the field name.
  */

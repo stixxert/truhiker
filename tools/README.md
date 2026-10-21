@@ -28,6 +28,20 @@ the build. Agent process rules live in `AGENTS.md` as prose, not as executable
 checks: a gate that fails because a document is formatted a certain way is
 ceremony, and it belongs to the agent's workflow, not to the repository.
 
+| Tool | What it is for | Run by |
+| --- | --- | --- |
+| `preflight.mjs` | fails with an instruction when `node_modules` or `data/` is missing, instead of Vite's `ENOENT … .vite-tmp` | `dev`, `build`, `test`, `verify` |
+| `ensure-data.mjs` | produces the data artefact from a PBF, or verifies a local/published copy against `data-manifest.json` | `build` |
+| `data-manifest.json` | the committed pin: sha256, bytes, counts, source date (D24) | `ensure-data`, `verify` |
+| `build-shops.mjs` / `inspect-shops.mjs` | rebuild and inspect the resupply extract | `data:build`, `refresh-shops.sh` |
+| `refresh-shops.sh` | download the PBF and rebuild + verify it (what the deploy container runs, D23) | `npm run refresh:shops` |
+| `verify/*.mjs` | the gate steps (render, e2e, a11y, failure paths, budgets, licences, hosting) | `npm run verify` |
+| `verify/import-route.mjs` | hands a gate the route fixture through the real file input — the app ships no sample (D26) | e2e, a11y, visual-check, failure-paths |
+
+`npm run size` (bundle-size.mjs) and `npm run perf` are **not** steps of
+`npm run verify`: the dist budget is enforced by the gate, the *JS* budget and the
+timing budgets are checked when you run them by hand.
+
 The resupply data (`data/shops.osm.bin`, 175 KB) is a **build output**, not a
 committed file (D24): `tools/ensure-data.mjs` produces it during `npm run build`,
 from the Geofabrik PBF when one is available and otherwise from a verified local or

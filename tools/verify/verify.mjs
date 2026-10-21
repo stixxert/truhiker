@@ -161,7 +161,12 @@ step("dist budget", () => {
       `large non-code assets (${suspicious.map((r) => `${r.f} ${mb(r.raw)}`).join(", ")}) — bundled data needs justifying`,
     );
   }
-  const jsBr = rows.filter((r) => r.f.endsWith('.js')).reduce((s, r) => s + r.b, 0);
+  // `.mjs` too: the MapLibre worker is 118 KB brotli, and leaving it out made this
+  // gate read 353.8 KB for a payload that is 472.5 KB — the budget looked roomier
+  // than it was by exactly the file nobody thinks about.
+  const jsBr = rows
+    .filter((r) => r.f.endsWith('.js') || r.f.endsWith('.mjs'))
+    .reduce((s, r) => s + r.b, 0);
   if (jsBr > 500 * 1024) problems.push(`JS brotli ${kb(jsBr)} exceeds the 500 KB budget`);
   if (br > 620 * 1024) problems.push(`total brotli ${kb(br)} exceeds the 620 KB bundle budget`);
 
@@ -241,6 +246,13 @@ step("licence audit", () => {
   return out.trim().split("\n").pop();
 });
 
+step("served headers", () => {
+  // workerd's own cache policy, per path — a source-text test cannot see the
+  // multi-pattern `_headers` rule that silently served JS uncached.
+  const out = run("node", ["tools/verify/served-headers.mjs"]);
+  return out.trim().split("\n").pop();
+});
+
 step("hosting contract", () => {
   const problems = [];
 
@@ -259,7 +271,7 @@ step("hosting contract", () => {
   //    budget for no benefit. Fail if one is reintroduced without updating the docs.
   const wrangler = readFileSync(join(ROOT, "wrangler.jsonc"), "utf8");
   if (/"main"\s*:/.test(wrangler)) {
-    problems.push("wrangler.jsonc declares a Worker `main` — the app is static-only; justify it in docs/07 first");
+    problems.push("wrangler.jsonc declares a Worker `main` — the app is static-only; justify it in docs/DECISIONS.md first");
   }
   if (!/"directory"\s*:\s*"\.\/dist"/.test(wrangler)) problems.push("wrangler.jsonc assets.directory is not ./dist");
 

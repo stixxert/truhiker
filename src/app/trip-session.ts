@@ -354,8 +354,8 @@ export class TripSession {
 
   /**
    * Flush a pending autosave. Called on `pagehide`/`visibilitychange`: the
-   * browser may not give an async write time to finish, which is why
-   * `docs/ARCHITECTURE.md` still lists "an edit in the last second" as a loss.
+   * browser may not give an async write time to finish, so an edit made in the
+   * last moment before the tab closes can still be lost (a stated limit, D6).
    */
   async flush(): Promise<void> {
     await this.ready;

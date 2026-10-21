@@ -311,7 +311,8 @@ export const en: Record<MessageKey, string> = {
     'No trail was found within the radius. The span is unchanged and marked as outside a mapped trail.',
   'editor.selectHint':
     'Click a point to select it. Shift-click another point to select a span.',
-  'editor.drawHint': 'Click the map to add points. Double-click to finish.',
+  'editor.drawHint': 'Click the map to add points. Double-click, or Finish, ends the leg.',
+  'editor.finish': 'Finish',
   'editor.viewHint': 'Switch to Edit to move points, or Draw to add new ones.',
   'editor.engineMissing': 'Editing is unavailable in this build.',
   'editor.noTrip': 'There are no legs to edit.',
@@ -422,6 +423,7 @@ export const en: Record<MessageKey, string> = {
   'about.kartverket': 'Basemap and elevation: Kartverket (topo, DTM), CC BY 4.0.',
   'attrib.kartverket': '©Kartverket',
   'attrib.sentinel2': 'Copernicus Sentinel-2 · Kartverket',
+  'about.turrutebasen': 'Trails and huts: Kartverket Turrutebasen.',
   'about.sentinel2':
     'Aerial: Copernicus Sentinel-2 (2025), cloud-free mosaic processed by Kartverket. Open data.',
   'about.mapterhorn': '3D terrain: Mapterhorn, derived from Kartverket elevation data.',

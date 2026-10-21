@@ -1,23 +1,35 @@
 # Static assets on Cloudflare Workers.
 #
-# One block per concern, and every header appears in exactly ONE block:
-# Cloudflare concatenates duplicate header definitions across matching rules
-# (verified under `wrangler dev`: a header defined twice arrives as
-# "nosniff\nnosniff"). One definition per header, or the browser receives an
-# invalid multi-value response.
+# Two rules, both learned the hard way under `wrangler dev`:
+#
+# 1. **One pattern per block.** A block that lists several pattern lines applies
+#    its headers only to the *last* one; the earlier lines become rules with no
+#    headers. `/*.js`, `/*.mjs` and `/*.css` in one block therefore served JS
+#    revalidated on every visit (measured: `max-age=0, must-revalidate`) while CSS
+#    got `immutable`. Each pattern below has its own block.
+# 2. **One definition per header.** Cloudflare concatenates duplicate definitions
+#    across matching rules (`nosniff` arrived as "nosniff\nnosniff"), so the
+#    security headers live in a single `/*` block and nothing else redefines them.
+#
+# `tools/verify/served-headers.mjs` asserts the *served* result for each of these
+# paths under workerd, because a source-text test cannot see either rule.
 
-# HTML must never be cached immutably.
+# HTML must never be cached immutably. `/index.html` itself 307s to `/`, which is
+# matched by the `/*` rule below and is revalidated by the platform default.
 /index.html
   Cache-Control: public, max-age=0, must-revalidate
 
-# Data and the demo route: an hour is enough; both change with the deployment.
-/demo/*
+# Data changes only when the extract is refreshed (D23).
 /data/*
   Cache-Control: public, max-age=3600
 
-# Hashed build output: immutable for a year.
+# Hashed build output: immutable for a year. One block per pattern — see above.
 /*.js
+  Cache-Control: public, max-age=31536000, immutable
+
 /*.mjs
+  Cache-Control: public, max-age=31536000, immutable
+
 /*.css
   Cache-Control: public, max-age=31536000, immutable
 

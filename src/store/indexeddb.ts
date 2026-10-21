@@ -325,12 +325,13 @@ export function createIndexedDbTripStore(options: IndexedDbOptions = {}): Indexe
 
     async usage(): Promise<StorageUsage | null> {
       const result = await estimate();
-      // Absent figures are unknown, not zero (docs/12 §4): omit the line rather
+      // Absent figures are unknown, not zero (D15): omit the line rather
       // than print "0 MB used".
       if (!result || (result.usage === undefined && result.quota === undefined)) return null;
       return {
-        usedBytes: result.usage ?? 0,
-        quotaBytes: result.quota ?? 0,
+        // `null`, not 0: the view omits the row instead of printing "0 B used".
+        usedBytes: result.usage ?? null,
+        quotaBytes: result.quota ?? null,
         source: 'indexeddb',
       };
     },

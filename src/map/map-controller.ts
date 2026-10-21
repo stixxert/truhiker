@@ -899,7 +899,7 @@ export class MapController {
       // tiles that do not exist beyond level 13.
       maxzoom: 13,
       minzoom: 0,
-      attribution: 'Mapterhorn',
+      attribution: '© Mapterhorn',
     });
 
     // The DEM feeds 3D only — there is deliberately no `hillshade` layer on top

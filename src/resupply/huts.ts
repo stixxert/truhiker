@@ -4,7 +4,7 @@
  * Huts are **not** in the bundled OSM index (the extractor excludes
  * `tourism=alpine_hut|wilderness_hut`); they come from the same Geonorge WFS
  * that serves the foot routes. The traps are the same ones documented in
- * `src/snap/wfs.ts` and `docs/04`, so the guards are reused rather than retyped:
+ * `src/snap/wfs.ts`, so the guards are reused rather than retyped:
  *
  *  1. `outputFormat` is **mandatory** — omitting it returns an OWS exception.
  *  2. The bbox CRS spelling controls the axis order: `EPSG:4326` means

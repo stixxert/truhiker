@@ -23,7 +23,7 @@ import { Prefetcher } from './snap/prefetch';
 const index = new SnapIndex();
 index.addLines((await fetchTurruteBox({ minLon: 8.3, minLat: 61.47, maxLon: 8.4, maxLat: 61.53 })).lines);
 
-const tracker = new SnapTracker(index); // radius 75 m, sticky 120 m
+const tracker = new SnapTracker(index); // radius 75 m, sticky max(120 m, 1.5×radius)
 const hit = tracker.snap({ lon: 8.321, lat: 61.507 });
 // → { lineId, attributes, snappedPoint, distanceM, t, bearing, segmentIndex } | null
 
@@ -122,7 +122,8 @@ client does not add padding.
   radius returns `null`; it never guesses.
 - **Hysteresis**: pass the previous `lineId` as `currentLineId` (or use
   `SnapTracker`). The current line is kept while it is within
-  `stickyRadiusM` (default 120 m = 1.6 × 75, configurable, must be ≥ the snap
+  `stickyRadiusM` (default `max(120 m, 1.5 × radius)` — derived, so the dock's
+  20–300 m range all works; an explicit value must be ≥ the snap
   radius). This prevents flicker between parallel trails. Outside the sticky
   band the nearest line within the normal radius wins.
 - `t` is the position along the matched segment (0…1); `bearing` is the

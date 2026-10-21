@@ -8,23 +8,37 @@ never stored or re-served.
 
 | What | Licence | What we have to do |
 | --- | --- | --- |
-| Application code, translations, nutrition table | Proprietary, all rights reserved | — |
+| Application code, translations, nutrition table | Proprietary, © Sivert Asakskogen, all rights reserved | — |
 | **MapLibre GL JS** (`maplibre-*.js`, worker, CSS) | BSD-3-Clause, MapLibre contributors | Ship its copyright notice and licence with the distributed build |
-| **Route fixture** (`test/fixtures/memurubu-glitterheim-jot21.gpx`, not shipped) | CC BY 4.0, ©Kartverket Turrutebasen | Credit Kartverket, link the licence, say what we changed — it is test material, never served (D26) |
 | **Resupply extract** (`data/shops.osm.bin`, generated at build time — D24) | ODbL 1.0, © OpenStreetMap contributors | Credit OpenStreetMap, offer the database under ODbL, include the licence text (`licences/ODbL-1.0.txt`, served at `/data/ODbL-1.0.txt`) |
 
 ### Where a user sees it
 
-- the map footer names **Kartverket** and **Mapterhorn**;
+- the map footer names **©Kartverket** and **© Mapterhorn**;
 - **About data** lists every source with its licence and a link, including
   MapLibre;
 - the resupply extract is downloadable, with the ODbL text served beside it at
   `/data/ODbL-1.0.txt`.
 
+`licences/` in the repository holds **one** file, the ODbL text. The other three
+notices are produced at build time into `dist/licences/` by
+`tools/verify/copy-licences.mjs`: MapLibre's BSD-3 notice is copied from
+`node_modules`, and the ODbL notice for the data and the app notice are generated
+from the shipped provenance, so a notice cannot drift from the file it describes.
+
 The files under `/licences/` are not a user-facing feature. They are the copies of
 the notices that BSD-3 and ODbL require to travel with the distributed code and
 data: a browser bundle is a distribution, and the notice has to be in it. The
 build simply makes sure they are still there.
+
+### Test material (in the repository, never shipped)
+
+| File | Licence | Obligation |
+| --- | --- | --- |
+| `test/fixtures/memurubu-glitterheim-jot21.gpx` | CC BY 4.0, ©Kartverket Turrutebasen | credit Kartverket; it is imported by the gates, never served (D26) |
+| `test/fixtures/huts-wfs.xml` | CC BY 4.0, ©Kartverket Turrutebasen | a captured WFS response used as a test double |
+| `test/fixtures/galdhopiggen-128.tif` | CC BY 4.0, ©Kartverket | a captured DTM window used by the elevation acceptance test |
+| `test/fixtures/{galdhopiggen,gjendesheim-besseggen}.gpx` | our own test data | — |
 
 ### The route fixture
 
@@ -53,7 +67,7 @@ is never merged with non-ODbL data in one file.
 | **Kartverket Turrutebasen** (WFS) | trail geometry, hut points | CC BY 4.0 (metadata says "no conditions"; we take the stricter reading) | `©Kartverket` |
 | **hoydedata.no** (Kartverket DTM ImageServer) | elevation profiles | CC BY 4.0 | `©Kartverket`, source shown with the profile |
 | **Kartverket** — WMS `wms.sentinel2` (Sentinel-2 cloud-free mosaic, 2025) | aerial basemap (optional layer) | Open data ("no conditions apply"); credit required | `Copernicus Sentinel-2 (2025) / Kartverket` in the map footer and **About data** |
-| **Mapterhorn** | 3D terrain tiles | derived from Kartverket and others; see its attribution file | `Mapterhorn` in the map footer |
+| **Mapterhorn** | 3D terrain tiles | © Mapterhorn — attribution required, linked to `mapterhorn.com/attribution`; tiles are derived from open data including Kartverket (CC BY 4.0) | `© Mapterhorn`, linked to its attribution page, in the map footer |
 | **MET Norway** (Locationforecast 2.0) | weather | NLOD / CC BY 4.0 | `MET Norway`, issue time shown |
 
 Live use is permitted by all of these; copying is not, so nothing above is stored

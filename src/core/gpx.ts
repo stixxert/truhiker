@@ -133,6 +133,12 @@ function repairNamespaces(xml: string): string | null {
 export function parseGpx(xml: string): GpxDocument {
   // Strip a UTF-8 BOM if present; xmldom would otherwise see it as content.
   const source = xml.charCodeAt(0) === 0xfeff ? xml.slice(1) : xml;
+  // A GPX file never declares a doctype. Refusing one closes the entity-expansion
+  // ("billion laughs") shape before the parser sees it, rather than relying on the
+  // XML library's own limits — a 15 MB upload is allowed, so the payload has room.
+  if (/<!DOCTYPE/i.test(source)) {
+    throw new Error('a GPX file must not declare a DOCTYPE');
+  }
   const errors: string[] = [];
   const parser = new DOMParser({
     onError: (level: string, message: string) => {

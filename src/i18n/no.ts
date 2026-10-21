@@ -315,7 +315,8 @@ export const no = {
     'Fant ingen sti innenfor radiusen. Strekningen er uendret og markert som utenfor sti.',
   'editor.selectHint':
     'Klikk et punkt for å velge det. Skift-klikk et annet punkt for å velge en strekning.',
-  'editor.drawHint': 'Klikk på kartet for å legge til punkter. Dobbeltklikk for å avslutte.',
+  'editor.drawHint': 'Klikk på kartet for å legge til punkter. Dobbeltklikk eller Fullfør avslutter.',
+  'editor.finish': 'Fullfør',
   'editor.viewHint': 'Bytt til Rediger for å flytte punkter, eller Tegn for å legge til nye.',
   'editor.engineMissing': 'Redigering er ikke tilgjengelig i denne versjonen.',
   'editor.noTrip': 'Ingen etapper å redigere.',
@@ -426,6 +427,7 @@ export const no = {
   'about.kartverket': 'Bakgrunnskart og høydedata: Kartverket (topo, DTM), CC BY 4.0.',
   'attrib.kartverket': '©Kartverket',
   'attrib.sentinel2': 'Copernicus Sentinel-2 · Kartverket',
+  'about.turrutebasen': 'Stier og hytter: Kartverket Turrutebasen.',
   'about.sentinel2':
     'Flyfoto: Copernicus Sentinel-2 (2025), skyfri mosaikk prosessert av Kartverket. Åpne data.',
   'about.mapterhorn': '3D-terreng: Mapterhorn, avledet av Kartverkets høydedata.',
@@ -447,7 +449,7 @@ export const no = {
   'about.privacy':
     'Tur og rute lagres bare i denne nettleseren (IndexedDB, med localStorage som reserve). Det finnes ingen konto, og turen lastes ikke opp. For å hente stier, butikker, høydedata, vær og 3D-terreng sender appen posisjoner fra ruten til Kartverket (Turrutebasen og bakgrunnskart), MET, hoydedata.no og Mapterhorn. Ingen sporing og ingen analyseverktøy; kartflisene lastes fra den kilden du velger.',
 
-  // --- Resupply and energy (docs/13) --------------------------------------
+  // --- Resupply and energy (D1–D3, D13, D14) --------------------------------------
   'supply.open': 'Forsyning',
   'supply.title': 'Forsyning og energi',
   'supply.tabResupply': 'Forsyning',

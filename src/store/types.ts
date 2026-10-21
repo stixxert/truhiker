@@ -38,8 +38,9 @@ export interface TripStoreLike {
 
 /** Bytes in use and available, as the browser reports them. */
 export interface StorageUsage {
-  readonly usedBytes: number;
-  readonly quotaBytes: number;
+  /** `null` when the browser does not report it — unknown, never zero. */
+  readonly usedBytes: number | null;
+  readonly quotaBytes: number | null;
   /**
    * Where the numbers come from. `localstorage-estimate` is our own sum of the
    * stored strings against a documented ~5 MB cap, not a browser measurement —

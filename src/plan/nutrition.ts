@@ -16,7 +16,7 @@
  *
  * Sources: Norwegian Food Composition Table (Matvaretabellen) and producer
  * labels for kcal; REAL Turmat kcal range (450–516/100 g) and its 4.0–4.4
- * kcal/NOK from docs/01 §D8. Prices are the author's, not a live feed.
+ * kcal/NOK from the seed table in D10. Prices are the author's, not a live feed.
  */
 
 type FoodCategory =
@@ -214,7 +214,7 @@ export interface FoodMix {
  * Default profile: "staples + one freeze-dried dinner".
  *
  * Shares are by calories. The default resolves to ≈4.38 kcal/g, which is the
- * ~4.4 kcal/g planning figure from docs/01 §D8: 4,000 kcal/day therefore
+ * ~4.4 kcal/g planning figure from D10: 4,000 kcal/day therefore
  * weighs ~0.91 kg and a 7-day carry ~6.4 kg. A freeze-dried-only mix is far
  * heavier per calorie *and* far more expensive; this profile is the sensible
  * middle that still contains one hot dinner.

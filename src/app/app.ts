@@ -290,7 +290,16 @@ export class App {
   private snapTrackerLine: string | null = null;
   /** The trail graph built from the indexed lines, keyed by the index's shape. */
   private trailGraph: { key: string; graph: TrailGraph } | null = null;
-  private routePick: { start: LonLat | null; busy: boolean } | null = null;
+  private routePick: {
+    start: LonLat | null;
+    busy: boolean;
+    /**
+     * The span captured when the route started. A routing fetch can take 12–20 s,
+     * and reading the live selection afterwards let a dock click in the meantime
+     * move the result onto a different leg. `null` means "the whole active leg".
+     */
+    span?: { legId: string; from: LonLat; to: LonLat; fromIndex: number; toIndex: number } | null;
+  } | null = null;
   private snapIndicatorSnap: SnapResult | null = null;
   private snapHovering = false;
   private weatherState: WeatherPanelState = { kind: 'no-trip' };
@@ -377,6 +386,7 @@ export class App {
     paceHint: HTMLElement;
     toast: HTMLElement;
     saveButton: HTMLButtonElement;
+  finishDrawButton: HTMLButtonElement;
     saveStatus: HTMLElement;
     downloadGpxButton: HTMLButtonElement;
     tripsButton: HTMLButtonElement;
@@ -443,6 +453,7 @@ export class App {
       paceHint: byId('pace-hint'),
       toast: byId('toast'),
       saveButton: byId<HTMLButtonElement>('btn-save'),
+      finishDrawButton: byId<HTMLButtonElement>('btn-finish-draw'),
       saveStatus: byId('save-status'),
       tripsButton: byId<HTMLButtonElement>('btn-trips'),
       weatherButton: byId<HTMLButtonElement>('btn-weather'),
@@ -890,8 +901,6 @@ export class App {
       return;
     }
     this.banners.dismiss('trip-build');
-    // A demo or shared link is something the user is looking at, not something
-    // they chose to keep: do not write it until they edit or press Save.
     this.adoptTrip(trip, { save: origin === 'file' ? 'deferred' : 'manual' });
   }
 
@@ -1757,7 +1766,8 @@ export class App {
   private ensureSnapNetwork(): void {
     const service = this.snapService;
     if (!service || !this.map) return;
-    if (service.status === 'loading') return;
+    // No early return while loading: `SnapService` queues the newest viewport, and
+    // skipping the call here meant a pan during a 12 s prefetch was simply lost.
     const connection = (navigator as { connection?: { saveData?: boolean } }).connection;
     if (
       !shouldPrefetchSnap({
@@ -2149,6 +2159,10 @@ export class App {
     // one, the two-click pick starts, and the result replaces the active leg.
     const span = this.selectedSpan();
     if (span) {
+      // A span route is not a two-click pick, but `runRoute` owns the in-flight
+      // guard and the cancellation token, so it needs one — without it the button
+      // returned silently and nothing happened at all.
+      this.routePick = { start: span.from, busy: false };
       void this.runRoute(span.from, span.to);
       return;
     }
@@ -2163,7 +2177,13 @@ export class App {
    * `null` means "the whole active leg", which is the behaviour every existing
    * caller and the e2e journey rely on.
    */
-  private selectedSpan(): { from: LonLat; to: LonLat; fromIndex: number; toIndex: number } | null {
+  private selectedSpan(): {
+    legId: string;
+    from: LonLat;
+    to: LonLat;
+    fromIndex: number;
+    toIndex: number;
+  } | null {
     const trip = this.session?.trip;
     const selection = this.editorUi.selection;
     if (!trip || !selection || selection.to === null) return null;
@@ -2175,6 +2195,7 @@ export class App {
     const last = leg.points[toIndex];
     if (!first || !last) return null;
     return {
+      legId: leg.id,
       from: { lon: first.lon, lat: first.lat },
       to: { lon: last.lon, lat: last.lat },
       fromIndex,
@@ -2204,6 +2225,9 @@ export class App {
     const pick = this.routePick;
     if (!pick || pick.busy) return;
     pick.busy = true;
+    // Freeze the target now: the fetch can take 12–20 s, and the user may click a
+    // different leg in the dock while it is in flight.
+    pick.span = this.selectedSpan();
     this.overlay?.setRoutePick(start, end);
     this.showToast(this.i18n.t('route.loading'));
 
@@ -2263,9 +2287,14 @@ export class App {
     const session = this.session;
     const trip = session?.trip;
     if (!session || !trip) return;
+    const captured = this.routePick?.span ?? null;
     const selection = this.editorUi.selection;
-    const selectedLeg = selection ? findLeg(trip, selection.legId) : undefined;
-    const spanless = selection === null || selection?.to === null;
+    const selectedLeg = captured
+      ? findLeg(trip, captured.legId)
+      : selection
+        ? findLeg(trip, selection.legId)
+        : undefined;
+    const spanless = captured === null && (selection === null || selection?.to === null);
     const leg = spanless ? findLeg(trip, this.editorUi.activeLegId) ?? trip.legs[0] : selectedLeg;
     if (!leg) {
       this.failRoute('network-unavailable', null);
@@ -2273,9 +2302,14 @@ export class App {
     }
     // Span-scoped when a span is selected: routing inside a leg must not rewrite
     // the parts of it the user did not select.
-    const from = selection && selection.to !== null ? Math.min(selection.from, selection.to) : 0;
-    const to =
-      selection && selection.to !== null
+    const from = captured
+      ? captured.fromIndex
+      : selection && selection.to !== null
+        ? Math.min(selection.from, selection.to)
+        : 0;
+    const to = captured
+      ? captured.toIndex
+      : selection && selection.to !== null
         ? Math.max(selection.from, selection.to)
         : leg.points.length - 1;
     const applied = session.apply({
@@ -2345,8 +2379,6 @@ export class App {
       route = buildRoute({
         name: trip.name,
         coords: flat.points.map((point) => ({ lon: point.lon, lat: point.lat })),
-        // Editing a demo keeps its origin: the trip still came from the demo,
-        // it is not suddenly an imported file.
         origin: this.state.route?.origin ?? 'file',
       });
     } catch {
@@ -2525,6 +2557,8 @@ export class App {
 
   private renderEditor(): void {
     if (!this.toolbar) return;
+    // Finishing a leg needs a control, not only a gesture: touch has no dblclick.
+    this.elements.finishDrawButton.hidden = this.editorUi.mode !== 'draw';
     const trip = this.session?.trip ?? null;
     this.renderEditorPanel(trip);
     const available = this.engines !== null && trip !== null;
@@ -2693,7 +2727,6 @@ export class App {
     }
 
     this.banners.dismiss('gpx-error');
-    this.banners.dismiss('demo-failed');
     this.banners.dismiss('hash-invalid');
     this.banners.dismiss('dem-failed');
     this.banners.dismiss('hash-too-long');
@@ -2721,7 +2754,8 @@ export class App {
     if (track) this.adoptTripFromTrack(track, origin);
 
     if (options.updateHash !== false && origin === 'file') {
-      this.writeRouteHash(text);
+      // Silent on import: an over-long link is only news when a link is asked for.
+      this.writeRouteHash(text, { warn: false });
     }
 
     const support = checkSupported(route.points);
@@ -2736,11 +2770,6 @@ export class App {
     if (!this.map) return;
     await this.map.whenReady();
     if (this.state.route !== route) return;
-    // Fit a route the user *arrived* at (an import, a saved trip, the demo), never
-    // the one they are editing. Re-fitting on every committed edit meant the first
-    // drawn point yanked the camera to a 2-point route — measured 11.56 -> 14.28 in
-    // one click — so the next click landed somewhere else entirely and a 2 km leg
-    // collapsed into 10 m.
     this.map.setRoute(route, { fit: this.editorUi.mode === 'view' });
   }
 
@@ -2824,10 +2853,17 @@ export class App {
     this.sampleRoute(route);
   }
 
-  private writeRouteHash(text: string): void {
+  /**
+   * Keep the address bar in step with the route.
+   *
+   * `warn` is false on import: the route being too long for a link is only the
+   * user's problem at the moment they ask for a link, and a warning banner over a
+   * perfectly good import reads as "something went wrong".
+   */
+  private writeRouteHash(text: string, options: { warn?: boolean } = {}): void {
     const hash = encodeRouteHash(compactGpx(text));
     if (hash === null) {
-      this.showHashTooLong();
+      if (options.warn === true) this.showHashTooLong();
       return;
     }
     const url = `${window.location.pathname}${window.location.search}${hash}`;
@@ -3050,6 +3086,9 @@ export class App {
     // There is nothing to download without a route, and a menu entry that does
     // nothing is worse than one that is visibly unavailable.
     this.elements.downloadGpxButton.disabled = route === null;
+    // A control that does nothing is worse than one that is visibly unavailable.
+    const fitButton = this.doc.getElementById('btn-fit');
+    if (fitButton instanceof HTMLButtonElement) fitButton.disabled = route === null;
     if (!route) {
       // An empty trip still has a name worth showing — and no origin tag, because
       // nothing has been drawn or imported yet.
@@ -3243,6 +3282,7 @@ export class App {
     // The empty state's primary action is the same thing as the header's: an
     // empty screen should start a trip, not play a sample (D26).
     byId<HTMLButtonElement>('btn-empty-new').addEventListener('click', () => this.startNewTrip());
+    byId<HTMLButtonElement>('btn-finish-draw').addEventListener('click', () => this.finishDraw());
     this.elements.editorSave.addEventListener('click', () => void this.saveTrip());
 
     this.elements.fileInput.addEventListener('change', () => {
@@ -3393,8 +3433,12 @@ export class App {
     const route = this.state.route;
     const base = `${window.location.pathname}${window.location.search}`;
     let url = window.location.href;
-    if (route && route.gpxText) {
-      const hash = encodeRouteHash(compactGpx(route.gpxText));
+    // The *current* trip, not the text it was imported from: after an edit the
+    // imported text is the old geometry, and after a drawing there is none at all —
+    // either way the recipient would get something other than what is on screen.
+    const current = this.session?.exportGpx() ?? route?.gpxText ?? null;
+    if (route && current) {
+      const hash = encodeRouteHash(compactGpx(current));
       if (hash === null) {
         // Refusing is correct; refusing silently is not. Say it where the click
         // happened (a toast, over the menu) as well as in the banner, and name
@@ -3547,11 +3591,16 @@ export class App {
     const button = this.elements.terrainButton;
     const hint = this.elements.terrainHint;
     const status = this.state.terrain.status;
+    // WCAG 2.5.3 (label in name): the accessible name has to contain the visible
+    // word. The button reads "3D", so every label starts with it — otherwise a
+    // speech-input user saying "3D" hits a control whose name is "Slå på terreng".
+    const visible = button.textContent?.trim() ?? '3D';
+    const name = (label: string): string => `${visible} — ${label}`;
     if (status === 'ready') {
       button.disabled = false;
       const on = this.map?.terrainOn ?? false;
       button.setAttribute('aria-pressed', String(on));
-      button.setAttribute('aria-label', this.i18n.t(on ? 'terrain.disable' : 'terrain.enable'));
+      button.setAttribute('aria-label', name(this.i18n.t(on ? 'terrain.disable' : 'terrain.enable')));
       button.title = this.i18n.t(on ? 'terrain.disable' : 'terrain.enable');
       hint.textContent = '';
       return;
@@ -3560,7 +3609,7 @@ export class App {
     button.setAttribute('aria-pressed', 'false');
     button.setAttribute(
       'aria-label',
-      this.i18n.t(status === 'failed' ? 'terrain.unavailable' : 'terrain.loading'),
+      name(this.i18n.t(status === 'failed' ? 'terrain.unavailable' : 'terrain.loading')),
     );
     button.title =
       status === 'failed'
