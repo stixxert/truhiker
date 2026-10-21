@@ -325,7 +325,7 @@ export const no = {
     'Fant ingen sti innenfor radiusen. Strekningen er uendret og markert som utenfor sti.',
   'editor.selectHint':
     'Klikk et punkt for å velge det. Skift-klikk et annet punkt for å velge en strekning.',
-  'editor.drawHint': 'Klikk på kartet for å legge til punkter.',
+  'editor.drawHint': 'Klikk på kartet for å legge til punkter. Dobbeltklikk for å avslutte.',
   'editor.viewHint': 'Bytt til Rediger for å flytte punkter, eller Tegn for å legge til nye.',
   'editor.engineMissing': 'Redigering er ikke tilgjengelig i denne versjonen.',
   'editor.noTrip': 'Ingen etapper å redigere.',

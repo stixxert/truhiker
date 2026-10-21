@@ -55,17 +55,26 @@ interface EditOverlayDeps {
   onSnapIndicator: (snap: SnapResult | null, hovering: boolean) => void;
   /** A click while the editor is picking route endpoints. */
   onRoutePoint: (point: LonLat) => void;
+  /**
+   * The point a new click would extend from — the active leg's last vertex.
+   * `null` when there is nothing to extend (no leg yet, or only the placeholder).
+   */
+  getDrawAnchor?: () => LonLat | null;
+  /** A double-click in draw mode: the leg is finished, leave drawing. */
+  onFinishDraw?: () => void;
 }
 
 const SOURCE_HANDLES = 'edit-handles';
 const SOURCE_OFFTRAIL = 'edit-offtrail';
 const SOURCE_SNAP = 'edit-snap';
 const SOURCE_HIT = 'edit-hittest';
+const SOURCE_DRAFT = 'edit-draft';
 
 const LAYER_OFFTRAIL = 'edit-offtrail-line';
 const LAYER_HIT = 'edit-hittest-line';
 const LAYER_HANDLES = 'edit-handles-circle';
 const LAYER_SNAP = 'edit-snap-circle';
+const LAYER_DRAFT = 'edit-draft-line';
 const SOURCE_PICK = 'route-pick';
 const LAYER_PICK = 'route-pick-circle';
 
@@ -110,6 +119,7 @@ export class EditOverlay {
     if (!map.getSource(SOURCE_SNAP)) map.addSource(SOURCE_SNAP, { type: 'geojson', data: EMPTY });
     if (!map.getSource(SOURCE_HIT)) map.addSource(SOURCE_HIT, { type: 'geojson', data: EMPTY });
     if (!map.getSource(SOURCE_PICK)) map.addSource(SOURCE_PICK, { type: 'geojson', data: EMPTY });
+    if (!map.getSource(SOURCE_DRAFT)) map.addSource(SOURCE_DRAFT, { type: 'geojson', data: EMPTY });
 
     if (!map.getLayer(LAYER_OFFTRAIL)) {
       map.addLayer({
@@ -165,6 +175,23 @@ export class EditOverlay {
       });
     }
 
+    if (!map.getLayer(LAYER_DRAFT)) {
+      map.addLayer({
+        id: LAYER_DRAFT,
+        type: 'line',
+        source: SOURCE_DRAFT,
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        // A preview, not a route: quiet enough that it cannot be mistaken for
+        // committed geometry, solid so it is not confused with the dashed
+        // off-trail styling.
+        paint: {
+          'line-color': '#f2fffc',
+          'line-opacity': 0.55,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1.2, 14, 2.2],
+        },
+      });
+    }
+
     if (!map.getLayer(LAYER_HANDLES)) {
       map.addLayer({
         id: LAYER_HANDLES,
@@ -184,6 +211,7 @@ export class EditOverlay {
     map.on('mouseup', this.onMouseUp);
     map.on('mouseout', this.onMouseLeave);
     map.on('mousedown', LAYER_HANDLES, this.onHandleDown);
+    map.on('dblclick', this.onDoubleClick);
     map.on('moveend', this.onCameraChange);
     map.on('zoomend', this.onCameraChange);
     this.installed = true;
@@ -206,7 +234,12 @@ export class EditOverlay {
     this.mode = mode;
     this.drag = null;
     this.hideSnapPreview();
+    this.updateDraft(null);
     this.deps.onSnapIndicator(null, false);
+    // Double-click is the finish gesture while drawing, so it must not also zoom
+    // the map out from under the point that was just placed.
+    if (mode === 'draw') this.map.doubleClickZoom.disable();
+    else this.map.doubleClickZoom.enable();
     this.updateCursor();
     this.rebuildHandles();
   }
@@ -214,6 +247,9 @@ export class EditOverlay {
   setTrip(trip: Trip | null): void {
     this.updateHitData(trip);
     this.rebuildHandles();
+    // The anchor may have moved (undo, delete, another leg): a stale preview
+    // would point at a vertex that is no longer there.
+    this.updateDraft(null);
   }
 
   /** Pick two endpoints for a route; clicks stop editing the trip. */
@@ -358,6 +394,7 @@ export class EditOverlay {
     if (this.mode === 'draw') {
       const snap = this.deps.snap(point);
       this.deps.onDrawPoint(snap ? snap.snappedPoint : point, snap);
+      this.updateDraft(null);
       return;
     }
 
@@ -411,11 +448,13 @@ export class EditOverlay {
     if (this.mode !== 'draw' && this.mode !== 'edit') return;
     if (!this.deps.isSnapping()) {
       this.hideSnapPreview();
+      this.updateDraft(point);
       this.deps.onSnapIndicator(null, true);
       return;
     }
     const snap = this.deps.snap(point);
     this.showSnapPreview(snap ? snap.snappedPoint : null);
+    this.updateDraft(snap ? snap.snappedPoint : point);
     this.deps.onSnapIndicator(snap, true);
   };
 
@@ -434,8 +473,57 @@ export class EditOverlay {
 
   private onMouseLeave = (): void => {
     this.hideSnapPreview();
+    this.updateDraft(null);
     if (!this.drag) this.deps.onSnapIndicator(null, false);
   };
+
+  private onDoubleClick = (): void => {
+    if (!this.enabled || this.mode !== 'draw') return;
+    this.updateDraft(null);
+    // Defer the mode change by a tick: MapLibre's own double-click zoom is a
+    // listener on the same event, and leaving draw mode re-enables it. Finishing
+    // synchronously let that handler fire *after* it was re-enabled, so every
+    // finished leg also zoomed the map in (measured: 11.56 -> 14.28).
+    setTimeout(() => this.deps.onFinishDraw?.(), 0);
+  };
+
+  /**
+   * The segment the next click would commit: anchor → cursor.
+   *
+   * `cursor` is the *snapped* point, so the line shows where the point will land
+   * rather than where the pointer is — which is the whole question the gesture is
+   * asking. Nothing is drawn when there is no anchor (a new trip) or when the
+   * cursor is the anchor itself.
+   */
+  private updateDraft(cursor: LonLat | null): void {
+    const source = this.map.getSource(SOURCE_DRAFT);
+    if (!source || !('setData' in source)) return;
+    const anchor = this.mode === 'draw' ? this.deps.getDrawAnchor?.() ?? null : null;
+    const drawable =
+      anchor !== null &&
+      cursor !== null &&
+      Number.isFinite(cursor.lon) &&
+      Number.isFinite(cursor.lat) &&
+      (anchor.lon !== cursor.lon || anchor.lat !== cursor.lat);
+    (source as GeoJSONSource).setData({
+      type: 'FeatureCollection',
+      features: drawable
+        ? [
+            {
+              type: 'Feature',
+              properties: {},
+              geometry: {
+                type: 'LineString',
+                coordinates: [
+                  [anchor.lon, anchor.lat],
+                  [cursor.lon, cursor.lat],
+                ],
+              },
+            },
+          ]
+        : [],
+    });
+  }
 
   private onCameraChange = (): void => {
     if (this.drag) return;

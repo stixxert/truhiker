@@ -8,7 +8,7 @@
 
 import { parseGpx, type GpxTrack } from '../core/gpx';
 import { buildProfile, seaLevelWarning, type Profile } from '../core/profile';
-import type { LonLat } from '../core/geo';
+import { haversine, type LonLat } from '../core/geo';
 import {
   StoreError,
   type RoutePoint,
@@ -134,6 +134,12 @@ import { trailLinesToGeoJson } from '../snap/overlay';
 const DEMO_FILE = 'demo/memurubu-glitterheim-jot21.gpx';
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 const ZOOM_STEP = 1;
+/**
+ * Two clicks at the same spot, i.e. a double-click: the second one commits a
+ * vertex on top of the first, and finishing drops it. 20 m is far enough that a
+ * deliberate short step survives, close enough that a double-click does not.
+ */
+const FINISH_DUPLICATE_M = 20;
 
 type ProfileStatus = 'empty' | 'loading' | 'ready' | 'error';
 type ProfileErrorKind = 'dem' | 'scope';
@@ -756,6 +762,8 @@ export class App {
         onInsertPoint: (legId, index, point) => this.insertVertex(legId, index, point),
         onSnapIndicator: (snap, hovering) => this.setSnapIndicator(snap, hovering),
         onRoutePoint: (point) => this.handleRoutePoint(point),
+        getDrawAnchor: () => this.drawAnchor(),
+        onFinishDraw: () => this.finishDraw(),
       },
       // initOverlay runs after `whenReady()`: `load` has already fired.
       { mapReady: true },
@@ -1846,6 +1854,50 @@ export class App {
       this.editorUi = noteDrawnPoint(this.editorUi, { lon: point.lon, lat: point.lat });
       this.afterTripChange();
     }
+  }
+
+  /**
+   * Where a new click would extend the route from — the active leg's last vertex.
+   *
+   * `null` for a brand-new trip (the placeholder leg is two points at 0°/0°, which
+   * is not a place) so the draft preview does not draw a line from the Gulf of
+   * Guinea.
+   */
+  private drawAnchor(): LonLat | null {
+    const trip = this.session?.trip;
+    if (!trip) return null;
+    const leg = findLeg(trip, this.editorUi.activeLegId);
+    if (!leg || leg.points.length === 0) return null;
+    const last = leg.points[leg.points.length - 1];
+    if (!Number.isFinite(last.lat) || !Number.isFinite(last.lon)) return null;
+    // Not `isPlaceholderLeg`: after the first click the leg is the padded pair
+    // [p, p], which that helper calls placeholder (because it is all one
+    // coordinate) — but p is exactly the point the next click extends from. The
+    // only geometry with no anchor is the emptyTrip sentinel at 0°/0°.
+    if (leg.points.every((point) => point.lon === 0 && point.lat === 0)) return null;
+    return { lon: last.lon, lat: last.lat };
+  }
+
+  /**
+   * Double-click in draw mode: the leg is finished.
+   *
+   * A double-click is two clicks, so the second one has usually just committed a
+   * vertex on top of the first. That duplicate is dropped before leaving, because
+   * a zero-length segment at the end of every drawn leg is noise the user did not
+   * ask for — and it is one undo, not a silent edit.
+   */
+  private finishDraw(): void {
+    const trip = this.session?.trip;
+    const leg = trip ? findLeg(trip, this.editorUi.activeLegId) : undefined;
+    if (leg && leg.points.length >= 2) {
+      const last = leg.points[leg.points.length - 1];
+      const previous = leg.points[leg.points.length - 2];
+      const sentinel = last.lon === 0 && last.lat === 0;
+      if (!sentinel && haversine(previous, last) < FINISH_DUPLICATE_M && this.session?.undo()) {
+        this.afterTripChange();
+      }
+    }
+    this.switchMode('view');
   }
 
   private moveVertex(legId: string, index: number, point: LonLat): void {

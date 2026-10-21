@@ -321,7 +321,7 @@ export const en: Record<MessageKey, string> = {
     'No trail was found within the radius. The span is unchanged and marked as outside a mapped trail.',
   'editor.selectHint':
     'Click a point to select it. Shift-click another point to select a span.',
-  'editor.drawHint': 'Click the map to add points.',
+  'editor.drawHint': 'Click the map to add points. Double-click to finish.',
   'editor.viewHint': 'Switch to Edit to move points, or Draw to add new ones.',
   'editor.engineMissing': 'Editing is unavailable in this build.',
   'editor.noTrip': 'There are no legs to edit.',
