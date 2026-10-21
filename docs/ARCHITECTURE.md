@@ -137,8 +137,10 @@ failure-path run, licence audit and hosting contract.
   points. Where the network does not connect them, it says so. OSM routing is not
   implemented; snapping still covers drawing and editing.
 - Routing endpoints are placed with the pointer; the keyboard can pan and zoom the
-  map but cannot place a route endpoint. Drawing has a preview and a double-click
-  finish, but no freehand drag.
+  map but cannot place a route endpoint. Drawing has a preview, a drag preview and a
+  double-click finish, but no freehand drag and no keyboard vertex placement.
+- A drawn step follows the trail when both ends snap (the routing engine's A* over
+  the indexed lines); `RoutePoint.snapped` records it per vertex.
 - The trail network is drawn from the same `SnapIndex` the snapper queries, and
   only while it is actionable (draw/edit with snapping on). Prefetch is skipped
   below z10 and on a data-saver connection; the index is pruned back to the view

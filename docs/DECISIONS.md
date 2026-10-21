@@ -82,9 +82,19 @@ returns ~10 days of hourly entries (measured 2026-10-19: 85 entries, +10.0 d).
   not fixed: the dock offers 20–300 m, and a fixed 120 m made every call above it
   throw — so the wider the setting, the more certainly snapping was dead.
 - No trail within the radius → the segment is drawn **dashed** and labelled
-  **off-trail**, and the leg records that in its provenance. That record covers
-  every drawn point, including points appended to an existing leg (the `insert`
-  command carries `snapped`); it used to be lost after the first two points.
+  **off-trail**, and the leg records that in its provenance.
+- **The record is per vertex, not per leg.** `RoutePoint.snapped` is set by every
+  command that places a point — `insert`, `move`, a snapped `replace-span`, and a
+  span re-snap — so a leg can say *which* vertices are on a trail. A leg-level
+  marker alone claimed the whole leg was snapped when one corner was, and that is
+  the kind of claim this project does not make.
+- **A drawn step follows the trail when both ends snapped.** The click becomes the
+  trail between the two points (the routing engine's own A*, on the same 5 m merge
+  as D16), applied as one undoable edit. If the network does not connect them the
+  step is a plain vertex and the off-trail styling says so — never a bridged path.
+- `snapped` never means "verified walkable": it means the geometry came from a
+  mapped trail. Absent means "not known to be on a trail", which is not the same
+  as "off trail".
 - Re-snapping a span never bridges two trails that do not connect; the gap stays
   visible.
 

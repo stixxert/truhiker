@@ -101,9 +101,15 @@ npx wrangler deploy
   Jotunheimen 470 paths share only 414 nodes — 72 components, 31 % of drawn pairs
   routable, against Turrutebasen's 23 components and 67 %). See D25.
 - **Drawing** is click-by-click with a live preview to the snapped cursor; a
-  double-click finishes the leg. There is no freehand drag and no keyboard way to
-  place a vertex, and the trail network is fetched only at z10 and above, so a
-  country-sized view is a picture of shops, not of trails.
+  double-click finishes the leg. When both ends of a step snap to the trail
+  network, the step follows the trail rather than cutting straight across. Each
+  vertex records whether it came from a trail snap (per vertex, not per leg).
+  There is no freehand drag and no keyboard way to place a vertex, and the trail
+  network is fetched only at z10 and above, so a country-sized view is a picture
+  of shops, not of trails.
+- **Routing** ("route along the trail") is available while drawing as well as
+  editing; with a span selected it routes that span and replaces only it, otherwise
+  it replaces the active leg.
 - **The trail network shown on the map is the network that will be used**: the
   same lines the pointer snaps to. It is hidden in view mode, because a trail the
   app is not going to route on is decoration.
