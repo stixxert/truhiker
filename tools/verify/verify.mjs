@@ -13,8 +13,8 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync, statSync, readFileSync } from "node:fs";
 import { join, extname } from "node:path";
+import { verifyArtefact } from "../ensure-data.mjs";
 import { gzipSync, brotliCompressSync, constants } from "node:zlib";
-import { createHash } from "node:crypto";
 
 const ROOT = process.cwd();
 const DIST = join(ROOT, "dist");
@@ -184,16 +184,23 @@ step("accessibility", () => {
 });
 
 step("data integrity", () => {
+  // D24: generated data is a build output, so `data/` may only contain what is
+  // deliberately committed. An allow-list, not a `*.bin` pattern: a renamed or
+  // re-compressed artefact is exactly the drift this rule exists to catch.
+  const COMMITTED_DATA = new Set(["data/shops.osm.json", "data/ODbL-1.0.txt"]);
+  const trackedData = run("git", ["ls-files", "--", "data/"])
+    .split("\n")
+    .filter((file) => file !== "" && !COMMITTED_DATA.has(file));
+  if (trackedData.length > 0) {
+    throw new Error(`generated data is tracked in git (see D24): ${trackedData.join(", ")}`);
+  }
+  run("node", ["tools/ensure-data.mjs"]);
   // The provenance file records the checksum; a hand-edited binary must not ship.
+  // Same verifier the build uses, so the two cannot disagree.
   const provenance = JSON.parse(readFileSync(join(ROOT, "data/shops.osm.json"), "utf8"));
   const binary = readFileSync(join(ROOT, "data", provenance.file));
-  const digest = createHash("sha256").update(binary).digest("hex");
-  if (digest !== provenance.checksum.sha256) {
-    throw new Error(`data/${provenance.file} does not match its recorded SHA-256`);
-  }
-  if (binary.length !== provenance.sizes.withNames.raw) {
-    throw new Error(`data/${provenance.file} is ${binary.length} bytes, provenance says ${provenance.sizes.withNames.raw}`);
-  }
+  const verdict = verifyArtefact(binary, provenance);
+  if (!verdict.ok) throw new Error(`data/${provenance.file}: ${verdict.reason}`);
   return `${provenance.counts.total} points, sha256 verified`;
 });
 

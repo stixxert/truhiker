@@ -63,8 +63,9 @@ strings  stringCount uint32 LE | stringCount × { byteLength varint, UTF-8 bytes
   stops, not one).
 
 `parseShopIndex(buffer)` is **pure** — no network, no clock — so tests read the
-committed file from disk. `loadShopIndex(fetchImpl)` is the only fetch, and it
-asks for exactly `/data/shops.osm.bin`.
+built file from disk. `loadShopIndex(fetchImpl)` is the only fetch, and it
+asks for exactly `/data/shops.osm.bin`. The file is a build output (D24):
+`tools/ensure-data.mjs` produces or verifies it before every build.
 
 Failures are typed, not generic: `ShopIndexFormatError.reason` is one of
 `bad-magic`, `bad-version`, `truncated`, `bad-record`, `trailing-bytes`. A magic
@@ -72,7 +73,7 @@ of `NPLSHP02` reports `bad-version` rather than being treated as a foreign file,
 because a silent reinterpretation of a changed record layout would be worse than
 failing.
 
-Measured on the committed file: **8,571 points, 174,912 bytes, parse ≈ 6–9 ms**
+Measured on the built file: **8,571 points, 174,912 bytes, parse ≈ 6–9 ms**
 (Node 22, cold; the first call includes the `TextDecoder` warm-up).
 
 ## 2. The corridor maths
@@ -180,7 +181,7 @@ the leg and in `plan.warnings`.
 | Does a **hut** sell food? | Unknown, and therefore **no**. Opt in explicitly and the plan flags the assumption. |
 | Is a **fuel station** staffed? | Unknown. `0x04` is the extractor's heuristic; an unmanned station counts for nothing, a staffed one is an assumption the plan names. Food there is convenience-grade. |
 | Is a point's **position** right? | As good as OSM. Way-derived POIs are a mean of member nodes, not a building centroid. |
-| Is the **index current**? | `builtAt` is the committed extract's build date (`data/MEASUREMENTS.md`); the binary stores no timestamp, so a different file must be labelled by its caller. |
+| Is the **index current**? | `builtAt` is the extract's build date (`data/MEASUREMENTS.md`), and the deployment reports the date of whichever file it actually serves; the binary stores no timestamp, so a different file must be labelled by its caller. |
 | Which **chain** is it? | Unknown as a fact: `evidence` is `'osm'` for everything bundled. `'chain-verified'` exists in the type but no chain store-locator join exists, so it is never produced. |
 | **Whether the detour is walkable** | Unknown. Points beyond `detourPenaltyM` are flagged, and the extra walking distance is stated but not added to the plan. |
 | **Whether two legs connect** | Only that they do, if `alongRouteM` says so. Non-adjacent legs are bridged by a straight line and the bridged length is warned about. |
@@ -192,7 +193,7 @@ notion of a shop being "probably open".
 
 `test/resupply/` — 7 cases, all offline:
 
-- `shops.test.ts` — parse the committed binary (8,571 points, per-kind counts, a
+- `shops.test.ts` — parse the built binary (8,571 points, per-kind counts, a
   known shop, name reconstruction), corridor query (known shop, radius exclusion,
   out-and-back dedupe, agreement with `projectOntoRoute`), loader + typed errors.
 - `huts.test.ts` — lon,lat bbox and `outputFormat` in the URL, radius filtering,

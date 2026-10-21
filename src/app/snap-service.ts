@@ -37,6 +37,8 @@ export class SnapService {
   private error: string | null = null;
   private report: PrefetchReport | null = null;
   private inFlight = false;
+  /** The newest viewport that arrived while a prefetch was running. */
+  private queued: LonLatBBox | null = null;
 
   constructor(options: SnapServiceOptions = {}) {
     this.index = options.index ?? new SnapIndex();
@@ -72,11 +74,36 @@ export class SnapService {
     return this.state === 'ready';
   }
 
-  /** Load the trail network for one viewport bbox. Never rejects. */
+  /**
+   * Load the trail network for one viewport bbox. Never rejects.
+   *
+   * A viewport asked for while another is loading is **queued, not dropped**:
+   * panning mid-load used to leave the new view unindexed until the next settle,
+   * which looked exactly like "snapping found nothing". Only the newest queued
+   * bbox is kept — an older one would be work for a view the user already left.
+   */
   async loadViewport(bbox: LonLatBBox): Promise<void> {
-    if (this.inFlight) return;
     if (bbox.maxLon <= bbox.minLon || bbox.maxLat <= bbox.minLat) return;
+    if (this.inFlight) {
+      this.queued = bbox;
+      return;
+    }
     this.inFlight = true;
+    try {
+      let next: LonLatBBox | null = bbox;
+      while (next) {
+        this.queued = null;
+        await this.loadOne(next);
+        next = this.queued;
+      }
+    } finally {
+      this.inFlight = false;
+      this.notify();
+    }
+  }
+
+  /** One prefetch run: status in, report out. */
+  private async loadOne(bbox: LonLatBBox): Promise<void> {
     this.state = 'loading';
     this.error = null;
     this.notify();
@@ -89,7 +116,6 @@ export class SnapService {
       this.report = report;
       if (report.aborted) {
         this.state = 'idle';
-        this.notify();
         return;
       }
       if (report.failed > 0 && report.lines === 0) {
@@ -101,9 +127,6 @@ export class SnapService {
     } catch (error) {
       this.state = 'failed';
       this.error = messageOf(error);
-    } finally {
-      this.inFlight = false;
-      this.notify();
     }
   }
 
@@ -114,6 +137,9 @@ export class SnapService {
   }
 
   cancel(): void {
+    // Drop a queued viewport too: "cancel" must not mean "then fetch one more
+    // view the user has already left".
+    this.queued = null;
     this.prefetcher.cancel();
   }
 

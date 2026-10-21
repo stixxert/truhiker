@@ -331,18 +331,35 @@ class BundledShopIndex implements ShopIndex {
    * The index is a flat, in-memory array: this is a scan of 8 571 records, which
    * costs nothing next to a tile request. `limit` keeps a zoomed-out view from
    * pushing the whole national extract into a GeoJSON source.
+   *
+   * The cap is applied as a **stride over the matches**, never as a stop in the
+   * scan. The records are stored in latitude order, so taking the first `limit`
+   * hits kept only the southern edge of a wide view: a country-sized view drew
+   * a band of badges along the south coast and left the rest of the map bare.
+   * A stride keeps the coverage even across the box and the count bounded.
    */
   within(
     bounds: { west: number; south: number; east: number; north: number },
     limit = 2_000,
   ): ResupplyCandidate[] {
-    const out: ResupplyCandidate[] = [];
-    for (let i = 0; i < this.count && out.length < limit; i += 1) {
+    // An empty answer reads as "no shops here", which is the one thing this
+    // layer must never say by accident — so a nonsense cap is an error.
+    if (!(limit >= 0)) throw new RangeError(`invalid view limit: ${limit}`);
+    const matches: number[] = [];
+    for (let i = 0; i < this.count; i += 1) {
       const lat = this.records.lats[i] / 1e6;
       if (lat < bounds.south || lat > bounds.north) continue;
       const lon = this.records.lons[i] / 1e6;
       if (lon < bounds.west || lon > bounds.east) continue;
-      out.push(this.candidateAt(i, 0, 0));
+      matches.push(i);
+    }
+    const kept = Math.min(Math.floor(limit), matches.length);
+    const stride = kept === 0 ? 1 : matches.length / kept;
+    const out: ResupplyCandidate[] = [];
+    // Half a stride of offset, so the samples sit in the middle of each band
+    // rather than hugging the box's southern edge.
+    for (let k = 0; k < kept; k += 1) {
+      out.push(this.candidateAt(matches[Math.floor((k + 0.5) * stride)] as number, 0, 0));
     }
     return out;
   }
@@ -451,6 +468,11 @@ export function parseShopIndex(
 /**
  * Fetch and parse the bundled index. `fetchImpl` is injectable so tests never
  * touch the network; `fetch` is the only I/O in this module.
+ *
+ * Not preloaded from `index.html`: a `<link rel="preload">` makes Vite treat the
+ * file as a source asset and emit a second, content-hashed copy next to the one
+ * `tools/verify/copy-data.mjs` ships — 170 KB of duplicate for a request the app
+ * already starts at boot (`App.prefetchShopIndex`).
  */
 export async function loadShopIndex(fetchImpl: typeof fetch): Promise<ShopIndex> {
   const response = await fetchImpl(SHOP_INDEX_PATH, {

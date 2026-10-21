@@ -274,7 +274,7 @@ export function drawPointCommand(
       snapped,
     };
   }
-  return { type: 'insert', legId: leg.id, index: leg.points.length, point };
+  return { type: 'insert', legId: leg.id, index: leg.points.length, point, snapped };
 }
 
 /**

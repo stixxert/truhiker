@@ -53,7 +53,9 @@ describe('undo/redo', () => {
       snapshots.push(editor.trip);
     };
 
-    run({ type: 'insert', legId: 'leg-1', index: 2, point: { lon: 8.33, lat: 61.5001 } });
+    // A drawn point that snapped: the `insert` command carries `snapped`, so the
+    // marker has to survive the whole undo/redo round-trip (D5).
+    run({ type: 'insert', legId: 'leg-1', index: 2, point: { lon: 8.33, lat: 61.5001 }, snapped: true });
     run({ type: 'move', legId: 'leg-1', index: 3, point: { lon: 8.345, lat: 61.5002 } });
     run({ type: 'delete-vertex', legId: 'leg-1', index: 1 });
     run({

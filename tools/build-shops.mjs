@@ -22,7 +22,8 @@
  * data and is offered under ODbL 1.0. © OpenStreetMap contributors.
  */
 
-import fs from 'node:fs';
+import fs, { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import crypto from 'node:crypto';
@@ -1439,6 +1440,19 @@ text is \`data/ODbL-1.0.txt\`.
   console.log(`unmanned fuel: ${fmt(unmannedAny)}/${fmt(fuel.length)}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// A guard that compares a percent-encoded, symlink-resolved URL with a raw path
+// silently no-ops for a checkout whose path has a space or is reached through a
+// symlink — and a producer that no-ops exits 0 having built nothing (D24).
+function isMainModule() {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(entry);
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule()) {
   main();
 }

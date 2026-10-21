@@ -29,12 +29,15 @@ Live sources, all CORS-enabled and called directly by the browser:
 | `api.met.no` | weather | 4-decimal coordinates, `Origin` identifies us |
 
 One bundled data set: an OpenStreetMap extract of resupply points (ODbL), because every
-live alternative measured 40 s+ or was prohibited. It is committed as a build
-input and served by the app; `data/shops.osm.json` records its SHA-256 and
-`tools/build-shops.mjs` regenerates it from the OSM extract. The file is 175 KB;
-rebuilding it needs the ~1.5 GB Geofabrik PBF and a network, which would make a
-fresh clone dependent on an external service. The committed bytes are also the
-public ODbL copy the app serves, so they are the offer the licence requires.
+live alternative measured 40 s+ or was prohibited. It is **generated at build time**
+by `tools/ensure-data.mjs` — from the Geofabrik PBF when one is available, otherwise
+from a verified local or published copy — and it is never committed (D24);
+`data/shops.osm.json` is the committed pin (SHA-256, size, counts) and
+`tools/build-shops.mjs` regenerates both from the OSM extract. The file is 175 KB;
+rebuilding it from source needs the ~1.5 GB PBF, which is why the pin exists: a
+fresh clone verifies the artefact it gets instead of trusting it. The bytes the
+deployment serves are the public ODbL copy, so they are the offer the licence
+requires.
 
 ## Modules
 

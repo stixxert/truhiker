@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Leg, Trip } from '../src/contracts';
+import { applyCommand } from '../src/route/editor';
 import { defaultProfile, emptyTrip } from '../src/store/trip';
 import {
   DEFAULT_SNAP_RADIUS_M,
@@ -178,7 +179,23 @@ describe('editor state', () => {
     const model = trip([leg('a', 3)]);
     const state = setMode(initialEditorState(model), 'draw', model);
     const command = drawPointCommand(state, model, { lon: 9, lat: 62 });
-    expect(command).toEqual({ type: 'insert', legId: 'a', index: 3, point: { lon: 9, lat: 62 } });
+    expect(command).toEqual({
+      type: 'insert',
+      legId: 'a',
+      index: 3,
+      point: { lon: 9, lat: 62 },
+      snapped: false,
+    });
+    // A drawn point that came from a trail snap carries it into the command, and
+    // the command layer records it as provenance (D5). Before this, only a
+    // replaced span recorded `snapped`, so every point after the first two lost it.
+    const snappedCommand = drawPointCommand(state, model, { lon: 9, lat: 62 }, true);
+    expect(snappedCommand).toMatchObject({ type: 'insert', snapped: true });
+    const applied = applyCommand(model, snappedCommand!, { now: () => new Date(0) });
+    expect(applied.legs[0].provenance).toContainEqual({ kind: 'snapped', modified: true });
+    // ... and an unsnapped point does not claim to be snapped.
+    const plain = applyCommand(model, command!, { now: () => new Date(0) });
+    expect(plain.legs[0].provenance.some((entry) => entry.kind === 'snapped')).toBe(false);
   });
 
   it('replaces a placeholder leg while drawing and pads to two points', () => {

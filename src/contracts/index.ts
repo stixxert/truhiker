@@ -96,7 +96,18 @@ export interface TripSummary {
 /* ------------------------------------------------------------------ */
 
 export type EditCommand =
-  | { readonly type: 'insert'; readonly legId: string; readonly index: number; readonly point: RoutePoint }
+  | {
+      readonly type: 'insert';
+      readonly legId: string;
+      readonly index: number;
+      readonly point: RoutePoint;
+      /**
+       * The point came from a trail snap, not from the raw pointer. Recorded as
+       * provenance so the leg can say which of its points are on a mapped trail
+       * (D5). Optional: an insert from a file or a test is simply not snapped.
+       */
+      readonly snapped?: boolean;
+    }
   | { readonly type: 'move'; readonly legId: string; readonly index: number; readonly point: RoutePoint }
   | { readonly type: 'delete-vertex'; readonly legId: string; readonly index: number }
   | { readonly type: 'delete-leg'; readonly legId: string }

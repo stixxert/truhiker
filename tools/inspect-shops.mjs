@@ -12,7 +12,8 @@
  */
 
 import crypto from 'node:crypto';
-import fs from 'node:fs';
+import fs, { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const TYPES = ['supermarket', 'convenience', 'general', 'grocery', 'fuel', 'post_office', 'parcel_locker'];
 const FLAG = {
@@ -236,4 +237,19 @@ function main() {
   if (!found) console.log('\nNo matches. Try a shorter substring.');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+// A guard that compares a percent-encoded, symlink-resolved URL with a raw path
+// silently no-ops for a checkout whose path has a space or is reached through a
+// symlink — and a producer that no-ops exits 0 having built nothing (D24).
+function isMainModule() {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(entry);
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule()) {
+  main();
+}

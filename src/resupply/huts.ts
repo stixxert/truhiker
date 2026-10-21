@@ -40,6 +40,9 @@ import {
 import { M_PER_DEG_LAT, RouteCorridor, lonPadDeg } from './corridor';
 import type { ResupplyCandidate } from './index';
 
+/** Re-exported so a caller can size a view query without reaching into `src/snap`. */
+export type { LonLatBBox };
+
 /** The WFS feature type for route information points (huts, junctions, …). */
 export const HUT_TYPE_NAME = 'app:RuteInfoPunkt';
 /** Default corridor radius for hut queries, metres. */
@@ -491,4 +494,60 @@ export async function fetchHutsAlong(
     });
   }
   return out.sort((a, b) => a.alongRouteM - b.alongRouteM);
+}
+
+/**
+ * Huts **inside a view box**, as resupply candidates.
+ *
+ * This is what the map asks for, and it is not `fetchHutsAlong`. A route wants
+ * the corridor test; a view is a box, and projecting a box's huts onto that
+ * box's **diagonal** drops everything more than a radius off it — measured at
+ * z12 over Gjendesheim, the WFS returned 3 waypoints in view and the corridor
+ * kept 2. Here the box itself is the filter, so what Turrutebasen returned
+ * inside the view is what the map draws.
+ *
+ * `alongRouteM` and `detourM` are `0`: there is no route in play, which is the
+ * same convention the bundled index uses for `within()`.
+ */
+export async function fetchHutsInBounds(
+  bounds: LonLatBBox,
+  opts: Omit<FetchHutsOptions, 'radiusM'> = {},
+): Promise<ResupplyCandidate[]> {
+  assertLonLatBBox(bounds);
+  // `hutQueryTiles` pads by a radius; here the caller's box is the box fetched.
+  const tiles = hutQueryTiles(
+    [
+      { lon: bounds.minLon, lat: bounds.minLat },
+      { lon: bounds.maxLon, lat: bounds.maxLat },
+    ],
+    0,
+  );
+  // One deadline for all tiles: a hanging WFS must not hold the map hostage.
+  const signal = combineSignals(opts.signal, opts.deadlineMs ?? 15_000);
+  const responses = await mapLimited(tiles, HUT_REQUEST_CONCURRENCY, (bbox) =>
+    fetchHutXml(hutGetFeatureUrl(bbox), { ...opts, signal }),
+  );
+  const huts = dedupeHuts(responses.flatMap((xml) => parseHutGml(xml)));
+
+  const out: ResupplyCandidate[] = [];
+  const seen = new Set<string>();
+  for (const hut of huts) {
+    // The tile is the box (nothing is padded), so this re-filter is defensive:
+    // it also keeps the promise local if the tiler ever pads again.
+    if (hut.point.lat < bounds.minLat || hut.point.lat > bounds.maxLat) continue;
+    if (hut.point.lon < bounds.minLon || hut.point.lon > bounds.maxLon) continue;
+    const key = hut.id !== '' ? hut.id : `${hut.point.lat.toFixed(6)},${hut.point.lon.toFixed(6)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      kind: 'hut',
+      name: hut.name !== '' ? hut.name : '(unnamed hut)',
+      point: hut.point,
+      alongRouteM: 0,
+      detourM: 0,
+      evidence: 'curated',
+      // No opening hours: Turrutebasen carries none.
+    });
+  }
+  return out;
 }

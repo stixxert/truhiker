@@ -78,7 +78,11 @@ import {
   type EnergyAssumptions,
   type EnergyPanelState,
 } from '../ui/energy-view';
-import { SupplyService } from './supply-service';
+import {
+  SupplyService,
+  mergePlacesForView,
+  placesDrawBounds,
+} from './supply-service';
 import { loadShopIndex, planResupplyForTrip, type ResupplyCandidate } from '../resupply';
 import { TripLibraryDialog } from '../ui/trip-library';
 import { TripSettingsDialog } from '../ui/trip-settings';
@@ -616,6 +620,8 @@ export class App {
       // the bundled file instead of a 404 at the domain root.
       loadIndex: (fetchImpl) => loadShopIndex(baseAwareFetch(fetchImpl)),
     });
+    // Warm the 175 KB index now, not when the map first settles.
+    this.prefetchShopIndex();
     this.supplyPanel = new SupplyPanel(this.elements.supplyPanel, this.i18n, {
       onClose: () => this.hideSupplyPanel(),
       onRefresh: () => void this.refreshSupply(true),
@@ -742,7 +748,7 @@ export class App {
         getTrip: () => this.session?.trip ?? null,
         isSnapping: () => this.editorUi.snapping,
         snap: (point) => this.snapAt(point),
-        onDrawPoint: (point) => this.drawPoint(point),
+        onDrawPoint: (point, snap) => this.drawPoint(point, snap !== null),
         onSelect: (legId, index, extend) => this.selectVertexAt(legId, index, extend),
         onMoveVertex: (legId, index, point) => this.moveVertex(legId, index, point),
         onInsertPoint: (legId, index, point) => this.insertVertex(legId, index, point),
@@ -1526,13 +1532,38 @@ export class App {
     });
   }
 
-  /** Ask the service what is around the current view, once the map settles. */
+  /**
+   * Ask the service what is around the current view, once the map settles.
+   *
+   * The delay is only there to collapse a drag's worth of camera frames into one
+   * query; the query itself is a local scan, so it is kept short. It used to be
+   * 450 ms, which was most of the wait a user felt between zooming out and seeing
+   * the badges arrive.
+   */
   private schedulePlaces(): void {
     if (this.placesTimer !== null) window.clearTimeout(this.placesTimer);
     this.placesTimer = window.setTimeout(() => {
       this.placesTimer = null;
       void this.refreshPlaces();
-    }, 450);
+    }, 200);
+  }
+
+  /**
+   * Warm the bundled index with the first paint.
+   *
+   * The map needs the shops whether or not the panel is open (D20), and the
+   * layer used to wait for a camera settle *and* the debounce before asking for
+   * the file — so on a phone the first badges arrived seconds after the map. The
+   * service de-duplicates the request, so the panel's own query joins this one.
+   */
+  private prefetchShopIndex(): void {
+    const service = this.supplyService;
+    if (!service) return;
+    // A data-saver connection is not made to pay 175 KB for map decoration.
+    const connection = (navigator as { connection?: { saveData?: boolean } }).connection;
+    if (connection?.saveData === true) return;
+    // Not fatal here: the panel's query retries and reports the failure.
+    void service.shopIndex().catch(() => {});
   }
 
   private async refreshPlaces(): Promise<void> {
@@ -1544,11 +1575,14 @@ export class App {
     const connection = (navigator as { connection?: { saveData?: boolean } }).connection;
     if (connection?.saveData === true) return;
     const token = ++this.placesToken;
-    const bounds = map.getViewBounds();
+    const view = map.getViewBounds();
     try {
-      const result = await service.placesIn(bounds);
+      const result = await service.placesIn(view);
       if (token !== this.placesToken) return;
-      this.places = result.places;
+      // Keep what is already drawn: a pan must add and drop glyphs at its edges,
+      // not replace the layer. Anything still inside the covered box stays, so a
+      // shop in front of the user does not vanish and come back as a "new" one.
+      this.places = mergePlacesForView(this.places, result.places, placesDrawBounds(view));
       this.renderSupplyMap();
       this.banners.dismiss('places-failed');
     } catch (error) {
@@ -1761,7 +1795,7 @@ export class App {
     this.renderEditor();
   }
 
-  private drawPoint(point: LonLat): void {
+  private drawPoint(point: LonLat, snapped = false): void {
     const session = this.session;
     const engines = this.engines;
     let trip = session?.trip;
@@ -1786,7 +1820,7 @@ export class App {
       trip = withLeg;
     }
 
-    const command = drawPointCommand(this.editorUi, trip, { lon: point.lon, lat: point.lat });
+    const command = drawPointCommand(this.editorUi, trip, { lon: point.lon, lat: point.lat }, snapped);
     if (!command) return;
     if (session.apply(command)) {
       this.editorUi = noteDrawnPoint(this.editorUi, { lon: point.lon, lat: point.lat });

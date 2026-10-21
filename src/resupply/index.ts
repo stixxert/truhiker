@@ -94,11 +94,13 @@ export {
   DEFAULT_HUT_RADIUS_M,
   HUT_TYPE_NAME,
   fetchHutsAlong,
+  fetchHutsInBounds,
   hutGetFeatureUrl,
   hutQueryBbox,
   parseHutGml,
   type FetchHutsOptions,
   type HutPoint,
+  type LonLatBBox,
 } from './huts';
 
 /**
@@ -111,6 +113,19 @@ export {
  */
 export function hasVerifiedHours(candidate: ResupplyCandidate): boolean {
   return candidate.openingHours !== undefined;
+}
+
+/**
+ * Identity of a candidate: two records are the same point when kind, name and
+ * position agree.
+ *
+ * Used wherever points from two sources are merged — the corridor's rows and the
+ * map's view query, a fresh view answer and the one already drawn — so a place is
+ * drawn and counted once.
+ */
+export function candidateKey(candidate: ResupplyCandidate): string {
+  const { lat, lon } = candidate.point;
+  return `${candidate.kind}:${candidate.name}@${lat.toFixed(6)},${lon.toFixed(6)}`;
 }
 
 export {

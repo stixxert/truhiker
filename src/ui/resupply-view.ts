@@ -19,7 +19,7 @@
 
 import type { LonLat } from '../core/geo';
 import { formatDay, type I18n, type MessageKey } from '../i18n';
-import type { ResupplyCandidate, ResupplyLeg, ResupplyPlan } from '../resupply';
+import { candidateKey, type ResupplyCandidate, type ResupplyLeg, type ResupplyPlan } from '../resupply';
 
 /** Everything a successful corridor query produced, plus its provenance. */
 interface ResupplyData {
@@ -133,11 +133,8 @@ const KIND_KEYS: Record<ResupplyCandidate['kind'], MessageKey> = {
   hut: 'supply.kind.hut',
 };
 
-/** Two rows are the same point when kind, name and position agree. */
-export function candidateKey(candidate: ResupplyCandidate): string {
-  const { lat, lon } = candidate.point;
-  return `${candidate.kind}:${candidate.name}@${lat.toFixed(6)},${lon.toFixed(6)}`;
-}
+/** The same identity the resupply surface uses; kept exported for this module's callers. */
+export { candidateKey };
 
 function daysLabel(days: number, i18n: ViewI18n): string {
   // A sub-hour leg is not "0 d": rounding to one decimal would print zero days

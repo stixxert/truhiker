@@ -108,6 +108,14 @@ describe('SnapIndex.snap', () => {
     expect(index.snap(point, { radiusM: 20, stickyRadiusM: 20 })).toBeNull();
     expect(() => index.snap(point, { radiusM: 0 })).toThrow(RangeError);
     expect(() => index.snap(point, { radiusM: 100, stickyRadiusM: 50 })).toThrow(/hysteresis/);
+    // The dock offers 20–300 m, so anything above the fixed 120 m default used to
+    // throw instead of snapping. Hysteresis is now derived from the radius (1.5 ×,
+    // per D5), which keeps the wide settings usable.
+    for (const radius of [125, 200, 300]) {
+      expect(index.snap(northOf({ lon: 8.005, lat: 61.5 }, radius * 0.5), { radiusM: radius })?.lineId).toBe(
+        EAST_WEST.id,
+      );
+    }
     expect(() => index.snap({ lon: Number.NaN, lat: 61.5 })).toThrow(RangeError);
     expect(() => new SnapIndex({ gridCellDeg: 0 })).toThrow(RangeError);
     expect(() => new SnapIndex({ gridCellDeg: 2 })).toThrow(RangeError);

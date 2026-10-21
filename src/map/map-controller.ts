@@ -439,6 +439,33 @@ function markerImageExpression(variant: 'bright' | 'dark'): ExpressionSpecificat
   ];
 }
 
+/**
+ * Cheap rolling hash (FNV-1a) of a point set.
+ *
+ * `setData` on a clustered source rebuilds the cluster index and the map
+ * re-places every symbol, so it is only worth doing when something a user could
+ * see has changed: id, kind, the food flag and the position to 1e-6° (≈0.1 m).
+ * A collision could skip one redraw of a set that looks identical — the inputs are
+ * ids and coordinates, not free text, so this is a hash of identity, not of prose.
+ */
+function resupplySignature(points: readonly ResupplyMapPoint[]): number {
+  let hash = 0x811c9dc5;
+  const mix = (value: number): void => {
+    hash = Math.imul(hash ^ (value & 0xffff), 0x01000193);
+    hash = Math.imul(hash ^ ((value >>> 16) & 0xffff), 0x01000193);
+  };
+  for (const point of points) {
+    mix(1);
+    for (let i = 0; i < point.id.length; i += 1) mix(point.id.charCodeAt(i));
+    mix(0);
+    for (let i = 0; i < point.kind.length; i += 1) mix(point.kind.charCodeAt(i));
+    mix(point.usable ? 1 : 0);
+    mix(Math.round(point.position.lon * 1e6));
+    mix(Math.round(point.position.lat * 1e6));
+  }
+  return hash >>> 0;
+}
+
 function resupplyLayers(): StyleLayers {
   return [
     {
@@ -706,6 +733,8 @@ export class MapController {
   private ready = false;
   private disposed = false;
   private resupply: ResupplyMapPoint[] = [];
+  /** Rolling hash of the drawn points; `null` until the first set is applied. */
+  private resupplySignature: number | null = null;
   private resupplyHandlers: ResupplyMapHandlers = {};
   private resupplyPopup: Popup | null = null;
   private resupplyHovered: string | null = null;
@@ -1240,9 +1269,20 @@ export class MapController {
   // Resupply markers
   // -------------------------------------------------------------------------
 
-  /** Replace the resupply markers. Safe before the style has loaded. */
+  /**
+   * Replace the resupply markers. Safe before the style has loaded.
+   *
+   * A clustered source rebuilds its whole index on every `setData`, and the map
+   * re-places every symbol: calling it with the same points (which a camera
+   * settle does, since the layer is merged, not replaced) made the glyphs blink
+   * for no reason. The signature is a cheap rolling hash over id, kind, food flag
+   * and position; identical means nothing to draw differently.
+   */
   setResupplyPoints(points: readonly ResupplyMapPoint[]): void {
     this.resupply = [...points];
+    const signature = resupplySignature(this.resupply);
+    if (signature === this.resupplySignature) return;
+    this.resupplySignature = signature;
     this.applyResupply();
   }
 

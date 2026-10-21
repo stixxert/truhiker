@@ -28,6 +28,8 @@ the build. Agent process rules live in `AGENTS.md` as prose, not as executable
 checks: a gate that fails because a document is formatted a certain way is
 ceremony, and it belongs to the agent's workflow, not to the repository.
 
-The resupply data (`data/shops.osm.bin`, 175 KB) is a committed build input: it is
-a Derivative Database of OpenStreetMap served by the deployed app. `data/shops.osm.json`
-records its provenance and SHA-256; `build-shops.mjs` regenerates it.
+The resupply data (`data/shops.osm.bin`, 175 KB) is a **build output**, not a
+committed file (D24): `tools/ensure-data.mjs` produces it during `npm run build`,
+from the Geofabrik PBF when one is available and otherwise from a verified local or
+published copy. `data/shops.osm.json` is committed — it records the provenance and
+the SHA-256 the artefact has to reproduce — and `build-shops.mjs` regenerates both.

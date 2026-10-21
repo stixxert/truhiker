@@ -48,8 +48,10 @@ const missing = required.filter((f) => !existsSync(join(DEST, f)));
 if (missing.length > 0) {
   console.error(
     `copy-data: missing required file(s) in dist/data: ${missing.join(', ')}\n` +
-      'Run `node tools/build-shops.mjs` to regenerate them. Shipping the POI data\n' +
-      'without its licence file would breach the ODbL attribution requirement.',
+      'Run `node tools/ensure-data.mjs` (or `npm run data:build` with $OSM_PBF set)\n' +
+      'to produce them — the artefact is a build output, not a committed file (D24).\n' +
+      'Shipping the POI data without its licence file would breach the ODbL\n' +
+      'attribution requirement.',
   );
   process.exit(1);
 }

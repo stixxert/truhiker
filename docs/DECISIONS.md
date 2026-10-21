@@ -76,9 +76,15 @@ returns ~10 days of hourly entries (measured 2026-10-19: 85 entries, +10.0 d).
 **Default: 75 m, sticky at 120 m.**
 
 - A click or vertex within the radius snaps to the nearest trail.
-- Once snapped, leaving requires 1.5 × radius, so parallel paths do not flicker.
+- Once snapped, leaving requires 1.5 × radius (flooring at 120 m, so a very small
+  radius does not make an existing snap flicker), which is why parallel paths do
+  not oscillate. The sticky radius is **derived** from the radius (`max(120 m, 1.5 × radius)`),
+  not fixed: the dock offers 20–300 m, and a fixed 120 m made every call above it
+  throw — so the wider the setting, the more certainly snapping was dead.
 - No trail within the radius → the segment is drawn **dashed** and labelled
-  **off-trail**, and the leg records that in its provenance.
+  **off-trail**, and the leg records that in its provenance. That record covers
+  every drawn point, including points appended to an existing leg (the `insert`
+  command carries `snapped`); it used to be lost after the first two points.
 - Re-snapping a span never bridges two trails that do not connect; the gap stays
   visible.
 
@@ -393,6 +399,24 @@ as a route is known — panel open or not — and each kind has its own glyph.**
   fuel stations are on the map anywhere in Norway, route or no route. Huts are the
   live half, so they are asked for only at zoom ≥ 12, where the box is small, with
   a five-minute cache per rounded box and the same request cap as a corridor query.
+- **A view is a box, in both halves.** The hut query sends the box itself
+  (`fetchHutsInBounds`) instead of handing two opposite corners to the corridor
+  client: a corridor around a box's diagonal drops everything more than a radius
+  off it, which measured 2 of 3 waypoints kept at z12 over Gjendesheim.
+- **The box is the view plus a margin, and the layer is merged, not replaced.**
+  The query covers 1.3× the view (`placesDrawBounds`), and a new answer is merged
+  with what is already drawn, keeping every point still inside that box. Sampling
+  the shops by zoom was tried and removed: it made the set change shape whenever
+  the view moved, so panning dropped and re-placed every glyph — the shops in
+  front of you vanished and came back as "new" ones. Every shop in the covered
+  box is drawn; the source's own clustering is what compacts a country view.
+- **The index is fetched at boot, not on the first camera settle.** It is 175 KB
+  and the layer needs it with the first paint (D20 is not conditional on the
+  panel), so `App.prefetchShopIndex()` starts it with the app; the panel's own
+  query joins that same request. The settle debounce is 200 ms — enough to
+  collapse a drag's camera frames into one query — and an identical point set is
+  not pushed to the source again, because `setData` on a clustered source rebuilds
+  the cluster index and re-places every symbol.
 - Below the cluster threshold they **compact into one count badge** per group
   (`cluster: true`, radius 48, breaking up at z12): a screen of 250 glyphs is not
   readable, a badge saying "99+" is. Clicking a badge zooms to where it splits.
@@ -454,7 +478,7 @@ the fix; more buttons was the disease.
 
 ## D22. The resupply layer ships with the app, it is not queried live
 
-**Default: one committed ODbL extract, served by us, rebuilt deliberately.**
+**Default: one ODbL extract, built by the pipeline and served by us.**
 
 - **Where it comes from.** Geofabrik's `norway-latest.osm.pbf` (extract 2026-10-18,
   1.38 GB) is filtered by `tools/build-shops.mjs` to **8,571 points** — supermarket
@@ -478,10 +502,12 @@ the fix; more buttons was the disease.
 - **Huts are the opposite case and stay live** (Turrutebasen WFS, CC BY 4.0): they
   are few, tied to a place and change, they are fetched on demand, and the view
   layer holds them to zoom ≥ 12 with a five-minute cache (D20).
-- **Rebuilding** is `node --max-old-space-size=1400 tools/build-shops.mjs --pbf
-  <norway-latest.osm.pbf> --out data`. The checksum, the per-kind counts and the
-  coordinate bounds are pinned by a validation test, so a stale or corrupted
-  artefact cannot ship quietly.
+- **Rebuilding** is `npm run data:build` with `$OSM_PBF` pointing at a
+  `norway-latest.osm.pbf` (or `node --max-old-space-size=3072
+  tools/build-shops.mjs --pbf <file> --out data`). The artefact is a build output
+  and is never committed (D24); the provenance file beside it is. The checksum, the
+  per-kind counts and the coordinate bounds are pinned by a validation test, so a
+  stale or corrupted artefact cannot ship quietly.
 
 ## D23. The resupply artefact refreshes monthly from a cron Worker, and the build runs in a build container
 
@@ -513,8 +539,11 @@ uses a fraction of a percent of the allowance, with room for retries.
   status. A rejected hook returns 502 and says so in the log: a silent success
   would look like a refresh that happened. `POST /trigger` with an
   `x-trigger-key` header (secret `TRIGGER_KEY`) is the manual pull after an outage.
-- Workers Builds job: build `npm ci && bash tools/refresh-shops.sh`, deploy
-  `npx wrangler deploy`. The deploy ships the freshly built `data/shops.osm.bin`.
+- Workers Builds job: build `npm ci && bash tools/refresh-shops.sh && npm run
+  build`, deploy `npx wrangler deploy`. The refresh step is the producer, the
+  `npm run build` after it is the consumer (`tools/ensure-data.mjs` verifies what
+  was just produced), and the deploy ships that freshly built
+  `data/shops.osm.bin`.
 - `tools/refresh-shops.sh` — downloads with `curl -fL --retry` (an HTML error page
   must not be parsed as a PBF), refuses a file under 500 MB (a truncated extract
   parses as "no POIs", the worst failure: an empty index would ship silently),
@@ -525,11 +554,51 @@ uses a fraction of a percent of the allowance, with room for retries.
   and `dist` at once, and nothing more is needed.
 
 **Consequence, stated plainly.** The deployed artefact can be newer than the
-committed one. The committed file is the build input and the reproducible fallback,
-pinned by the checksum test; committing a refresh is still wanted, but the site no
-longer depends on someone remembering. `<meta>`/`About data` report the extract date
+committed provenance. The committed *provenance* is the pin a rebuild has to
+reproduce; the binary itself is a build output and is never in git (D24), so the
+site no longer depends on someone remembering, and a checkout no longer carries a
+second copy of a file we already serve. `<meta>`/`About data` report the extract date
 of whichever file is actually served, so the UI cannot claim freshness it does not
 have.
 
 **Manual paths.** `npm run refresh:shops` locally, and
 `npm run deploy:cron` to publish the trigger Worker.
+
+## D24. Generated data is built, never committed
+
+**Default: a binary artefact under `data/` is a build output. Its provenance is
+the only thing in git.**
+
+- **What is committed.** `data/shops.osm.json` — the SHA-256, the byte size, the
+  counts, the tag filter, the source extract date. That is the pin.
+- **What is not.** `data/shops.osm.bin`. `.gitignore` excludes it, and the gate
+  fails if one is ever tracked again (`git ls-files -- data/*.bin` must be empty).
+- **Who produces it.** `tools/ensure-data.mjs` runs first in `npm run build`:
+  - *producer* — with `$OSM_PBF` (or `--from-pbf <file>`) it rebuilds from
+    Geofabrik's extract and rewrites the provenance. This is the deploy container
+    (D23), and `npm run data:build` is the same thing locally.
+  - *consumer* — with no PBF it reuses a local artefact **only if it matches the
+    pin**, or fetches a published copy from `$TRUHIKER_DATA_URL` and verifies it.
+  - with neither, the build **fails** and says which of the three paths to take.
+    It never ships an empty index: an empty list reads on screen as "there are no
+    shops in Norway", which is the one thing it must never say (D7).
+- **What the pin does and does not prove.** A consumer build verifies the artefact
+  against `data/shops.osm.json`; it proves the bytes are the ones the commit
+  describes. A *producer* rebuild deliberately rewrites the pin, so it does not
+  prove the new data came from the same extract: the provenance records the
+  source URL, the extract date and its byte size, not the PBF's own hash.
+- **Why this way.** The repo is the product, not a warehouse for its own build
+  outputs: a committed blob is a second copy of a file we already serve, it makes
+  every data refresh a binary commit that no one can review, and it lets a stale
+  copy sit in git looking authoritative. The provenance pin gives what committing
+  was actually for — reproducibility, a visible diff when the data changes, and a
+  build that fails loudly instead of shipping something else.
+- **History, because it matters.** This was decided once before
+  (`c9e889c`, "keep derived data and verification tooling out of the product
+  tree": release asset + SHA-256 manifest + `tools/fetch-data.mjs`) and then
+  reverted silently inside a commit about security headers (`bf71ca4`), which
+  re-added the 175 KB binary and deleted the manifest. Two policies then lived in
+  the docs at once. This entry is the one; D22 and D23 were reworded to match.
+
+**Why:** a rule that lives only in a commit message is not a rule. It is only as
+load-bearing as the gate that fails when it is broken.

@@ -9,7 +9,13 @@ import { describe, expect, it } from 'vitest';
 
 import type { LonLat } from '../../src/core/geo';
 import { WFS_ENDPOINT } from '../../src/snap/wfs';
-import { HUT_TYPE_NAME, fetchHutsAlong, hutGetFeatureUrl, parseHutGml } from '../../src/resupply';
+import {
+  HUT_TYPE_NAME,
+  fetchHutsAlong,
+  fetchHutsInBounds,
+  hutGetFeatureUrl,
+  parseHutGml,
+} from '../../src/resupply';
 
 /** A route heading east at 61.4 N, 8.2 E → 8.3 E (≈5.3 km). */
 const ROUTE: LonLat[] = [
@@ -175,5 +181,45 @@ describe('fetchHutsAlong — request discipline', () => {
       expect(minLon).toBeGreaterThanOrEqual(4);
       expect(maxLat).toBeLessThanOrEqual(72);
     }
+  });
+});
+
+/**
+ * The map's own hut query.
+ *
+ * The view query used to hand the box's two opposite corners to the corridor
+ * client, so every hut was projected onto the box **diagonal** and anything more
+ * than a radius off it was dropped — at z12 over Gjendesheim the WFS returned 3
+ * waypoints in view and 2 survived. A view is a box, and the box is the filter.
+ */
+describe('fetchHutsInBounds — a view is a box', () => {
+  it('keeps every waypoint in the box, drops the ones outside it, and pads nothing', async () => {
+    const { fetchImpl, urls } = mockFetch(GML);
+    const box = { minLon: 8.2, minLat: 61.39, maxLon: 8.32, maxLat: 61.61 };
+    const huts = await fetchHutsInBounds(box, { fetchImpl, attempts: 1 });
+
+    // Both waypoints are in the box and the second is 22 km from the first — far
+    // outside any corridor radius, so a corridor query would have dropped it.
+    expect(huts.map((hut) => hut.name)).toEqual(['Fondsbu', 'Ukjent']);
+    expect(huts.every((hut) => hut.kind === 'hut' && hut.alongRouteM === 0)).toBe(true);
+    expect(huts.every((hut) => hut.detourM === 0 && hut.evidence === 'curated')).toBe(true);
+    expect(huts.every((hut) => hut.openingHours === undefined)).toBe(true);
+
+    // The request is exactly the box: no route padding on top of it.
+    const bbox = (new URL(urls[0]).searchParams.get('bbox') ?? '')
+      .split(',')
+      .slice(0, 4)
+      .map(Number);
+    expect(bbox).toEqual([8.2, 61.39, 8.32, 61.61]);
+    expect(new URL(urls[0]).searchParams.get('bbox')).toContain('EPSG:4326');
+
+    // A box that only reaches the southern waypoint returns only that one: the
+    // client-side re-filter is what pins the answer to the view.
+    const narrow = mockFetch(GML);
+    const one = await fetchHutsInBounds({ ...box, maxLat: 61.45 }, {
+      fetchImpl: narrow.fetchImpl,
+      attempts: 1,
+    });
+    expect(one.map((hut) => hut.name)).toEqual(['Fondsbu']);
   });
 });

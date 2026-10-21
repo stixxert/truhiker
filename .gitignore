@@ -13,3 +13,8 @@ dist/
 /audit*-tmp.mjs
 *.tmp.mjs
 .tmp*
+
+# Generated data is a build output, never a committed file (D24).
+# The provenance JSON beside it (`data/shops.osm.json`) IS committed: it carries
+# the SHA-256, size and counts that a rebuild has to reproduce.
+data/*.bin

@@ -150,7 +150,14 @@ export function applyCommand(
       const point = assertRoutePoint(command.point, 'insert: point');
       const points = [...leg.points.slice(0, command.index), point, ...leg.points.slice(command.index)];
       assertMinPoints(points, leg.id, 'insert');
-      return commit(legIndex, edited(recomputeLeg({ ...leg, points })));
+      const inserted = edited(recomputeLeg({ ...leg, points }));
+      // A drawn point that snapped to a trail says so. This is the flow that used
+      // to drop the marker: only `replace-span` recorded `snapped`, so every point
+      // after the first two lost its provenance (D5 says the leg records it).
+      const provenance = command.snapped
+        ? ensureProvenance(inserted.provenance, SNAPPED_MARKER)
+        : inserted.provenance;
+      return commit(legIndex, { ...inserted, provenance });
     }
 
     case 'move': {

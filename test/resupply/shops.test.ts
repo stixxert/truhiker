@@ -226,5 +226,14 @@ describe('the committed artefact', () => {
     expect(oslo.length).toBeGreaterThan(50);
     expect(oslo.length).toBeLessThan(500);
     expect(index.within({ west: 10.68, south: 59.88, east: 10.82, north: 59.95 }, 10)).toHaveLength(10);
+
+    // The cap is a stride, not a stop in the scan: the records are stored in
+    // latitude order, so truncating kept only the southern edge of a wide view
+    // (a country-sized view drew a band of badges on the south coast and left
+    // the rest of the map bare). A capped wide box must still span the box.
+    const country = index.within({ west: 4, south: 57.9, east: 12.5, north: 62.5 }, 60);
+    expect(country).toHaveLength(60);
+    const latitudes = country.map((point) => point.point.lat);
+    expect(Math.max(...latitudes) - Math.min(...latitudes)).toBeGreaterThan(3);
   });
 });

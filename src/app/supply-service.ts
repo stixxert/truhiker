@@ -19,8 +19,11 @@
 import type { LonLat } from '../core/geo';
 import {
   DEFAULT_HUT_RADIUS_M,
+  candidateKey,
   fetchHutsAlong,
+  fetchHutsInBounds,
   loadShopIndex,
+  type LonLatBBox,
   type ResupplyCandidate,
   type ShopIndex,
 } from '../resupply';
@@ -48,7 +51,10 @@ export interface ViewBounds {
 }
 
 export interface PlacesResult {
-  /** Points inside the box. `alongRouteM` is 0: there is no route in play. */
+  /**
+   * Points inside the covered box — the view plus the overscan margin
+   * (`placesDrawBounds`). `alongRouteM` is 0: there is no route in play.
+   */
   readonly places: readonly ResupplyCandidate[];
   readonly hutsError: string | null;
 }
@@ -58,6 +64,74 @@ export const HUT_VIEW_MIN_ZOOM = 12;
 /** A hut answer is reused for this long before the box is asked again. */
 const VIEW_HUTS_TTL_MS = 5 * 60_000;
 
+/**
+ * How much bigger than the view the place query is: 1.3 adds 15 % of the view's
+ * span on every side.
+ *
+ * The margin is what keeps the layer still. Without it the answer covers exactly
+ * the view, so a pan of one pixel changes the box and the drawn set with it; with
+ * it, a glyph that is already on screen stays on screen until the map has moved a
+ * sixth of a screen past it.
+ */
+export const PLACES_OVERSCAN = 1.3;
+
+/**
+ * Absolute ceiling on points handed to the GeoJSON source.
+ *
+ * This is a safety valve, **not a sampling policy**: it sits above the whole
+ * index (8,571), so in practice every shop in the covered box is drawn. A
+ * zoom-scaled sample was tried and removed — it made the layer change shape
+ * whenever the view moved, so panning dropped and re-placed every glyph.
+ */
+export const PLACES_MAX_POINTS = 10_000;
+
+/** The box `placesIn()` covers for a view: the view plus the overscan margin. */
+export function placesDrawBounds(view: ViewBounds): ViewBounds {
+  const padLat = ((view.north - view.south) * (PLACES_OVERSCAN - 1)) / 2;
+  const padLon = ((view.east - view.west) * (PLACES_OVERSCAN - 1)) / 2;
+  return {
+    west: Math.max(-180, view.west - padLon),
+    south: Math.max(-90, view.south - padLat),
+    east: Math.min(180, view.east + padLon),
+    north: Math.min(90, view.north + padLat),
+    zoom: view.zoom,
+  };
+}
+
+/**
+ * Merge a fresh answer with the points already drawn.
+ *
+ * Everything from `previous` that is still inside `box` is kept, so a pan adds
+ * and drops glyphs at its edges instead of replacing the whole layer. Replacing
+ * it meant every symbol was re-placed on every camera settle — the layer blinked:
+ * the shops in front of you disappeared and came back as "new" ones.
+ *
+ * The fresh answer wins on a duplicate key: it is the newer reading of the same
+ * place.
+ */
+export function mergePlacesForView(
+  previous: readonly ResupplyCandidate[],
+  fresh: readonly ResupplyCandidate[],
+  box: ViewBounds,
+): ResupplyCandidate[] {
+  const inside = (candidate: ResupplyCandidate): boolean =>
+    candidate.point.lon >= box.west &&
+    candidate.point.lon <= box.east &&
+    candidate.point.lat >= box.south &&
+    candidate.point.lat <= box.north;
+
+  const seen = new Set<string>();
+  const out: ResupplyCandidate[] = [];
+  for (const candidate of [...fresh, ...previous]) {
+    if (!inside(candidate)) continue;
+    const key = candidateKey(candidate);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(candidate);
+  }
+  return out;
+}
+
 interface SupplyDeps {
   readonly fetchImpl: typeof fetch;
   /** Injectable for tests and for a different data file. */
@@ -65,6 +139,11 @@ interface SupplyDeps {
   readonly loadHuts?: (
     route: readonly LonLat[],
     opts: { radiusM: number; fetchImpl: typeof fetch },
+  ) => Promise<ResupplyCandidate[]>;
+  /** The view query: a box, not a corridor (see `fetchHutsInBounds`). */
+  readonly loadHutsInBounds?: (
+    bounds: LonLatBBox,
+    opts: { fetchImpl: typeof fetch },
   ) => Promise<ResupplyCandidate[]>;
   readonly now?: () => Date;
 }
@@ -117,21 +196,25 @@ export class SupplyService {
   }
 
   /**
-   * Places inside the current view, route or no route.
+   * Places to draw for the current view, route or no route.
    *
    * Shops come from the bundled index and are complete for Norway — the scan is
    * local and instant. Huts are a live WFS query, so they are only asked for at
    * `HUT_VIEW_MIN_ZOOM` and above, where the box is small; below that the map
    * shows shops only, and the panel still has the route's own hut query.
+   *
+   * The answer covers `placesDrawBounds(view)` — the view plus a margin — for the
+   * reasons in `PLACES_OVERSCAN`. Nothing here depends on the *camera* having
+   * settled: the caller owns that debounce.
    */
-  async placesIn(bounds: ViewBounds): Promise<PlacesResult> {
+  async placesIn(view: ViewBounds): Promise<PlacesResult> {
     const index = await this.shopIndex();
-    // A country-sized view does not need every one of 8,571 points in the GeoJSON
-    // source: clustering merges them anyway. The cap grows with the zoom so a
-    // street-level view can show the whole block.
-    const limit = bounds.zoom < 9 ? 600 : bounds.zoom < 11 ? 1_500 : 2_000;
-    const places: ResupplyCandidate[] = index.within(bounds, limit);
-    if (bounds.zoom < HUT_VIEW_MIN_ZOOM) return { places, hutsError: null };
+    const bounds = placesDrawBounds(view);
+    // Every shop in the covered box. The source's clustering is what compacts a
+    // country view; sampling here instead is what made the layer change shape —
+    // and blink — whenever the view moved.
+    const places: ResupplyCandidate[] = index.within(bounds, PLACES_MAX_POINTS);
+    if (view.zoom < HUT_VIEW_MIN_ZOOM) return { places, hutsError: null };
 
     const cacheKey = `${bounds.west.toFixed(2)},${bounds.south.toFixed(2)},${bounds.east.toFixed(2)},${bounds.north.toFixed(2)}`;
     const cached = this.viewHuts.get(cacheKey);
@@ -140,18 +223,15 @@ export class SupplyService {
       return { places: [...places, ...cached.huts], hutsError: cached.error };
     }
 
-    const loadHuts = this.deps.loadHuts ?? fetchHutsAlong;
+    const loadHuts = this.deps.loadHutsInBounds ?? fetchHutsInBounds;
     let huts: ResupplyCandidate[] = [];
     let hutsError: string | null = null;
     try {
-      // Two opposite corners are a route as far as the tiler is concerned: it
-      // pads and tiles the box, with the same request cap as a corridor query.
+      // The box *is* the query. Handing the corners to the corridor client would
+      // filter against the box's diagonal and drop the huts in its corners.
       huts = await loadHuts(
-        [
-          { lon: bounds.west, lat: bounds.south },
-          { lon: bounds.east, lat: bounds.north },
-        ],
-        { radiusM: 1_000, fetchImpl: this.deps.fetchImpl },
+        { minLon: bounds.west, minLat: bounds.south, maxLon: bounds.east, maxLat: bounds.north },
+        { fetchImpl: this.deps.fetchImpl },
       );
     } catch (error) {
       hutsError = error instanceof Error ? error.message : String(error);

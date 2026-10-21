@@ -63,7 +63,7 @@ describe('SnapService', () => {
     expect(service.lineCount).toBe(0);
   });
 
-  it('ignores a degenerate viewport and does not fetch', async () => {
+  it('ignores a degenerate viewport and does not fetch, and queues the newest viewport instead of dropping it', async () => {
     let calls = 0;
     const service = new SnapService({
       fetchBox: async () => {
@@ -74,6 +74,36 @@ describe('SnapService', () => {
     await service.loadViewport({ minLon: 8.4, minLat: 61.7, maxLon: 8.2, maxLat: 61.5 });
     expect(calls).toBe(0);
     expect(service.status).toBe('idle');
+
+    // Panning while a viewport is loading used to be dropped outright: the new
+    // view stayed unindexed, which reads on screen as "snapping found nothing".
+    // Now the newest request is queued and the older ones are superseded.
+    const seen: Array<{ minLon: number }> = [];
+    let release: () => void = () => {};
+    const queued = new SnapService({
+      fetchBox: (bbox) => {
+        seen.push(bbox);
+        if (seen.length === 1) {
+          return new Promise<never[]>((resolve) => {
+            release = () => resolve([]);
+          });
+        }
+        return Promise.resolve([]);
+      },
+    });
+    const first = queued.loadViewport(BBOX);
+    while (seen.length === 0) await new Promise((resolve) => setTimeout(resolve, 5));
+    const second = queued.loadViewport({ ...BBOX, minLon: 8.6, maxLon: 8.8 });
+    const third = queued.loadViewport({ ...BBOX, minLon: 9.0, maxLon: 9.2 });
+    release();
+    await Promise.all([first, second, third]);
+
+    // Two fetches, not three: the middle view was left behind before it ran.
+    // (`fetchBox` is called once per prefetch cell, so assert on the ranges.)
+    const mins = seen.map((bbox) => bbox.minLon);
+    expect(mins.some((minLon) => minLon >= 8.55 && minLon <= 8.85)).toBe(false);
+    expect(mins.some((minLon) => minLon >= 9)).toBe(true);
+    expect(queued.status).toBe('ready');
   });
 });
 

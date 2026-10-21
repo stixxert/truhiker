@@ -39,10 +39,12 @@ licence audit and the hosting contract. A change that breaks it is not done.
 2. **Licences.** Every shipped file needs a rule in
    `tools/verify/licence-audit.mjs` and an entry in `docs/LICENSES.md`. Never merge
    ODbL data with non-ODbL data in one file.
-3. **One data artefact, deliberately.** The OSM resupply extract
-   (`data/shops.osm.bin`, 175 KB, ODbL) is a committed build input served by the
-   app — the repo is the build input for a static deploy. Regenerate it with
-   `tools/build-shops.mjs`; do not add other generated data to the repo.
+3. **One data artefact, deliberately.** The OSM resupply extract (ODbL, ~175 KB)
+   is generated at build time by `tools/ensure-data.mjs` — from the Geofabrik PBF
+   when one is available, otherwise reused/fetched and verified — and is **never
+   committed** (D24). What is committed is its provenance,
+   `data/shops.osm.json`, which pins the SHA-256, size and counts. Do not add other
+   generated data to the repo.
 4. **Live-first.** Basemap, terrain, elevation, trails and weather are fetched from
    their sources. Only data with no usable live source is bundled.
 5. **No new dependencies without a reason.** The app has one runtime dependency

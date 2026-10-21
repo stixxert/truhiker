@@ -387,7 +387,12 @@ export class SnapIndex {
   snap(point: LonLat, options: SnapOptions = {}): SnapResult | null {
     assertLonLat(point, 'snap point');
     const radiusM = options.radiusM ?? DEFAULT_SNAP_RADIUS_M;
-    const stickyRadiusM = options.stickyRadiusM ?? DEFAULT_STICKY_RADIUS_M;
+    // Hysteresis is derived from the radius, never fixed: D5 says leaving a snapped
+    // line takes 1.5 × the radius, and the dock offers 20–300 m. A fixed 120 m
+    // default made every call above 120 m throw — so the wider the user set the
+    // radius, the more certainly snapping was dead.
+    const stickyRadiusM =
+      options.stickyRadiusM ?? Math.max(DEFAULT_STICKY_RADIUS_M, radiusM * 1.5);
     assertPositiveFinite('snap radiusM', radiusM);
     assertPositiveFinite('snap stickyRadiusM', stickyRadiusM);
     if (stickyRadiusM < radiusM) {
