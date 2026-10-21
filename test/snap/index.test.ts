@@ -11,6 +11,7 @@ import {
   type TurruteAttributes,
   type TurruteLine,
 } from '../../src/snap/index';
+import { trailLinesToGeoJson } from '../../src/snap/overlay';
 
 const ATTRIBUTES: TurruteAttributes = {
   lokalId: 'test',
@@ -98,6 +99,26 @@ describe('SnapIndex.snap', () => {
     expect(deduped.lineCount).toBe(1);
     expect(deduped.segmentCount).toBe(1);
     expect(deduped.hasLine('east-west')).toBe(true);
+
+    // What the map draws is exactly what the index holds (the overlay layer and
+    // the pointer use one dataset, so the picture cannot promise a path that
+    // snapping will not take).
+    const drawn = trailLinesToGeoJson([
+      EAST_WEST,
+      line('no-name', [{ lon: 8, lat: 61.5 }, { lon: 8.001, lat: 61.501 }]),
+      line('marked', [{ lon: 8, lat: 61.6 }, { lon: 8.001, lat: 61.601 }], { merking: 'NEI' }),
+      line('one-point', [{ lon: 8, lat: 61.7 }]),
+    ]);
+    expect(drawn.features).toHaveLength(3);
+    // The index has coords to draw; placeholder names are not names (D7).
+    expect(drawn.features[0].properties.id).toBe('east-west');
+    expect(drawn.features[0].properties.name).toBeNull();
+    expect(drawn.features[0].properties.marked).toBe(true);
+    expect(drawn.features[1].properties.name).toBeNull();
+    expect(drawn.features[2].properties.marked).toBe(false);
+    expect(drawn.features[0].geometry.coordinates).toEqual(
+      EAST_WEST.coords.map((point) => [point.lon, point.lat]),
+    );
   });
 
   it('respects a configurable radius, validates its options and finds segments in neighbouring grid cells', () => {

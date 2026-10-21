@@ -566,6 +566,8 @@ function buildStyle(): StyleSpecification {
         attribution: '©Kartverket',
       },
       route: { type: 'geojson', data: EMPTY_LINE },
+      // The trail network the snapper holds, drawn under the route.
+      trails: { type: 'geojson', data: EMPTY_LINE },
       'leg-highlight': { type: 'geojson', data: EMPTY_LINE },
       'route-endpoints': { type: 'geojson', data: EMPTY_POINTS },
       resupply: {
@@ -622,6 +624,26 @@ function buildStyle(): StyleSpecification {
         source: 'basemap-wms',
         layout: { visibility: 'none' },
         paint: { 'raster-opacity': 0.94, 'raster-saturation': -0.18 },
+      },
+      {
+        // The lines a click will snap to, drawn from the same `TurruteLine[]` the
+        // `SnapIndex` holds — never inferred from the basemap. Vector only: no
+        // raster or label wash may sit above the basemap's own labels (D18), and
+        // this layer sits *below* the route so the route stays the loudest line.
+        id: 'trails-line',
+        type: 'line',
+        source: 'trails',
+        minzoom: 11,
+        layout: {
+          visibility: 'none',
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+        paint: {
+          'line-color': '#31766a',
+          'line-opacity': 0.9,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 11, 1.4, 14, 2, 16, 3],
+        },
       },
       {
         id: 'route-casing',
@@ -1051,7 +1073,17 @@ export class MapController {
 
   /** Keep rebuilt basemap layers under the route layers. */
   private findBasemapAnchor(): string | undefined {
-    for (const id of ['route-casing', 'route-line', 'route-endpoints', 'route-cursor-halo', 'route-cursor']) {
+    // `trails-line` is first on purpose: a basemap switch inserts the new raster
+    // *before* the returned anchor, so listing the trail layer here keeps the
+    // trails above the tiles and below the route on every switch.
+    for (const id of [
+      'trails-line',
+      'route-casing',
+      'route-line',
+      'route-endpoints',
+      'route-cursor-halo',
+      'route-cursor',
+    ]) {
       if (this.map.getLayer(id)) return id;
     }
     return undefined;
@@ -1263,6 +1295,35 @@ export class MapController {
         essential: false,
       },
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // Trail network
+  // -------------------------------------------------------------------------
+
+  /**
+   * Replace the drawn trail network.
+   *
+   * Fed from `SnapService.index.lines` — the same lines `snap()` queries — so the
+   * picture cannot claim a path the pointer will not use. Safe before the style
+   * has loaded and cheap enough to call on every prefetch.
+   */
+  setTrailLines(data: GeoJSON.FeatureCollection<GeoJSON.LineString>): void {
+    const source = this.map.getSource('trails');
+    if (source && 'setData' in source) {
+      (source as { setData(next: GeoJSON.GeoJSON): void }).setData(data);
+    }
+  }
+
+  /**
+   * Show or hide the trail network.
+   *
+   * Visible only where it is *actionable*: drawing or editing with snapping on.
+   * In view mode the trails would be a picture of data the app is not using.
+   */
+  setTrailsVisible(visible: boolean): void {
+    if (!this.map.getLayer('trails-line')) return;
+    this.map.setLayoutProperty('trails-line', 'visibility', visible ? 'visible' : 'none');
   }
 
   // -------------------------------------------------------------------------

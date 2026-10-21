@@ -129,6 +129,7 @@ import {
 import { SnapService } from './snap-service';
 import { EditOverlay, type OffTrailSegment } from '../map/edit-overlay';
 import type { SnapResult } from '../snap';
+import { trailLinesToGeoJson } from '../snap/overlay';
 
 const DEMO_FILE = 'demo/memurubu-glitterheim-jot21.gpx';
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
@@ -724,6 +725,7 @@ export class App {
     this.snapService = new SnapService({
       onChange: () => {
         this.renderEditor();
+        this.renderTrails();
         this.scheduleOffTrail();
       },
     });
@@ -1740,6 +1742,7 @@ export class App {
     this.overlay?.setTrip(this.session.trip);
     this.snapTrackerLine = null;
     if (mode !== 'view') this.ensureSnapNetwork();
+    this.renderTrails();
     this.renderEditor();
   }
 
@@ -1747,6 +1750,7 @@ export class App {
     this.editorUi = setSnapping(this.editorUi, enabled);
     this.snapTrackerLine = null;
     if (enabled) this.ensureSnapNetwork();
+    this.renderTrails();
     this.scheduleOffTrail();
     this.renderEditor();
   }
@@ -1769,6 +1773,22 @@ export class App {
       maxLon: bounds.getEast(),
       maxLat: bounds.getNorth(),
     });
+  }
+
+  /**
+   * Draw the trail network exactly where it is what a click will snap to.
+   *
+   * The lines come from the index the snapper queries, so the picture cannot
+   * promise a path the pointer will not take. Outside draw/edit, or with snapping
+   * off, they are hidden: a trail the app will not use is decoration.
+   */
+  private renderTrails(): void {
+    const map = this.map;
+    const service = this.snapService;
+    if (!map || !service) return;
+    map.setTrailLines(trailLinesToGeoJson(service.index.lines));
+    const actionable = this.editorUi.mode !== 'view' && this.editorUi.snapping && service.lineCount > 0;
+    map.setTrailsVisible(actionable);
   }
 
   private snapAt(point: LonLat): SnapResult | null {
