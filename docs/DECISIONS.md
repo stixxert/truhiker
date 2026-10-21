@@ -95,6 +95,15 @@ returns ~10 days of hourly entries (measured 2026-10-19: 85 entries, +10.0 d).
 - `snapped` never means "verified walkable": it means the geometry came from a
   mapped trail. Absent means "not known to be on a trail", which is not the same
   as "off trail".
+- **Measured, so the claim is not taken on trust.** With a captured Turrutebasen
+  response served to the app (2 269 trails, Oslo), two clicks ~0.5 km apart along
+  one trail produced a leg of **105 vertices, 0.61 km drawn against a 0.53 km
+  chord, with a maximum deviation of 101 m from that chord** — geometry from the
+  trail, not a straight line between two snapped points. Snapping status read
+  "Snapp på" for the whole test.
+- **When the trail service hangs, the app says so within 12 s** and offers a
+  retry (`PREFETCH_DEADLINE_MS`), rather than spinning on "Load trails…" for the
+  minutes the WFS client's own retry ladder would take.
 - Re-snapping a span never bridges two trails that do not connect; the gap stays
   visible.
 
