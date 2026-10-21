@@ -225,6 +225,30 @@ export class SnapIndex {
     return this.lineList;
   }
 
+  /**
+   * Drop every line that fails `keep` and rebuild the grid around what is left.
+   *
+   * The index has no viewport lifetime of its own: it accumulates whatever has
+   * been prefetched, for as long as the page lives, so panning across a region
+   * grows it without bound. This is the bound — the caller keeps the window it
+   * still needs and reports what was removed, rather than the index quietly
+   * deciding (a silent eviction would look exactly like "no trail here").
+   *
+   * Returns the number of lines removed; 0 means nothing changed and no rebuild
+   * happened.
+   */
+  prune(keep: (line: TurruteLine) => boolean): number {
+    const retained = this.lineList.filter(keep);
+    const removed = this.lineList.length - retained.length;
+    if (removed === 0) return 0;
+    this.grid.clear();
+    this.segments.length = 0;
+    this.lineList.length = 0;
+    this.lineIndexById.clear();
+    this.addLines(retained);
+    return removed;
+  }
+
   hasLine(lineId: string): boolean {
     return this.lineIndexById.has(lineId);
   }

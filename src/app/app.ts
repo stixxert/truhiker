@@ -121,6 +121,7 @@ import {
   setMode,
   setRadius,
   setSnapping,
+  shouldPrefetchSnap,
   splitCommand,
   trimCommand,
   type EditorUiState,
@@ -1774,6 +1775,15 @@ export class App {
     const service = this.snapService;
     if (!service || !this.map) return;
     if (service.status === 'loading') return;
+    const connection = (navigator as { connection?: { saveData?: boolean } }).connection;
+    if (
+      !shouldPrefetchSnap({
+        zoom: this.map.map.getZoom(),
+        saveData: connection?.saveData === true,
+      })
+    ) {
+      return;
+    }
     const bounds = this.map.map.getBounds();
     void service.loadViewport({
       minLon: bounds.getWest(),

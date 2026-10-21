@@ -44,6 +44,30 @@ export const DEFAULT_SNAP_RADIUS_M = 75;
 const SNAP_RADIUS_LIMITS = { min: 20, max: 300 } as const;
 
 /** Clamp a user-entered snap radius; junk falls back to the default. */
+/**
+ * Below this zoom the trail prefetch is not worth its requests.
+ *
+ * A 75 m snap radius is a fraction of a pixel at country zoom, and the prefetcher
+ * answers a wide view by coarsening its cells and issuing very large bboxes (at
+ * z5 it plans ~0.32° cells, six requests, megabytes of GML for trails the pointer
+ * cannot meaningfully pick). Snapping still works against whatever is already
+ * indexed; the app just stops asking for more.
+ */
+export const SNAP_PREFETCH_MIN_ZOOM = 10;
+
+/**
+ * Should the app ask Turrutebasen for this view?
+ *
+ * Two reasons to say no, both the user's: a metered connection asked us not to
+ * spend the bytes (`saveData`), and a country-sized view has nothing to snap to
+ * (D5's 75 m radius is sub-pixel there). The shops layer makes the same
+ * `saveData` promise, so the two agree about what the app is allowed to fetch.
+ */
+export function shouldPrefetchSnap(options: { zoom: number; saveData: boolean }): boolean {
+  if (options.saveData) return false;
+  return options.zoom >= SNAP_PREFETCH_MIN_ZOOM;
+}
+
 export function clampSnapRadius(value: unknown): number {
   const numeric = typeof value === 'number' ? value : Number.parseFloat(String(value ?? ''));
   if (!Number.isFinite(numeric)) return DEFAULT_SNAP_RADIUS_M;

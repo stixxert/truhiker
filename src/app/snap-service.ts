@@ -17,6 +17,17 @@ import { getDefaultTurruteClient } from '../snap/wfs';
 
 type SnapNetworkStatus = 'idle' | 'loading' | 'ready' | 'failed';
 
+/**
+ * Ceiling on indexed lines before the index is pruned back to the loaded view.
+ *
+ * A viewport holds hundreds of lines, a city viewport a few thousand; 20 000 is
+ * several screens of panning in every direction. Crossing it is the signal that
+ * the page has been wandering, and the index is rebuilt around the current view
+ * plus its own size again as margin — not cleared, which would make a pan back
+ * look like the trail network had disappeared.
+ */
+const MAX_INDEX_LINES = 20_000;
+
 interface SnapServiceOptions {
   index?: SnapIndex;
   prefetcher?: Prefetcher;
@@ -118,6 +129,7 @@ export class SnapService {
         this.state = 'idle';
         return;
       }
+      this.pruneTo(bbox);
       if (report.failed > 0 && report.lines === 0) {
         this.state = 'failed';
         this.error = report.failures[0]?.error ?? 'trail network unavailable';
@@ -128,6 +140,28 @@ export class SnapService {
       this.state = 'failed';
       this.error = messageOf(error);
     }
+  }
+
+  /**
+   * Rebuild the index around `bbox` once it has grown past the ceiling.
+   *
+   * Pure housekeeping: it reports what it dropped so the caller can log it, and
+   * it keeps a generous margin (the view again, on every side) because snapping
+   * and "Follow trails" act on geometry that is near the view but not inside it.
+   */
+  private pruneTo(bbox: LonLatBBox): void {
+    if (this.index.lineCount <= MAX_INDEX_LINES) return;
+    const padLon = (bbox.maxLon - bbox.minLon) / 2;
+    const padLat = (bbox.maxLat - bbox.minLat) / 2;
+    const west = bbox.minLon - padLon;
+    const east = bbox.maxLon + padLon;
+    const south = bbox.minLat - padLat;
+    const north = bbox.maxLat + padLat;
+    this.index.prune((line) =>
+      line.coords.some(
+        (point) => point.lon >= west && point.lon <= east && point.lat >= south && point.lat <= north,
+      ),
+    );
   }
 
   /** Nearest indexed trail within `radiusM`, or `null`. */

@@ -119,6 +119,24 @@ describe('SnapIndex.snap', () => {
     expect(drawn.features[0].geometry.coordinates).toEqual(
       EAST_WEST.coords.map((point) => [point.lon, point.lat]),
     );
+
+    // The index has no lifetime of its own, so it is prunable: the caller keeps
+    // what it still needs and the rest is rebuilt away (segments included, so a
+    // pruned line cannot be snapped to afterwards).
+    const prunable = new SnapIndex();
+    prunable.addLines([
+      EAST_WEST,
+      line('keep-me', [{ lon: 9, lat: 62 }, { lon: 9.01, lat: 62.01 }]),
+    ]);
+    expect(prunable.lineCount).toBe(2);
+    expect(prunable.prune((candidate) => candidate.id === 'keep-me')).toBe(1);
+    expect(prunable.lineCount).toBe(1);
+    expect(prunable.segmentCount).toBe(1);
+    expect(prunable.hasLine('east-west')).toBe(false);
+    expect(prunable.snap({ lon: 8.0, lat: 61.5 })).toBeNull();
+    expect(prunable.snap({ lon: 9.0, lat: 62 })?.lineId).toBe('keep-me');
+    // Nothing to drop means no rebuild.
+    expect(prunable.prune(() => true)).toBe(0);
   });
 
   it('respects a configurable radius, validates its options and finds segments in neighbouring grid cells', () => {

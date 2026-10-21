@@ -21,7 +21,9 @@ import {
   selectVertex,
   setMode,
   setRadius,
+  SNAP_PREFETCH_MIN_ZOOM,
   setSnapping,
+  shouldPrefetchSnap,
   splitCommand,
   trimCommand,
 } from '../src/app/editor-state';
@@ -227,6 +229,21 @@ describe('editor state', () => {
         { lon: 8.1, lat: 61.1 },
       ],
     });
+  });
+
+  /**
+   * What the app is allowed to fetch, and when.
+   *
+   * Same promise the shops layer makes: a data-saver connection is not made to
+   * pay for map decoration, and a country view has nothing a 75 m radius can act
+   * on (D5) — so the prefetch is skipped rather than merely cheap.
+   */
+  it('prefetches the trail network only where it can be used, and never against saveData', () => {
+    expect(shouldPrefetchSnap({ zoom: 14, saveData: false })).toBe(true);
+    expect(shouldPrefetchSnap({ zoom: SNAP_PREFETCH_MIN_ZOOM, saveData: false })).toBe(true);
+    expect(shouldPrefetchSnap({ zoom: SNAP_PREFETCH_MIN_ZOOM - 0.01, saveData: false })).toBe(false);
+    expect(shouldPrefetchSnap({ zoom: 5, saveData: false })).toBe(false);
+    expect(shouldPrefetchSnap({ zoom: 16, saveData: true })).toBe(false);
   });
 
   it('derives a move command for a dragged vertex', () => {
