@@ -10,7 +10,7 @@ never stored or re-served.
 | --- | --- | --- |
 | Application code, translations, nutrition table | Proprietary, all rights reserved | — |
 | **MapLibre GL JS** (`maplibre-*.js`, worker, CSS) | BSD-3-Clause, MapLibre contributors | Ship its copyright notice and licence with the distributed build |
-| **Demo route** (`demo/memurubu-glitterheim-jot21.gpx`) | CC BY 4.0, ©Kartverket Turrutebasen | Credit Kartverket, link the licence, say what we changed |
+| **Route fixture** (`test/fixtures/memurubu-glitterheim-jot21.gpx`, not shipped) | CC BY 4.0, ©Kartverket Turrutebasen | Credit Kartverket, link the licence, say what we changed — it is test material, never served (D26) |
 | **Resupply extract** (`data/shops.osm.bin`, generated at build time — D24) | ODbL 1.0, © OpenStreetMap contributors | Credit OpenStreetMap, offer the database under ODbL, include the licence text (`licences/ODbL-1.0.txt`, served at `/data/ODbL-1.0.txt`) |
 
 ### Where a user sees it
@@ -26,12 +26,15 @@ the notices that BSD-3 and ODbL require to travel with the distributed code and
 data: a browser bundle is a distribution, and the notice has to be in it. The
 build simply makes sure they are still there.
 
-### The demo route
+### The route fixture
 
-*Memurubu–Glitterheim* (`jot21`) comes from Kartverket Turrutebasen under CC BY
-4.0, maintained by DNT Oslo og omegn. We converted the geometry from GML to GPX
-and added no elevation — the profile is sampled live from Kartverket DTM. That is
-the "indicate changes" part of the licence, stated here and in **About data**.
+*Memurubu–Glitterheim* (`jot21`) was the bundled demo route; the app ships no
+sample any more (D26), so the GPX lives in `test/fixtures/` and is imported by the
+e2e and render gates instead. It still comes from Kartverket Turrutebasen under
+CC BY 4.0, maintained by DNT Oslo og omegn: we converted the geometry from GML to
+GPX and added no elevation — the profile is sampled live from Kartverket DTM. That
+is the "indicate changes" part of the licence. It is test material: not served,
+not part of `dist/`.
 
 ### The resupply extract
 

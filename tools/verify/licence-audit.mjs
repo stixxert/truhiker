@@ -27,7 +27,6 @@ const RULES = [
   { pattern: /^[a-zA-Z0-9_.-]+\.(js|mjs|css)$/, licence: 'proprietary', holder: 'Sivert Asakskogen' },
   { pattern: /^404\.html$/, licence: 'proprietary', holder: 'Sivert Asakskogen' },
   { pattern: /^_headers$/, licence: 'proprietary', holder: 'Sivert Asakskogen' },
-  { pattern: /^demo\/.*\.gpx$/, licence: 'CC-BY-4.0', holder: 'Kartverket (Turrutebasen)' },
   { pattern: /^data\/shops\.osm\.bin$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },
   // Provenance and checksum for the data artefact.
   { pattern: /^data\/shops\.osm\.json$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },

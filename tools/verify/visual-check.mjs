@@ -30,6 +30,7 @@ import {
   readFileSync,
   statSync,
 } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:http';
 import { extname, join, resolve, sep } from 'node:path';
 import { startRuntime } from './runtime.mjs';
@@ -38,6 +39,14 @@ const ROOT = process.cwd();
 const DIST = join(ROOT, 'dist');
 const INDEX_HTML = join(DIST, 'index.html');
 const HEADERS_FILE = join(ROOT, 'public', '_headers');
+/**
+ * A real route to render (Memurubu–Glitterheim, CC BY 4.0 Turrutebasen). It lives
+ * under test/fixtures because the app no longer bundles a demo (D26).
+ */
+const ROUTE_FIXTURE = fileURLToPath(
+  new URL('../../test/fixtures/memurubu-glitterheim-jot21.gpx', import.meta.url),
+);
+
 const OUT_DIR = '/tmp/webshot';
 const PORT = 4191;
 const HOST = '127.0.0.1';
@@ -565,6 +574,10 @@ async function checkViewport(browser, viewport, expectedHeaders) {
         waitUntil: 'domcontentloaded',
         timeout: NAV_TIMEOUT_MS,
       });
+      // The app ships no sample route (D26), so the render gate imports one: the
+      // stats panel is only meaningful with a route, and this also exercises the
+      // import path under the real CSP.
+      await page.setInputFiles('#file-input', ROUTE_FIXTURE);
     } catch (error) {
       throw new GateFailure(
         viewport,

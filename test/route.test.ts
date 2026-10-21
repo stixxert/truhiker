@@ -60,7 +60,7 @@ describe('buildRoute', () => {
 
     // Sample spacing is ~25 m; the final gap is the remainder of the route.
     const spaced = buildRoute({
-      origin: 'demo',
+      origin: 'file',
       coords: Array.from({ length: 101 }, (_, i) => ({ lon: 8.3 + i * 0.0003, lat: 61.5 })),
     });
     const gaps = spaced.distances.slice(1, -1).map((d, i) => d - spaced.distances[i]!);

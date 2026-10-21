@@ -317,37 +317,6 @@
           <div class="route-meta" id="route-meta" hidden>
             <span class="route-name" id="route-name"></span>
             <span class="route-tag" id="route-tag" hidden></span>
-            <details class="demo-details" id="demo-details" hidden>
-              <summary class="route-tag route-tag--button" id="demo-summary" data-i18n="route.demo">
-                Demorute
-              </summary>
-              <div class="route-popover" id="demo-popover" role="group" aria-labelledby="demo-popover-title">
-                <h2 id="demo-popover-title" data-i18n="demo.title">Om demoruten</h2>
-                <dl class="meta-list">
-                  <div>
-                    <dt data-i18n="demo.name">Rute</dt>
-                    <dd id="demo-name"></dd>
-                  </div>
-                  <div>
-                    <dt data-i18n="demo.number">Rutenummer</dt>
-                    <dd id="demo-number"></dd>
-                  </div>
-                  <div>
-                    <dt data-i18n="demo.maintainer">Vedlikeholdes av</dt>
-                    <dd id="demo-maintainer"></dd>
-                  </div>
-                  <div>
-                    <dt data-i18n="demo.marked">Merking</dt>
-                    <dd id="demo-marked"></dd>
-                  </div>
-                  <div>
-                    <dt data-i18n="demo.source">Kilde</dt>
-                    <dd id="demo-source"></dd>
-                  </div>
-                </dl>
-                <p class="popover-note" data-i18n="demo.note"></p>
-              </div>
-            </details>
           </div>
 
           <div class="topbar-actions">
@@ -925,8 +894,8 @@
               <p data-i18n="empty.body">
                 eller åpne en fil fra menyen. Ruten blir i nettleseren din – ingen konto, ingenting lastes opp.
               </p>
-              <button class="btn btn-primary" id="btn-demo" type="button" data-i18n="action.demo">
-                Prøv demoruten
+              <button class="btn btn-primary" id="btn-empty-new" type="button" data-i18n="action.newRoute">
+                Ny rute
               </button>
               <p class="empty-privacy" data-i18n="empty.privacy">
                 Ruten lagres bare i denne nettleseren. For å hente høydedata, stier, vær og 3D-terreng sendes
@@ -1067,7 +1036,6 @@
             </li>
             <li>
               <strong>Turrutebasen</strong>
-              <span data-i18n="about.turrutebasen">Demorute: Kartverket Turrutebasen (jot21), CC BY 4.0.</span>
               <a href="https://www.kartverket.no" target="_blank" rel="noopener">kartverket.no</a>
             </li>
             <li>
@@ -1100,7 +1068,6 @@
             </li>
           </ul>
           <p data-i18n="about.naismith"></p>
-          <p data-i18n="about.demo"></p>
           <h3 data-i18n="about.privacyTitle">Lagring og personvern</h3>
           <p data-i18n="about.privacy">
             Tur og rute lagres bare i denne nettleseren (IndexedDB, med localStorage som reserve). Det finnes ingen

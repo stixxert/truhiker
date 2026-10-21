@@ -68,7 +68,7 @@ function longTrip(): Trip {
     createdAt: NOW.toISOString(),
     updatedAt: NOW.toISOString(),
     profile,
-    legs: [{ id: 'L1', points, provenance: [{ kind: 'demo' }], distanceM: null, ascentM: null, descentM: null }],
+    legs: [{ id: 'L1', points, provenance: [{ kind: 'drawn' }], distanceM: null, ascentM: null, descentM: null }],
   };
 }
 

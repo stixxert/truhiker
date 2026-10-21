@@ -1,7 +1,7 @@
 /**
- * GPX metadata for the provenance line (Sprint 2 demo route).
+ * GPX metadata for the provenance line of an imported route.
  *
- * The core GPX reader deliberately only extracts coordinates. The demo route
+ * The core GPX reader deliberately only extracts coordinates. A route's GPX
  * does carry provenance in its `<metadata>` block — route number, maintainer,
  * marking, licence — and the product must show it rather than implying the
  * route is ours. This module is a small, namespace-tolerant reader for exactly

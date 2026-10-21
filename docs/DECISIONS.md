@@ -190,7 +190,8 @@ unavoidable — it does not quietly plan a 15 kg loss.
 time is a fact about the data.
 
 - Turrutebasen metadata carries `oppdateringsdato` (often years old). The bundled
-  demo export has no such field, so the demo shows its source and maintainer
+  demo export has no such field, so the demo showed its source and maintainer
+  (the demo itself is gone, D26)
   rather than a freshness date the file does not contain.
 - Shops show the **extract date**, whether their hours are unverified, and the
   ODbL line. That date is the data's vintage; when *we* read the file is not.
@@ -472,7 +473,8 @@ everything that acts on something lives in the dock, next to that something.**
 
 - **New route** is a first-class action in the header: an empty trip keeps the
   current profile, switches to Draw, and the first map click creates the first
-  point. Before this, the only ways in were a file and the demo.
+  point. Before this, the only ways in were a file and the demo (D26 removed the
+  demo).
 - The dock lists the **trip and its legs** (name, distance, point count). The
   active leg is marked in the list and drawn highlighted on the map, and picking a
   leg frames it. This is the object model made visible: the old bar had verbs
@@ -615,9 +617,10 @@ not the build notes. The pin is `tools/data-manifest.json`.**
   count. It cannot prove the data came from the same extract: the manifest records
   the source URL and extract date, not the PBF's own hash.
 - **What is *not* an artefact.** Sourced fixtures are inputs and stay committed:
-  the demo route (`public/demo/*.gpx`, CC BY 4.0 Turrutebasen) and the test
-  fixtures (a captured DEM window, three GPX files). They are hand-picked inputs
-  with their own licence entries, not outputs of a build.
+  the route fixture (`test/fixtures/memurubu-glitterheim-jot21.gpx`, CC BY 4.0
+  Turrutebasen — formerly the bundled demo, D26) and the other test fixtures (a
+  captured DEM window, three GPX files). They are hand-picked inputs with their own
+  licence entries, not outputs of a build.
 - **History, because it matters.** This was decided once before (`c9e889c`:
   release asset + SHA-256 manifest + `tools/fetch-data.mjs`) and reverted silently
   inside a commit about security headers (`bf71ca4`), which re-added the 175 KB
@@ -674,3 +677,33 @@ least 1 km apart:
 **Why:** the honest unit for routing is connectivity, not kilometres. Counting
 kilometres is what made OSM look like the answer; measuring components is what
 made the answer "no".
+
+## D26. No bundled demo route
+
+**Default: the app ships no sample route. A first visit is the empty state, and its
+primary action starts a new route.**
+
+- **Removed:** `public/demo/memurubu-glitterheim-jot21.gpx` (56 KB, CC BY 4.0
+  Turrutebasen), the automatic load on first visit and on `#demo`, the "Demorute"
+  chip and its provenance popover, the empty-state "try the demo" button, and every
+  string, style rule and licence entry that existed only for them.
+- **The empty state now offers the two things that are actually there:** import a
+  GPX file, or start a new route. `#btn-empty-new` is the same action as the
+  header's *Ny rute*.
+- **The GPX itself moved to `test/fixtures/`** and is imported through the file
+  input by the e2e journey and the render gate. That keeps the journey on real
+  geometry (the deterministic WFS mock is built around it) *and* makes the gates
+  exercise the import path a user takes — better coverage than loading a file the
+  app preloaded for them.
+- **Data-compatibility:** `RouteOrigin` lost `'demo'`, so a saved trip read back
+  maps to `'file'`; `ProvenanceKind` lost `'demo'`, so an older trip carrying that
+  marker loses the marker and nothing else. Geometry, elevations and every other
+  marker are untouched, and the reader keeps known kinds only.
+- **The share link** no longer has a `#demo` form: a shared route is the encoded
+  route, as it always was for imports and drawings.
+
+**Why:** a demo route is a second product to maintain — a licence to keep current,
+a provenance popover, a failure path, an origin tag that other code branches on —
+and it teaches a first-time visitor to look at someone else's walk instead of
+starting their own. The import path is the thing worth showing, and now the gates
+prove it works.

@@ -34,8 +34,10 @@ export type ProvenanceKind =
   | 'turrutebasen'
   | 'drawn'
   | 'snapped'
-  | 'demo'
   | 'edited';
+// `demo` was a marker for the bundled sample route, removed in D26. A stored trip
+// that still carries it loses that marker when it is read (the reader keeps known
+// kinds only) — the geometry and every other marker are untouched.
 
 export interface Provenance {
   readonly kind: ProvenanceKind;

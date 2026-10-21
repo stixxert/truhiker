@@ -16,6 +16,7 @@
  * only works under a stand-in server is not a failure path that ships.
  */
 import { startRuntime } from './runtime.mjs';
+import { importRoute } from './import-route.mjs';
 
 const PORT = 4196;
 const BLOCKED = [
@@ -101,6 +102,9 @@ try {
   });
 
   await page.goto(`${runtime.origin}/`, { waitUntil: 'domcontentloaded' });
+  // Every degradation below is about *a route's* derived data, so there has to be
+  // a route: the app ships no sample any more (D26), so import the fixture.
+  await importRoute(page);
 
   /** Wait for a banner/panel string, returning the whole body text for the log. */
   const body = async () =>
@@ -250,6 +254,8 @@ try {
     return route.fulfill({ status: 200, contentType: 'application/gml+xml', body: SPLIT_GRID });
   });
   await other.goto(`${runtime.origin}/`, { waitUntil: 'domcontentloaded' });
+  // Routing needs a leg, and there is no sample route to give it one (D26).
+  await importRoute(other);
   await other.waitForFunction(
     () => [...document.querySelectorAll('.stat-value')].some((el) => /\d/.test(el.textContent ?? '')),
     undefined,

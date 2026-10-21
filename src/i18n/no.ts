@@ -16,7 +16,6 @@ export const no = {
   'action.newRoute': 'Ny rute',
   'action.importGpx': 'Importer GPX',
   'action.downloadGpx': 'Last ned GPX',
-  'action.demo': 'Prøv demoruten',
   'action.retry': 'Prøv igjen',
   'action.close': 'Lukk',
   'action.dismiss': 'Lukk',
@@ -40,16 +39,6 @@ export const no = {
   'layers.grey': 'Grå',
   'layers.aerial': 'Flyfoto',
 
-  'demo.title': 'Om demoruten',
-  'demo.name': 'Rute',
-  'demo.number': 'Rutenummer',
-  'demo.maintainer': 'Vedlikeholdes av',
-  'demo.marked': 'Merking',
-  'demo.markedYes': 'Merket på bakken',
-  'demo.source': 'Kilde',
-  'demo.sourceValue': 'Kartverket Turrutebasen, CC BY 4.0',
-  'demo.note':
-    'Ruten er ekte stigeometri fra Turrutebasen, uten høyde i filen. Høydeprofilen hentes direkte fra Kartverket DTM.',
 
   'terrain.toggle': '3D',
   'terrain.enable': 'Vis terrenget i 3D',
@@ -59,8 +48,6 @@ export const no = {
   'terrain.failedDetail':
     'Terrengdata fra Mapterhorn kunne ikke hentes, så kartet vises flatt. Høydeprofilen er ikke påvirket.',
 
-  'route.demo': 'Demorute',
-  'route.demoDetails': 'Vis informasjon om demoruten',
   'route.file': 'Fra fil',
   'route.link': 'Delt rute',
   'readout.at': 'Ved {distance}',
@@ -391,7 +378,6 @@ export const no = {
   'banner.basemapRetry': 'Prøv hurtigbufferen for kartfliser igjen',
   'banner.terrainFailed':
     '3D-terreng er utilgjengelig fordi Mapterhorn ikke svarte. Kartet vises flatt.',
-  'banner.demoFailed': 'Demoruten kunne ikke lastes. Åpne en GPX-fil i stedet.',
   'banner.gpxError': 'Kunne ikke lese GPX-filen: {message}',
   'banner.noTrack': 'Filen inneholder ingen spor eller ruter.',
   'banner.tooShort': 'Ruten er for kort til å analysere (minst to punkter trengs).',
@@ -443,12 +429,9 @@ export const no = {
   'about.sentinel2':
     'Flyfoto: Copernicus Sentinel-2 (2025), skyfri mosaikk prosessert av Kartverket. Åpne data.',
   'about.mapterhorn': '3D-terreng: Mapterhorn, avledet av Kartverkets høydedata.',
-  'about.turrutebasen': 'Demorute: Kartverket Turrutebasen (jot21), CC BY 4.0.',
   'about.maplibre': 'Kartmotoren er MapLibre GL JS (BSD-3).',
   'about.naismith':
     'Gangtid etter Naismiths regel med justerbart tempo. Stigning og nedstigning er hysterese-filtrert for å dempe støy i høydedata.',
-  'about.demo':
-    'Demoruten er Memurubu–Glitterheim (jot21) fra Kartverket Turrutebasen, vedlikeholdt av DNT Oslo og omegn. Den er ekte stigeometri, ikke en syntetisk linje.',
   'about.version': 'Versjon {version} · bygget med MapLibre GL JS',
   'about.licence': 'Lisens',
   'about.kartverketLink': 'kartverket.no',
@@ -478,7 +461,7 @@ export const no = {
   'supply.warningsTitle': 'Forbehold',
   'supply.engineWarnings': 'Maskinelle merknader (engelsk, uendret)',
   'supply.pointsTitle': 'Punkter langs ruten',
-  'supply.noTrip': 'Ingen tur er lastet. Åpne en GPX-fil eller prøv demoruten.',
+  'supply.noTrip': 'Ingen tur er lastet. Åpne en GPX-fil eller lag en ny rute.',
   'supply.noRoute': 'Turen har ingen rutegeometri, så det er ingen korridor å lete i.',
   'supply.noProfile':
     'Profilen mangler kroppsdata. Uten vekt, høyde og alder kan ikke kcal per dag beregnes, og da kan ikke matmengden per etappe regnes ut.',

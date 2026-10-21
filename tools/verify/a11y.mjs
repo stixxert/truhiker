@@ -22,6 +22,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { startRuntime } from './runtime.mjs';
+import { importRoute } from './import-route.mjs';
 import { stubDem } from './dem-stub.mjs';
 
 const ROOT = process.cwd();
@@ -117,6 +118,8 @@ try {
     page.on('pageerror', (error) => pageErrors.push(`[${viewport.name}] ${error.message}`));
     await stubDem(page);
     await page.goto(`${runtime.origin}/`, { waitUntil: 'domcontentloaded' });
+    // A route to audit: the app ships no sample (D26).
+    await importRoute(page);
     await waitForApp(page);
     await scan(page, viewport.name);
     await context.close();
@@ -129,6 +132,8 @@ try {
     page.on('pageerror', (error) => pageErrors.push(`[keyboard] ${error.message}`));
     await stubDem(page);
     await page.goto(`${runtime.origin}/`, { waitUntil: 'domcontentloaded' });
+    // A route to audit: the app ships no sample (D26).
+    await importRoute(page);
     await waitForApp(page);
 
     // 1. Reach the menu toggle with Tab alone.
@@ -227,6 +232,8 @@ try {
     page.on('pageerror', (error) => pageErrors.push(`[profile] ${error.message}`));
     await stubDem(page);
     await page.goto(`${runtime.origin}/`, { waitUntil: 'domcontentloaded' });
+    // A route to audit: the app ships no sample (D26).
+    await importRoute(page);
     await waitForApp(page);
 
     const toProfile = await tabTo(page, '#profile-chart');

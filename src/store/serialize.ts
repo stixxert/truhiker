@@ -332,8 +332,8 @@ const PROVENANCE_KINDS: readonly ProvenanceKind[] = [
   'turrutebasen',
   'drawn',
   'snapped',
-  'demo',
   'edited',
+  // 'demo' is gone (D26): an older trip carrying it simply loses that marker.
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {

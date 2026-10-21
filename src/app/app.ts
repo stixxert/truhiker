@@ -23,7 +23,6 @@ import {
   type Pace,
 } from '../lib/format';
 import { elevationAtDistance, gradeAtDistance } from '../lib/chart';
-import { parseGpxMetadata, type GpxMetadata } from '../lib/gpx-meta';
 import { createElevationJob, type ElevationJob, type ElevationProgress } from '../lib/elevation-client';
 import {
   MAX_HASH_CHARS,
@@ -134,7 +133,6 @@ import { buildTrailGraph, type TrailGraph } from '../route/trail-graph';
 import { routeBetweenPoints } from '../route/trail-routing';
 import { trailLinesToGeoJson } from '../snap/overlay';
 
-const DEMO_FILE = 'demo/memurubu-glitterheim-jot21.gpx';
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 const ZOOM_STEP = 1;
 /**
@@ -175,7 +173,6 @@ interface AppState {
   fatal: string | null;
   cursorDistance: number | null;
   cursorSource: CursorSource;
-  demoMeta: GpxMetadata | null;
   /** When the live DEM finished sampling — provenance for the numbers. */
 }
 
@@ -341,7 +338,6 @@ export class App {
     fatal: null,
     cursorDistance: null,
     cursorSource: 'map',
-    demoMeta: null,
   };
 
   private readonly elements: {
@@ -367,14 +363,6 @@ export class App {
     routeName: HTMLElement;
     routeTag: HTMLElement;
     attribBasemap: HTMLAnchorElement;
-    demoDetails: HTMLDetailsElement;
-    demoSummary: HTMLElement;
-    demoPopover: HTMLElement;
-    demoName: HTMLElement;
-    demoNumber: HTMLElement;
-    demoMaintainer: HTMLElement;
-    demoMarked: HTMLElement;
-    demoSource: HTMLElement;
     fileInput: HTMLInputElement;
     terrainButton: HTMLButtonElement;
     terrainHint: HTMLElement;
@@ -441,14 +429,6 @@ export class App {
       routeTag: byId('route-tag'),
       attribBasemap: byId<HTMLAnchorElement>('attrib-basemap'),
       downloadGpxButton: byId<HTMLButtonElement>('btn-download-gpx'),
-      demoDetails: byId<HTMLDetailsElement>('demo-details'),
-      demoSummary: byId('demo-summary'),
-      demoPopover: byId('demo-popover'),
-      demoName: byId('demo-name'),
-      demoNumber: byId('demo-number'),
-      demoMaintainer: byId('demo-maintainer'),
-      demoMarked: byId('demo-marked'),
-      demoSource: byId('demo-source'),
       fileInput: byId<HTMLInputElement>('file-input'),
       terrainButton: byId<HTMLButtonElement>('btn-terrain'),
       terrainHint: byId('terrain-hint'),
@@ -1073,7 +1053,6 @@ export class App {
     this.state.cursorDistance = null;
     this.state.profileError = null;
     this.state.profileErrorMessage = '';
-    this.state.demoMeta = null;
     this.chart.setProfile(null);
     this.map?.setRoute(null, { fit: false });
     this.map?.setCursor(null);
@@ -1222,7 +1201,6 @@ export class App {
     this.state.profile = null;
     this.state.profileStatus = 'empty';
     this.state.cursorDistance = null;
-    this.state.demoMeta = null;
     this.chart.setProfile(null);
     this.map?.setRoute(null, { fit: false });
     this.map?.setCursor(null);
@@ -2655,12 +2633,6 @@ export class App {
 
   private async loadInitialRoute(): Promise<void> {
     const hash = window.location.hash;
-    // A shared demo link names the demo instead of relying on "no hash means
-    // demo": the two are not the same promise.
-    if (hash === '#demo') {
-      await this.loadDemo();
-      return;
-    }
     if (hasRouteHash(hash)) {
       const text = decodeRouteHash(hash);
       if (text !== null) {
@@ -2674,36 +2646,9 @@ export class App {
         retext: () => ({ message: this.i18n.t('banner.hashInvalid') }),
       });
     }
-    await this.loadDemo();
-  }
-
-  private async loadDemo(): Promise<void> {
-    try {
-      const url = new URL(DEMO_FILE, document.baseURI);
-      const response = await fetch(url, { headers: { accept: 'application/gpx+xml,text/xml,application/xml' } });
-      if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
-      const text = await response.text();
-      await this.loadGpxText(text, 'demo', DEMO_FILE.split('/').pop(), { updateHash: false });
-    } catch (error) {
-      if (this.state.route === null) this.showEmptyState(true);
-      const reason = messageOf(error);
-      const text = (): string => `${this.i18n.t('banner.demoFailed')} (${briefError(reason)})`;
-      this.banners.show({
-        id: 'demo-failed',
-        kind: 'warning',
-        message: text(),
-        detail: reason,
-        action: {
-          label: this.i18n.t('action.importGpx'),
-          onClick: () => this.openFilePicker(),
-        },
-        retext: () => ({
-          message: text(),
-          detail: reason,
-          actionLabel: this.i18n.t('action.importGpx'),
-        }),
-      });
-    }
+    // No route in the link and nothing saved: the empty state is the honest
+    // starting point. There is no bundled sample route (D26).
+    if (this.state.route === null) this.showEmptyState(true);
   }
 
   private async loadGpxText(
@@ -2756,9 +2701,7 @@ export class App {
 
     this.job?.cancel();
     this.job = null;
-    this.elements.demoDetails.open = false;
     this.state.route = route;
-    this.state.demoMeta = origin === 'demo' ? parseGpxMetadata(text) : null;
     this.state.profile = null;
     this.state.profileStatus = 'loading';
     this.state.profileError = null;
@@ -3102,7 +3045,7 @@ export class App {
   }
 
   private updateRouteMeta(): void {
-    const { route, fatal, demoMeta } = this.state;
+    const { route, fatal } = this.state;
     const trip = this.session?.trip ?? null;
     // There is nothing to download without a route, and a menu entry that does
     // nothing is worse than one that is visibly unavailable.
@@ -3112,7 +3055,6 @@ export class App {
       // nothing has been drawn or imported yet.
       const showName = trip !== null || fatal !== null;
       this.elements.routeMeta.hidden = !showName;
-      this.elements.demoDetails.hidden = true;
       this.elements.routeTag.hidden = true;
       if (!showName) return;
       this.elements.routeName.textContent = trip?.name ?? this.i18n.t('route.none');
@@ -3124,11 +3066,6 @@ export class App {
     this.elements.routeTag.textContent = this.i18n.t(`route.${route.origin}`);
     this.elements.routeTag.dataset.origin = route.origin;
 
-    const isDemo = route.origin === 'demo' && demoMeta !== null;
-    this.elements.routeTag.hidden = isDemo;
-    this.elements.demoDetails.hidden = !isDemo;
-    if (isDemo) this.renderDemoDetails(demoMeta);
-
     this.doc.title = `${route.name || this.i18n.t('route.unnamed')} · ${this.i18n.t('app.name')}`;
   }
 
@@ -3137,62 +3074,6 @@ export class App {
    * anchor can sit past the right edge, so it becomes a full-width fixed panel
    * just under the badge.
    */
-  private positionDemoPopover(): void {
-    const popover = this.elements.demoPopover;
-    const details = this.elements.demoDetails;
-    if (!details.open) {
-      popover.style.removeProperty('position');
-      popover.style.removeProperty('top');
-      popover.style.removeProperty('left');
-      popover.style.removeProperty('right');
-      popover.style.removeProperty('width');
-      return;
-    }
-    if (window.matchMedia?.('(max-width: 760px)').matches) {
-      const header = this.doc.querySelector<HTMLElement>('.topbar');
-      const top = (header?.getBoundingClientRect().bottom ?? 60) + 8;
-      popover.style.position = 'fixed';
-      popover.style.top = `${Math.round(top)}px`;
-      popover.style.left = '10px';
-      popover.style.right = '10px';
-      popover.style.width = 'auto';
-      return;
-    }
-    popover.style.removeProperty('position');
-    popover.style.removeProperty('top');
-    popover.style.removeProperty('left');
-    popover.style.removeProperty('right');
-    popover.style.removeProperty('width');
-  }
-
-  private renderDemoDetails(meta: GpxMetadata): void {
-    const detailParts = [meta.name, meta.routeNumber, meta.maintainer].filter(
-      (part): part is string => typeof part === 'string' && part.length > 0,
-    );
-    const visible = this.i18n.t('route.demo');
-    this.elements.demoSummary.textContent = visible;
-    this.elements.demoSummary.title =
-      detailParts.length > 0
-        ? detailParts.join(' · ')
-        : this.i18n.t('route.demoDetails');
-    // WCAG 2.5.3 (label in name): the accessible name must contain the visible
-    // text, so the label starts with "Demorute" rather than replacing it with a
-    // description the user cannot see.
-    this.elements.demoSummary.setAttribute(
-      'aria-label',
-      detailParts.length > 0
-        ? `${visible}: ${detailParts.join(', ')}. ${this.i18n.t('route.demoDetails')}`
-        : `${visible}. ${this.i18n.t('route.demoDetails')}`,
-    );
-    this.elements.demoName.textContent = meta.name ?? '—';
-    this.elements.demoNumber.textContent = meta.routeNumber ?? '—';
-    this.elements.demoMaintainer.textContent = meta.maintainer ?? '—';
-    this.elements.demoMarked.textContent = meta.marked
-      ? this.i18n.t('demo.markedYes')
-      : '—';
-    this.elements.demoSource.textContent = this.i18n.t('demo.sourceValue');
-  }
-
   private showEmptyState(visible: boolean): void {
     this.elements.emptyState.hidden = !visible;
   }
@@ -3359,16 +3240,15 @@ export class App {
     // The header's "New route" is the same action as the dock's, and it is the
     // entry point for someone who has not started editing yet.
     byId<HTMLButtonElement>('btn-new').addEventListener('click', () => this.startNewTrip());
+    // The empty state's primary action is the same thing as the header's: an
+    // empty screen should start a trip, not play a sample (D26).
+    byId<HTMLButtonElement>('btn-empty-new').addEventListener('click', () => this.startNewTrip());
     this.elements.editorSave.addEventListener('click', () => void this.saveTrip());
 
     this.elements.fileInput.addEventListener('change', () => {
       const file = this.elements.fileInput.files?.[0];
       if (file) void this.loadFile(file);
       this.elements.fileInput.value = '';
-    });
-
-    byId<HTMLButtonElement>('btn-demo').addEventListener('click', () => {
-      void this.loadDemo();
     });
 
     for (const button of this.elements.basemapButtons) {
@@ -3426,18 +3306,6 @@ export class App {
 
     this.elements.profileRetry.addEventListener('click', () => this.retryElevation());
 
-    // Native `<details>` stays open until told otherwise; close it like a
-    // popover so the demo provenance never covers the map indefinitely.
-    this.doc.addEventListener('click', (event) => {
-      const details = this.elements.demoDetails;
-      if (!details.open) return;
-      const target = event.target as Node | null;
-      if (target && details.contains(target)) return;
-      details.open = false;
-    });
-    this.doc.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') this.elements.demoDetails.open = false;
-    });
     this.doc.addEventListener('keydown', (event) => {
       if (event.key !== 'Escape' || !this.routePick) return;
       event.preventDefault();
@@ -3460,7 +3328,7 @@ export class App {
       const action = editorKeyAction(this.editorUi.mode, event.key, {
         typing,
         routePick: this.routePick !== null,
-        panelOpen: this.elements.demoDetails.open,
+        panelOpen: false,
       });
       if (action === null) return;
       event.preventDefault();
@@ -3485,10 +3353,6 @@ export class App {
     this.doc.addEventListener('visibilitychange', () => {
       if (this.doc.visibilityState === 'hidden') void this.session?.flush();
     });
-    this.elements.demoDetails.addEventListener('toggle', () => {
-      this.positionDemoPopover();
-    });
-    window.addEventListener('resize', () => this.positionDemoPopover());
 
     window.addEventListener('resize', () => {
       this.map?.resize();
@@ -3529,9 +3393,7 @@ export class App {
     const route = this.state.route;
     const base = `${window.location.pathname}${window.location.search}`;
     let url = window.location.href;
-    if (route && route.origin === 'demo') {
-      url = `${base}#demo`;
-    } else if (route && route.gpxText) {
+    if (route && route.gpxText) {
       const hash = encodeRouteHash(compactGpx(route.gpxText));
       if (hash === null) {
         // Refusing is correct; refusing silently is not. Say it where the click

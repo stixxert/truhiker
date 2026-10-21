@@ -551,10 +551,6 @@ button {
   background: var(--warn-soft);
 }
 
-.demo-details {
-  position: relative;
-  flex: none;
-}
 
 .route-tag--button {
   cursor: pointer;
@@ -582,35 +578,8 @@ button {
   transition: transform 140ms ease;
 }
 
-.demo-details[open] .route-tag--button::after {
-  transform: rotate(180deg);
-}
 
-.route-popover {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
-  right: auto;
-  z-index: 40;
-  width: min(340px, calc(100vw - 24px));
-  max-height: min(70vh, 460px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: var(--s-4);
-  border-radius: var(--r-3);
-  border: 1px solid var(--line-soft);
-  background: var(--panel);
-  box-shadow: var(--e-3), var(--edge);
-  text-align: left;
-  white-space: normal;
-}
 
-.route-popover h2 {
-  margin: 0 0 var(--s-3);
-  font-size: var(--t-4);
-  font-weight: 600;
-  letter-spacing: -0.012em;
-}
 
 .meta-list {
   display: flex;
@@ -640,14 +609,6 @@ button {
   overflow-wrap: anywhere;
 }
 
-.popover-note {
-  margin: 0;
-  padding-top: var(--s-3);
-  border-top: 1px solid var(--line);
-  font-size: var(--t-1);
-  line-height: var(--lh-2);
-  color: var(--dim);
-}
 
 /* One cluster from the left edge: everything in the bar acts on the open trip,
    so it sits with the trip instead of being split across a 1440 px row. Save
@@ -3660,10 +3621,7 @@ button {
     font-size: var(--t-3);
   }
 
-  .route-meta .demo-details {
-    display: none;
-  }
-
+  
   .topbar-actions {
     order: 3;
     flex: none;
@@ -3883,14 +3841,6 @@ button {
     border-top: 1px solid var(--line);
   }
 
-  .route-popover {
-    position: fixed;
-    top: 60px;
-    left: var(--s-2);
-    right: var(--s-2);
-    width: auto;
-    max-height: min(70vh, 460px);
-  }
 
   /* --- Map chrome: same corner, same object, one size up ------------------ */
 

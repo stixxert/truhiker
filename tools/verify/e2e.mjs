@@ -16,6 +16,7 @@
  * `npm run failure-paths`, and the parsers by unit tests.
  */
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { startRuntime } from './runtime.mjs';
 import { stubDem } from './dem-stub.mjs';
 
@@ -75,10 +76,13 @@ page.on('pageerror', (error) => pageErrors.push(`[pageerror] ${error.message}`))
 // hours, which silently empties the profile and the energy panel).
 await stubDem(page);
 
-// Deterministic WFS: one hut on the demo route, plus a connected trail grid that
-// covers the map. Grid lines are sampled at every crossing, so they share
+// Deterministic WFS: one hut on the imported route, plus a connected trail grid
+// that covers the map. Grid lines are sampled at every crossing, so they share
 // vertices and the router can actually traverse them.
 const hutsFixture = readFileSync(new URL('../../test/fixtures/huts-wfs.xml', import.meta.url), 'utf8');
+/** The route the journey imports: real Turrutebasen geometry (CC BY 4.0), also a
+ *  test fixture now that the app ships no sample (D26). */
+const FIXTURE_ROUTE = fileURLToPath(new URL('../../test/fixtures/memurubu-glitterheim-jot21.gpx', import.meta.url));
 const HITS = `<?xml version="1.0"?><wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0" numberMatched="400" numberReturned="0"></wfs:FeatureCollection>`;
 
 function trailGridXml() {
@@ -119,8 +123,12 @@ await page.route('**/wfs.geonorge.no/**', (route) => {
 
 const panelText = async (selector) => (await page.locator(selector).innerText()).replace(/\s+/g, ' ').trim();
 
-await step('load the demo route', async () => {
+await step('import a route', async () => {
   await page.goto(`${ORIGIN}/`, { waitUntil: 'domcontentloaded' });
+  // No bundled sample route any more (D26): the journey starts the way a user
+  // does — import a file, through the same input the menu uses.
+  await page.waitForSelector('#file-input', { state: 'attached' });
+  await page.setInputFiles('#file-input', FIXTURE_ROUTE);
   await page.waitForFunction(
     () => document.querySelector('.route-name')?.textContent?.includes('Memurubu'),
     undefined,
@@ -205,6 +213,15 @@ await step('reload and find the trip', async () => {
     { timeout: 15_000 },
   );
   const text = await panelText('#trips-dialog');
+  // Open it, so the journey continues on a loaded trip. With the bundled demo
+  // this step used to be redundant — the reload brought a route back by itself
+  // (D26); now the saved trip is the only way in, and opening it is the point.
+  await page.click('#trips-dialog .trip-row:first-of-type button[data-action="open"]');
+  await page.waitForFunction(
+    () => (document.querySelector('.route-name')?.textContent ?? '').trim().length > 0,
+    undefined,
+    { timeout: 20_000 },
+  );
   return text.split('\n')[0].slice(0, 60);
 });
 
@@ -260,9 +277,9 @@ await step('route between two points along the trails', async () => {
     if (Math.abs(redo - routed) > 0.05) throw new Error(`redo did not restore the routed distance (${redo} km)`);
   });
 
-  // Editing must not relabel the demo as an imported file.
-  const tag = (await page.locator('#demo-summary').innerText()).replace(/\s+/g, ' ').trim();
-  if (!/demo route|demorute/i.test(tag)) throw new Error(`route tag changed after routing: "${tag}"`);
+  // Routing inside a leg must not relabel where the route came from.
+  const tag = (await page.locator('#route-tag').innerText()).replace(/\s+/g, ' ').trim();
+  if (!/file|fil/i.test(tag)) throw new Error(`route tag changed after routing: "${tag}"`);
 
   return `${routed.toFixed(2)} km committed, matches the distance stat, undo/redo verified`;
 });

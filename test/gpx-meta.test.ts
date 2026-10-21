@@ -28,9 +28,9 @@ describe('parseTurrutebasenDescription', () => {
 });
 
 describe('parseGpxMetadata', () => {
-  it('reads the bundled demo provenance, falls back to the track name, handles prefixes and never throws', () => {
+  it('reads a real route’s provenance, falls back to the track name, handles prefixes and never throws', () => {
     const xml = readFileSync(
-      new URL('../public/demo/memurubu-glitterheim-jot21.gpx', import.meta.url),
+      new URL('./fixtures/memurubu-glitterheim-jot21.gpx', import.meta.url),
       'utf8',
     );
     const meta = parseGpxMetadata(xml);

@@ -15,7 +15,6 @@ export const en: Record<MessageKey, string> = {
   'action.newRoute': 'New route',
   'action.importGpx': 'Import GPX',
   'action.downloadGpx': 'Download GPX',
-  'action.demo': 'Try the demo route',
   'action.retry': 'Try again',
   'action.close': 'Close',
   'action.dismiss': 'Dismiss',
@@ -36,16 +35,6 @@ export const en: Record<MessageKey, string> = {
   'layers.grey': 'Grey',
   'layers.aerial': 'Aerial',
 
-  'demo.title': 'About the demo route',
-  'demo.name': 'Route',
-  'demo.number': 'Route number',
-  'demo.maintainer': 'Maintained by',
-  'demo.marked': 'Marking',
-  'demo.markedYes': 'Marked on the ground',
-  'demo.source': 'Source',
-  'demo.sourceValue': 'Kartverket Turrutebasen, CC BY 4.0',
-  'demo.note':
-    'The route is real geometry from Turrutebasen, without elevation in the file. The elevation profile is sampled live from Kartverket DTM.',
 
   'terrain.toggle': '3D',
   'terrain.enable': 'Show the terrain in 3D',
@@ -55,8 +44,6 @@ export const en: Record<MessageKey, string> = {
   'terrain.failedDetail':
     'Terrain data from Mapterhorn could not be loaded, so the map is shown flat. The elevation profile is unaffected.',
 
-  'route.demo': 'Demo route',
-  'route.demoDetails': 'Show information about the demo route',
   'route.file': 'From file',
   'route.link': 'Shared route',
   'readout.at': 'At {distance}',
@@ -387,7 +374,6 @@ export const en: Record<MessageKey, string> = {
   'banner.basemapRetry': 'Retry the tile cache',
   'banner.terrainFailed':
     '3D terrain is unavailable because Mapterhorn did not respond. The map is shown flat.',
-  'banner.demoFailed': 'The demo route could not be loaded. Open a GPX file instead.',
   'banner.gpxError': 'Could not read the GPX file: {message}',
   'banner.noTrack': 'The file contains no tracks or routes.',
   'banner.tooShort': 'The route is too short to analyse (at least two points are needed).',
@@ -439,12 +425,9 @@ export const en: Record<MessageKey, string> = {
   'about.sentinel2':
     'Aerial: Copernicus Sentinel-2 (2025), cloud-free mosaic processed by Kartverket. Open data.',
   'about.mapterhorn': '3D terrain: Mapterhorn, derived from Kartverket elevation data.',
-  'about.turrutebasen': 'Demo route: Kartverket Turrutebasen (jot21), CC BY 4.0.',
   'about.maplibre': 'The map engine is MapLibre GL JS (BSD-3).',
   'about.naismith':
     'Walking time uses Naismith’s rule with an adjustable pace. Ascent and descent are hysteresis-filtered to suppress noise in the elevation data.',
-  'about.demo':
-    'The demo route is Memurubu–Glitterheim (jot21) from Kartverket Turrutebasen, maintained by DNT Oslo og omegn. It is real trail geometry, not a synthetic line.',
   'about.version': 'Version {version} · built with MapLibre GL JS',
   'about.licence': 'Licence',
   'about.kartverketLink': 'kartverket.no',
@@ -473,7 +456,7 @@ export const en: Record<MessageKey, string> = {
   'supply.warningsTitle': 'Caveats',
   'supply.engineWarnings': 'Engine notes (English, verbatim)',
   'supply.pointsTitle': 'Points along the route',
-  'supply.noTrip': 'No trip is loaded. Open a GPX file or try the demo route.',
+  'supply.noTrip': 'No trip is loaded. Open a GPX file or draw a new route.',
   'supply.noRoute': 'The trip has no route geometry, so there is no corridor to search.',
   'supply.noProfile':
     'The profile has no body data. Without mass, height and age, kcal per day cannot be computed — and without that, neither can the food mass for a leg.',
