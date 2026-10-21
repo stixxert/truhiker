@@ -695,10 +695,12 @@ primary action starts a new route.**
   geometry (the deterministic WFS mock is built around it) *and* makes the gates
   exercise the import path a user takes — better coverage than loading a file the
   app preloaded for them.
-- **Data-compatibility:** `RouteOrigin` lost `'demo'`, so a saved trip read back
-  maps to `'file'`; `ProvenanceKind` lost `'demo'`, so an older trip carrying that
-  marker loses the marker and nothing else. Geometry, elevations and every other
-  marker are untouched, and the reader keeps known kinds only.
+- **No compatibility shim, deliberately.** `origin` was never persisted (it is
+  derived from how the route was loaded), so removing `'demo'` from `RouteOrigin`
+  needs no migration and has none. `ProvenanceKind` lost `'demo'` too; the store's
+  reader keeps only known kinds — generic schema validation that predates this
+  change and would drop *any* unrecognised marker — so an old trip loses that one
+  marker and nothing else. Nothing in the codebase mentions the demo any more.
 - **The share link** no longer has a `#demo` form: a shared route is the encoded
   route, as it always was for imports and drawings.
 

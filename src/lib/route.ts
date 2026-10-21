@@ -18,10 +18,7 @@ export const MAX_SAMPLES = 60_000;
 /** Cap on points sent to the map as GeoJSON, to keep GL buffers modest. */
 const MAX_DISPLAY_POINTS = 25_000;
 
-/**
- * How the route got here. `demo` was removed with the bundled sample route (D26):
- * a saved trip that still carries it is mapped to `file` when it is read.
- */
+/** How the route got here. Shown as the tag beside the route name. */
 export type RouteOrigin = 'file' | 'link';
 
 export interface Route {

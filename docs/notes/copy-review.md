@@ -1,5 +1,10 @@
 # Copy review
 
+> **Historical record (kept on purpose).** Several keys named below — the `demo.*`
+> family, `action.demo`, `route.demo*`, `banner.demoFailed`, `about.demo` and
+> `about.turrutebasen` — no longer exist: the bundled demo route was removed in
+> D26. The findings about the remaining strings still stand.
+
 Every user-visible string in `src/i18n/no.ts`, `src/i18n/en.ts` and the static
 fallbacks in `index.html` was read as a pair, key by key, against
 `docs/DECISIONS.md`. The test applied: does this sentence state a fact the app can

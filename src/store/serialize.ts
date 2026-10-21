@@ -333,7 +333,6 @@ const PROVENANCE_KINDS: readonly ProvenanceKind[] = [
   'drawn',
   'snapped',
   'edited',
-  // 'demo' is gone (D26): an older trip carrying it simply loses that marker.
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
