@@ -633,7 +633,9 @@ function buildStyle(): StyleSpecification {
         id: 'trails-line',
         type: 'line',
         source: 'trails',
-        minzoom: 11,
+        // Matches SNAP_PREFETCH_MIN_ZOOM: there is no zoom at which the app snaps
+        // to lines it will not draw.
+        minzoom: 10,
         layout: {
           visibility: 'none',
           'line-cap': 'round',

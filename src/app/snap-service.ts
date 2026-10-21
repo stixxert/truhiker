@@ -130,7 +130,12 @@ export class SnapService {
         return;
       }
       this.pruneTo(bbox);
-      if (report.failed > 0 && report.lines === 0) {
+      // "Ready" means *usable*, not *finished*. With the queue, a camera that keeps
+      // settling (an animated fit, a slow drag) would otherwise hold the service in
+      // `loading` indefinitely — and snapping is disabled while loading, so the user
+      // could not snap at all during a moving map. Later viewports are follow-up
+      // work; the index is already usable after the first one.
+      if (report.failed > 0 && report.lines === 0 && this.index.lineCount === 0) {
         this.state = 'failed';
         this.error = report.failures[0]?.error ?? 'trail network unavailable';
       } else {

@@ -305,6 +305,43 @@ export function drawPointCommand(
  * A vertex index near a clicked location, for "insert on segment click".
  * `points` are the leg vertices; returns the index the new point should take.
  */
+/**
+ * The command that appends a trail path between the last vertex and a new point.
+ *
+ * Drawing a route along a trail used to be impossible: a click placed one vertex
+ * and the leg ran in a straight line to the previous one, however the trail bent.
+ * Now, when both ends snapped and the fetched network connects them, the clicked
+ * step becomes the *trail between them* — one `replace-span` over the last vertex,
+ * so it is a single undoable edit and the redraw is one command, not N.
+ *
+ * The last vertex is replaced by `[anchor, ...path]` (the path's own first point is
+ * the anchor's snapped position, so it is dropped rather than duplicated).
+ *
+ * `null` when there is nothing to append: a path of two points is just the chord
+ * the fallback would draw anyway.
+ */
+export function trailAppendCommand(
+  legId: string,
+  lastIndex: number,
+  anchor: RoutePoint,
+  path: readonly { lon: number; lat: number }[],
+): EditCommand | null {
+  if (lastIndex < 1) return null; // the padded first point is not a real step
+  if (path.length < 3) return null; // start + at least one bend, or it is a chord
+  const points: RoutePoint[] = [
+    anchor,
+    ...path.slice(1).map((point) => ({ lon: point.lon, lat: point.lat })),
+  ];
+  return {
+    type: 'replace-span',
+    legId,
+    from: lastIndex,
+    to: lastIndex,
+    points,
+    snapped: true,
+  };
+}
+
 export function insertionIndexForClick(
   points: readonly RoutePoint[],
   click: RoutePoint,

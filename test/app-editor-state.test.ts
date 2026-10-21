@@ -25,6 +25,7 @@ import {
   setSnapping,
   shouldPrefetchSnap,
   splitCommand,
+  trailAppendCommand,
   trimCommand,
 } from '../src/app/editor-state';
 
@@ -198,6 +199,27 @@ describe('editor state', () => {
     // ... and an unsnapped point does not claim to be snapped.
     const plain = applyCommand(model, command!, { now: () => new Date(0) });
     expect(plain.legs[0].provenance.some((entry) => entry.kind === 'snapped')).toBe(false);
+
+    // Drawing along a trail: a snapped step becomes the path between the two
+    // points, as ONE undoable edit — `replace-span` over the last vertex.
+    const anchorPoint = { lon: 8.65, lat: 61.5 };
+    const path = [
+      { lon: 8.65, lat: 61.5 },
+      { lon: 8.66, lat: 61.505 },
+      { lon: 8.67, lat: 61.51 },
+    ];
+    const append = trailAppendCommand('a', 4, anchorPoint, path);
+    expect(append).toMatchObject({ type: 'replace-span', legId: 'a', from: 4, to: 4, snapped: true });
+    // The path's own first point *is* the anchor: dropped, not duplicated.
+    expect(append && append.type === 'replace-span' ? append.points : []).toEqual([
+      anchorPoint,
+      { lon: 8.66, lat: 61.505 },
+      { lon: 8.67, lat: 61.51 },
+    ]);
+    // A path that is only the chord adds nothing (the plain vertex wins) and the
+    // padded first point is not a step that can be extended.
+    expect(trailAppendCommand('a', 4, anchorPoint, path.slice(0, 2))).toBeNull();
+    expect(trailAppendCommand('a', 0, anchorPoint, path)).toBeNull();
   });
 
   it('replaces a placeholder leg while drawing and pads to two points', () => {

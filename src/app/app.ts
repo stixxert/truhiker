@@ -109,6 +109,7 @@ import {
   deleteLegCommand,
   deleteVertexCommand,
   drawPointCommand,
+  trailAppendCommand,
   editorKeyAction,
   initialEditorState,
   insertVertexCommand,
@@ -130,6 +131,8 @@ import {
 import { SnapService } from './snap-service';
 import { EditOverlay, type OffTrailSegment } from '../map/edit-overlay';
 import type { SnapResult } from '../snap';
+import { buildTrailGraph, type TrailGraph } from '../route/trail-graph';
+import { routeBetweenPoints } from '../route/trail-routing';
 import { trailLinesToGeoJson } from '../snap/overlay';
 
 const DEMO_FILE = 'demo/memurubu-glitterheim-jot21.gpx';
@@ -289,6 +292,10 @@ export class App {
    */
   private editorMode: InteractionMode = 'view';
   private snapTrackerLine: string | null = null;
+  /** Did the last committed drawn vertex snap to a trail? Which one? */
+  private lastDrawnSnap: { lineId: string } | null = null;
+  /** The trail graph built from the indexed lines, keyed by the index's shape. */
+  private trailGraph: { key: string; graph: TrailGraph } | null = null;
   private routePick: { start: LonLat | null; busy: boolean } | null = null;
   private snapIndicatorSnap: SnapResult | null = null;
   private snapHovering = false;
@@ -757,7 +764,7 @@ export class App {
         getTrip: () => this.session?.trip ?? null,
         isSnapping: () => this.editorUi.snapping,
         snap: (point) => this.snapAt(point),
-        onDrawPoint: (point, snap) => this.drawPoint(point, snap !== null),
+        onDrawPoint: (point, snap) => this.drawPoint(point, snap),
         onSelect: (legId, index, extend) => this.selectVertexAt(legId, index, extend),
         onMoveVertex: (legId, index, point) => this.moveVertex(legId, index, point),
         onInsertPoint: (legId, index, point) => this.insertVertex(legId, index, point),
@@ -1833,7 +1840,7 @@ export class App {
     this.renderEditor();
   }
 
-  private drawPoint(point: LonLat, snapped = false): void {
+  private drawPoint(point: LonLat, snap: SnapResult | null = null): void {
     const session = this.session;
     const engines = this.engines;
     let trip = session?.trip;
@@ -1858,12 +1865,63 @@ export class App {
       trip = withLeg;
     }
 
-    const command = drawPointCommand(this.editorUi, trip, { lon: point.lon, lat: point.lat }, snapped);
+    const leg = findLeg(trip, this.editorUi.activeLegId);
+    const anchor = this.drawAnchor();
+
+    // Draw *along* the trail when both ends snapped and the network connects them.
+    // Otherwise a click is a vertex and the leg is a chord — which is what used to
+    // happen always, so "draw a route" could not follow a path it was standing on.
+    if (leg && anchor && snap && this.lastDrawnSnap && leg.points.length >= 2) {
+      const path = this.pathBetween(anchor, point);
+      const append = path
+        ? trailAppendCommand(leg.id, leg.points.length - 1, { lon: anchor.lon, lat: anchor.lat }, path)
+        : null;
+      if (append && session.apply(append)) {
+        const last = append.type === 'replace-span' ? append.points[append.points.length - 1] : undefined;
+        if (last) this.editorUi = noteDrawnPoint(this.editorUi, last);
+        this.lastDrawnSnap = { lineId: snap.lineId };
+        this.afterTripChange();
+        return;
+      }
+    }
+
+    const command = drawPointCommand(
+      this.editorUi,
+      trip,
+      { lon: point.lon, lat: point.lat },
+      snap !== null,
+    );
     if (!command) return;
     if (session.apply(command)) {
       this.editorUi = noteDrawnPoint(this.editorUi, { lon: point.lon, lat: point.lat });
+      this.lastDrawnSnap = snap ? { lineId: snap.lineId } : null;
       this.afterTripChange();
     }
+  }
+
+  /**
+   * The trail path between two points, from the lines already indexed.
+   *
+   * Built from `SnapIndex.lines`, so it cannot route on anything the map is not
+   * showing, and it is the same 5 m node-merge rule as D16 — trails that do not
+   * share a node are not joined, and `null` means "no path", never a straight line.
+   * The graph is memoised on the index's shape: rebuilding it per click would cost
+   * more than the click.
+   */
+  private pathBetween(from: LonLat, to: LonLat): readonly { lon: number; lat: number }[] | null {
+    const service = this.snapService;
+    if (!service) return null;
+    const key = `${service.index.lineCount}:${service.index.segmentCount}`;
+    if (this.trailGraph?.key !== key) {
+      const lines = service.index.lines
+        .filter((line) => line.coords.length >= 2)
+        .map((line) => ({ id: line.id, points: line.coords }));
+      this.trailGraph = { key, graph: buildTrailGraph(lines, { mergeToleranceM: 5 }) };
+    }
+    const result = routeBetweenPoints(this.trailGraph.graph, from, to, {
+      maxSnapDistanceM: this.editorUi.radiusM,
+    });
+    return result.kind === 'ok' ? result.points : null;
   }
 
   /**
@@ -2655,7 +2713,12 @@ export class App {
     if (!this.map) return;
     await this.map.whenReady();
     if (this.state.route !== route) return;
-    this.map.setRoute(route, { fit: true });
+    // Fit a route the user *arrived* at (an import, a saved trip, the demo), never
+    // the one they are editing. Re-fitting on every committed edit meant the first
+    // drawn point yanked the camera to a 2-point route — measured 11.56 -> 14.28 in
+    // one click — so the next click landed somewhere else entirely and a 2 km leg
+    // collapsed into 10 m.
+    this.map.setRoute(route, { fit: this.editorUi.mode === 'view' });
   }
 
   private sampleRoute(route: Route): void {
