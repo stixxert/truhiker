@@ -8,13 +8,15 @@
  * the provenance and the licence file obvious, and this step makes them part of
  * the deployment.
  *
- * Deliberately copies MEASUREMENTS.md too: it is 12 KB and it lets a curious
- * user see exactly how the file was produced. It is not linked from the app.
+ * Everything in `data/` is build output (D24) and is copied as-is; the notice is
+ * not — it comes from `licences/` so the licence text cannot be a build product.
  */
 import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SRC = 'data';
+/** Notices are source files in the tree, not build output: they are copied from `licences/`. */
+const NOTICES = [['licences/ODbL-1.0.txt', 'ODbL-1.0.txt']];
 const DEST = join('dist', 'data');
 
 // Files that must never be served: build inputs and large intermediates.
@@ -40,6 +42,15 @@ for (const name of readdirSync(SRC)) {
   copyFileSync(from, join(DEST, name));
   copied += 1;
   console.log(`copy-data: ${from} -> ${join(DEST, name)}`);
+}
+
+// The notices the data must carry beside it.
+for (const [from, to] of NOTICES) {
+  if (!existsSync(from)) {
+    console.error(`copy-data: missing notice source ${from}`);
+    process.exit(1);
+  }
+  copyFileSync(from, join(DEST, to));
 }
 
 // The licence file is not optional: the POI file is an ODbL Derivative Database.

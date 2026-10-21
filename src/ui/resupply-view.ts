@@ -25,7 +25,7 @@ import { candidateKey, type ResupplyCandidate, type ResupplyLeg, type ResupplyPl
 interface ResupplyData {
   readonly candidates: readonly ResupplyCandidate[];
   readonly plan: ResupplyPlan;
-  /** ISO timestamp the binary is labelled with (`data/MEASUREMENTS.md`). */
+  /** ISO timestamp the binary is labelled with (the served `data/shops.osm.json`). */
   readonly indexBuiltAt: string;
   /** Number of points in the bundled index (not the number on this route). */
   readonly indexCount: number;

@@ -11,9 +11,9 @@
  * Usage: node tools/verify/verify.mjs [--skip-tests]
  */
 import { execFileSync } from "node:child_process";
-import { readdirSync, statSync, readFileSync } from "node:fs";
+import { readdirSync, statSync, readFileSync, existsSync } from "node:fs";
 import { join, extname } from "node:path";
-import { verifyArtefact } from "../ensure-data.mjs";
+import { verifyPinned } from "../ensure-data.mjs";
 import { gzipSync, brotliCompressSync, constants } from "node:zlib";
 
 const ROOT = process.cwd();
@@ -184,24 +184,27 @@ step("accessibility", () => {
 });
 
 step("data integrity", () => {
-  // D24: generated data is a build output, so `data/` may only contain what is
-  // deliberately committed. An allow-list, not a `*.bin` pattern: a renamed or
-  // re-compressed artefact is exactly the drift this rule exists to catch.
-  const COMMITTED_DATA = new Set(["data/shops.osm.json", "data/ODbL-1.0.txt"]);
+  // D24: **nothing** under `data/` is committed. Not the binary, not its
+  // provenance, not the build notes: the whole directory is build output, and the
+  // pin a build verifies against is tools/data-manifest.json.
   const trackedData = run("git", ["ls-files", "--", "data/"])
     .split("\n")
-    .filter((file) => file !== "" && !COMMITTED_DATA.has(file));
+    .filter((file) => file !== "");
   if (trackedData.length > 0) {
     throw new Error(`generated data is tracked in git (see D24): ${trackedData.join(", ")}`);
   }
+  // The licence text is a notice, not data: it must be in the tree.
+  if (!existsSync(join(ROOT, "licences/ODbL-1.0.txt"))) {
+    throw new Error("licences/ODbL-1.0.txt is missing: the ODbL text must travel with the data we serve");
+  }
   run("node", ["tools/ensure-data.mjs"]);
-  // The provenance file records the checksum; a hand-edited binary must not ship.
-  // Same verifier the build uses, so the two cannot disagree.
-  const provenance = JSON.parse(readFileSync(join(ROOT, "data/shops.osm.json"), "utf8"));
-  const binary = readFileSync(join(ROOT, "data", provenance.file));
-  const verdict = verifyArtefact(binary, provenance);
-  if (!verdict.ok) throw new Error(`data/${provenance.file}: ${verdict.reason}`);
-  return `${provenance.counts.total} points, sha256 verified`;
+  // Verify against the committed pin — the same verifier the build uses.
+  const manifest = JSON.parse(readFileSync(join(ROOT, "tools/data-manifest.json"), "utf8"));
+  const entry = manifest.artefacts[0];
+  const binary = readFileSync(join(ROOT, "data", entry.file));
+  const verdict = verifyPinned(binary, entry);
+  if (!verdict.ok) throw new Error(`data/${entry.file}: ${verdict.reason}`);
+  return `${entry.counts.total} points, sha256 matches the pin`;
 });
 
 step("deploy dry run", () => {

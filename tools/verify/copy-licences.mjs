@@ -15,7 +15,7 @@ const OUT = join(DIST, 'licences');
 
 const COPIES = [
   ['node_modules/maplibre-gl/LICENSE.txt', 'maplibre-gl-BSD-3-Clause.txt'],
-  ['data/ODbL-1.0.txt', 'ODbL-1.0.txt'],
+  ['licences/ODbL-1.0.txt', 'ODbL-1.0.txt'],
 ];
 
 if (!existsSync(DIST)) {

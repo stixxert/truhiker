@@ -31,5 +31,5 @@ ceremony, and it belongs to the agent's workflow, not to the repository.
 The resupply data (`data/shops.osm.bin`, 175 KB) is a **build output**, not a
 committed file (D24): `tools/ensure-data.mjs` produces it during `npm run build`,
 from the Geofabrik PBF when one is available and otherwise from a verified local or
-published copy. `data/shops.osm.json` is committed — it records the provenance and
-the SHA-256 the artefact has to reproduce — and `build-shops.mjs` regenerates both.
+published copy. Nothing under `data/` is tracked; `data-manifest.json` is the pin
+(SHA-256, bytes, counts, source date) and `licences/ODbL-1.0.txt` is the notice.

@@ -195,17 +195,23 @@ describe('loadShopIndex — fetch once, parse offline', () => {
 describe('the committed artefact', () => {
   it('matches its published checksum, stays inside Norway, and decodes every name', () => {
     const bytes = readFileSync(new URL('../../data/shops.osm.bin', import.meta.url));
-    const provenance = JSON.parse(
-      readFileSync(new URL('../../data/shops.osm.json', import.meta.url), 'utf8'),
-    ) as { checksum: { sha256: string }; counts: { total: number } };
+    // The pin, not the artefact's own provenance: the provenance is written by the
+    // same run as the bytes, so it can only agree with itself (D24).
+    const manifest = JSON.parse(
+      readFileSync(new URL('../../tools/data-manifest.json', import.meta.url), 'utf8'),
+    ) as {
+      artefacts: Array<{ sha256: string; bytes: number; counts: { total: number } }>;
+    };
+    const pin = manifest.artefacts[0];
 
     // A count-only test would pass on a file with the right number of wrong
     // points. The checksum is what pins the bytes that ship.
     const sha256 = createHash('sha256').update(bytes).digest('hex');
-    expect(sha256).toBe(provenance.checksum.sha256);
+    expect(sha256).toBe(pin.sha256);
+    expect(bytes.byteLength).toBe(pin.bytes);
 
     const index = parseShopIndex(committedBuffer());
-    expect(index.count).toBe(provenance.counts.total);
+    expect(index.count).toBe(pin.counts.total);
 
     // The Geofabrik Norway extract includes Svalbard (Longyearbyen has a
     // supermarket at 78.2 N), so the box is the realm, not the mainland. A point

@@ -6,9 +6,11 @@
  *
  *   - a **binary** artefact under `data/` is a build output. It is never in git;
  *     `.gitignore` says so and the gate fails if one is tracked.
- *   - the **provenance** file next to it (`data/shops.osm.json`) *is* committed.
- *     It carries the SHA-256, the byte size and the counts — that is the pin a
- *     rebuild has to reproduce, and it is what makes a silent data swap visible.
+ *   - the **pin** is `tools/data-manifest.json`, which *is* committed. It carries
+ *     the SHA-256, the byte size and the counts a build has to reproduce, and it
+ *     is configuration (like a lockfile), not data. The provenance file the build
+ *     writes next to the artefact (`data/shops.osm.json`) is generated too: it is
+ *     what the deployed site serves beside the binary, not what git holds.
  *
  * Two modes, one script, because both run at build time:
  *
@@ -32,7 +34,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const DATA_DIR = 'data';
-const PROVENANCE = 'shops.osm.json';
+const MANIFEST = 'tools/data-manifest.json';
 
 /** SHA-256 of a buffer, lowercase hex. */
 export function sha256(buffer) {
@@ -66,15 +68,34 @@ export function verifyArtefact(buffer, provenance) {
   return { ok: true };
 }
 
-function readProvenance() {
-  const path = join(DATA_DIR, PROVENANCE);
-  if (!existsSync(path)) {
-    throw new Error(
-      `missing ${path}. The provenance file is committed and pins the data; a build\n` +
-        'cannot verify or reproduce an artefact without it.',
-    );
+function readManifest() {
+  if (!existsSync(MANIFEST)) {
+    throw new Error(`missing ${MANIFEST}: the pin for generated data is committed and the\n` + 'build cannot verify anything without it (D24).');
   }
-  return JSON.parse(readFileSync(path, 'utf8'));
+  const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8'));
+  const entry = manifest?.artefacts?.[0];
+  if (!entry?.file || !entry?.sha256) throw new Error(`${MANIFEST} has no usable artefact entry`);
+  return entry;
+}
+
+/**
+ * Does this artefact match the **pin**?
+ *
+ * The artefact's own provenance is not the authority — it is written by the same
+ * run that wrote the bytes, so it can only agree with itself. The manifest is what
+ * git holds, and it is what a rebuild has to reproduce.
+ */
+export function verifyPinned(buffer, entry) {
+  const verdict = verifyArtefact(buffer, { checksum: { sha256: entry.sha256 }, sizes: { withNames: { raw: entry.bytes } } });
+  if (!verdict.ok) return verdict;
+  const provenancePath = join(DATA_DIR, entry.provenance ?? 'shops.osm.json');
+  if (!existsSync(provenancePath)) return { ok: true, how: 'pinned (no provenance to cross-check)' };
+  const provenance = JSON.parse(readFileSync(provenancePath, 'utf8'));
+  const total = provenance?.counts?.total;
+  if (typeof entry.counts?.total === 'number' && total !== entry.counts.total) {
+    return { ok: false, reason: `provenance records ${String(total)} records, the pin says ${entry.counts.total}` };
+  }
+  return { ok: true };
 }
 
 /** Build from a PBF (producer mode). Rewrites the provenance as a side effect. */
@@ -87,17 +108,17 @@ function buildFromPbf(pbf) {
 }
 
 /** Fetch the published artefact (consumer mode, when nothing is on disk). */
-async function fetchPublished(provenance) {
+async function fetchPublished(entry) {
   const base = process.env.TRUHIKER_DATA_URL;
   if (!base) return { ok: false, reason: 'no local artefact and $TRUHIKER_DATA_URL is not set' };
-  const url = `${base.replace(/\/$/, '')}/${provenance.file}`;
+  const url = `${base.replace(/\/$/, '')}/${entry.file}`;
   const response = await fetch(url);
   if (!response.ok) return { ok: false, reason: `HTTP ${response.status} from ${url}` };
   const bytes = Buffer.from(await response.arrayBuffer());
-  const verdict = verifyArtefact(bytes, provenance);
+  const verdict = verifyPinned(bytes, entry);
   if (!verdict.ok) return { ok: false, reason: `${url}: ${verdict.reason}` };
   mkdirSync(DATA_DIR, { recursive: true });
-  writeFileSync(join(DATA_DIR, provenance.file), bytes);
+  writeFileSync(join(DATA_DIR, entry.file), bytes);
   return { ok: true, how: `fetched ${url}` };
 }
 
@@ -108,31 +129,53 @@ async function main() {
 
   if (pbf) {
     buildFromPbf(pbf);
-    const provenance = readProvenance();
-    const bytes = readFileSync(join(DATA_DIR, provenance.file));
-    const verdict = verifyArtefact(bytes, provenance);
-    if (!verdict.ok) throw new Error(`build from ${pbf} produced an artefact that fails its own pin: ${verdict.reason}`);
-    console.log(`ensure-data: built ${provenance.file} from ${pbf} — ${provenance.counts.total} records, sha256 verified`);
+    const entry = readManifest();
+    const bytes = readFileSync(join(DATA_DIR, entry.file));
+    const verdict = verifyArtefact(bytes, {
+      checksum: { sha256: sha256(bytes) },
+      sizes: { withNames: { raw: bytes.byteLength } },
+    });
+    if (!verdict.ok) throw new Error(`build from ${pbf} produced an unusable artefact: ${verdict.reason}`);
+    // A producer does **not** fail on a difference from the pin: the monthly
+    // refresh ships newer data than the commit describes (D23). It says so.
+    if (sha256(bytes) !== entry.sha256) {
+      console.warn(
+        `ensure-data: ${entry.file} differs from the committed pin (sha256 ${sha256(bytes).slice(0, 12)}…);\n` +
+          `  this is expected after a data refresh (D23). Update ${MANIFEST} when you next touch the repo.`,
+      );
+    }
+    console.log(`ensure-data: built ${entry.file} from ${pbf}`);
     return;
   }
 
-  const provenance = readProvenance();
-  const artefactPath = join(DATA_DIR, provenance.file);
+  const entry = readManifest();
+  const artefactPath = join(DATA_DIR, entry.file);
 
   if (existsSync(artefactPath)) {
-    const verdict = verifyArtefact(readFileSync(artefactPath), provenance);
+    const verdict = verifyPinned(readFileSync(artefactPath), entry);
     if (!verdict.ok) {
       throw new Error(
-        `${artefactPath} does not match its committed provenance: ${verdict.reason}\n` +
+        `${artefactPath} does not match the committed pin: ${verdict.reason}\n` +
           'Rebuild it (`npm run data:build` with $OSM_PBF set) or delete it and let the\n' +
           'build fetch the published copy.',
       );
     }
-    console.log(`ensure-data: ${provenance.file} present and pinned — ${provenance.counts.total} records, sha256 verified`);
+    // The provenance is not decoration: the app reads the extract date from
+    // `/data/shops.osm.json` and shows it, and the ODbL notice is generated from
+    // it. A binary without it is a build that would serve a data file nobody can
+    // date or credit.
+    if (!existsSync(join(DATA_DIR, entry.provenance))) {
+      throw new Error(
+        `${artefactPath} has no ${entry.provenance} beside it. The provenance is a build\n` +
+          'output too (D24): regenerate the pair with `npm run data:build`, or delete the\n' +
+          'artefact and let the build fetch the published copy (which carries both).',
+      );
+    }
+    console.log(`ensure-data: ${entry.file} present and pinned — ${entry.counts?.total ?? '?'} records, sha256 verified`);
     return;
   }
 
-  const fetched = await fetchPublished(provenance);
+  const fetched = await fetchPublished(entry);
   if (!fetched.ok) {
     throw new Error(
       `no ${artefactPath} and it could not be fetched (${fetched.reason}).\n` +
@@ -141,7 +184,7 @@ async function main() {
         '  TRUHIKER_DATA_URL=... npm run build   # fetch a published, pinned copy\n',
     );
   }
-  console.log(`ensure-data: ${fetched.how} — ${provenance.counts.total} records, sha256 verified`);
+  console.log(`ensure-data: ${fetched.how} — ${entry.counts?.total ?? '?'} records, sha256 verified`);
 }
 
 // Only run when executed directly: the helpers above are imported by the gate.

@@ -566,42 +566,49 @@ have.
 
 ## D24. Generated data is built, never committed
 
-**Default: a binary artefact under `data/` is a build output. Its provenance is
-the only thing in git.**
+**Default: nothing under `data/` is in git — not the binary, not its provenance,
+not the build notes. The pin is `tools/data-manifest.json`.**
 
-- **What is committed.** `data/shops.osm.json` — the SHA-256, the byte size, the
-  counts, the tag filter, the source extract date. That is the pin.
-- **What is not.** `data/shops.osm.bin`. `.gitignore` excludes it, and the gate
-  fails if one is ever tracked again (`git ls-files -- data/*.bin` must be empty).
+- **What is committed.** `tools/data-manifest.json`: for each artefact, its file
+  name, SHA-256, byte size and record count, plus the source URL, the extract date,
+  the licence and the attribution. It is *configuration* — the same category as a
+  lockfile — and it is the only thing about a derived dataset that git holds.
+- **What is signed off separately.** `licences/ODbL-1.0.txt`. It is a notice, not
+  data: it is copied into the build beside the artefact (`/data/ODbL-1.0.txt`, and
+  `dist/licences/`), because ODbL §4.3/§4.6 require the offer to travel with the
+  data. Titles, not build output, so it lives under `licences/`.
+- **What is not.** `data/shops.osm.bin`, `data/shops.osm.json` (the provenance the
+  deployed site serves), and anything else a build writes there. `.gitignore` drops
+  the whole directory and the gate fails if *any* path under `data/` is tracked —
+  an allow-list was tried first and is what let a provenance file stay committed.
 - **Who produces it.** `tools/ensure-data.mjs` runs first in `npm run build`:
   - *producer* — with `$OSM_PBF` (or `--from-pbf <file>`) it rebuilds from
-    Geofabrik's extract and rewrites the provenance. This is the deploy container
-    (D23), and `npm run data:build` is the same thing locally.
+    Geofabrik's extract, rewrites the provenance, and **warns** if the bytes differ
+    from the committed pin: the monthly refresh ships newer data than the commit
+    describes (D23).
   - *consumer* — with no PBF it reuses a local artefact **only if it matches the
     pin**, or fetches a published copy from `$TRUHIKER_DATA_URL` and verifies it.
-  - with neither, the build **fails** and says which of the three paths to take.
-    It never ships an empty index: an empty list reads on screen as "there are no
-    shops in Norway", which is the one thing it must never say (D7).
-- **What the pin does and does not prove.** A consumer build verifies the artefact
-  against `data/shops.osm.json`; it proves the bytes are the ones the commit
-  describes. A *producer* rebuild deliberately rewrites the pin, so it does not
-  prove the new data came from the same extract: the provenance records the
-  source URL, the extract date and its byte size, not the PBF's own hash.
-- **Why this way.** The repo is the product, not a warehouse for its own build
-  outputs: a committed blob is a second copy of a file we already serve, it makes
-  every data refresh a binary commit that no one can review, and it lets a stale
-  copy sit in git looking authoritative. The provenance pin gives what committing
-  was actually for — reproducibility, a visible diff when the data changes, and a
-  build that fails loudly instead of shipping something else.
-- **History, because it matters.** This was decided once before
-  (`c9e889c`, "keep derived data and verification tooling out of the product
-  tree": release asset + SHA-256 manifest + `tools/fetch-data.mjs`) and then
-  reverted silently inside a commit about security headers (`bf71ca4`), which
-  re-added the 175 KB binary and deleted the manifest. Two policies then lived in
-  the docs at once. This entry is the one; D22 and D23 were reworded to match.
+  - with neither, the build **fails** and names the three paths. It never ships an
+    empty index: an empty list reads on screen as "there are no shops in Norway"
+    (D7).
+- **What the pin does and does not prove.** A consumer build proves the bytes are
+  the ones the commit describes, and that the served provenance agrees on the
+  count. It cannot prove the data came from the same extract: the manifest records
+  the source URL and extract date, not the PBF's own hash.
+- **What is *not* an artefact.** Sourced fixtures are inputs and stay committed:
+  the demo route (`public/demo/*.gpx`, CC BY 4.0 Turrutebasen) and the test
+  fixtures (a captured DEM window, three GPX files). They are hand-picked inputs
+  with their own licence entries, not outputs of a build.
+- **History, because it matters.** This was decided once before (`c9e889c`:
+  release asset + SHA-256 manifest + `tools/fetch-data.mjs`) and reverted silently
+  inside a commit about security headers (`bf71ca4`), which re-added the 175 KB
+  binary and deleted the manifest. A first pass at restoring it kept the generated
+  *provenance* committed — still generated data, still in git. This entry is the
+  third and final version, and the gate now tests the rule rather than a filename.
 
 **Why:** a rule that lives only in a commit message is not a rule. It is only as
-load-bearing as the gate that fails when it is broken.
+load-bearing as the gate that fails when it is broken — and a gate written against
+one filename is a gate that misses the next one.
 
 ## D25. The routing graph stays Turrutebasen; OSM is measured and declined
 

@@ -41,10 +41,11 @@ licence audit and the hosting contract. A change that breaks it is not done.
    ODbL data with non-ODbL data in one file.
 3. **One data artefact, deliberately.** The OSM resupply extract (ODbL, ~175 KB)
    is generated at build time by `tools/ensure-data.mjs` — from the Geofabrik PBF
-   when one is available, otherwise reused/fetched and verified — and is **never
-   committed** (D24). What is committed is its provenance,
-   `data/shops.osm.json`, which pins the SHA-256, size and counts. Do not add other
-   generated data to the repo.
+   when one is available, otherwise reused/fetched and verified — and **nothing
+   under `data/` is ever committed** (D24): not the binary, not the provenance the
+   site serves, not build notes. The pin is `tools/data-manifest.json` (sha256,
+   bytes, counts, source date); `licences/ODbL-1.0.txt` is committed because it is
+   a notice. Do not add other generated data to the repo.
 4. **Live-first.** Basemap, terrain, elevation, trails and weather are fetched from
    their sources. Only data with no usable live source is bundled.
 5. **No new dependencies without a reason.** The app has one runtime dependency

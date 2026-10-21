@@ -14,7 +14,7 @@ dist/
 *.tmp.mjs
 .tmp*
 
-# Generated data is a build output, never a committed file (D24).
-# The provenance JSON beside it (`data/shops.osm.json`) IS committed: it carries
-# the SHA-256, size and counts that a rebuild has to reproduce.
-data/*.bin
+# `data/` is build output, all of it (D24): the binary, its provenance and the
+# build notes. Nothing here is committed — the pin a build verifies against is
+# tools/data-manifest.json, which is configuration, not data.
+data/

@@ -11,7 +11,7 @@ never stored or re-served.
 | Application code, translations, nutrition table | Proprietary, all rights reserved | — |
 | **MapLibre GL JS** (`maplibre-*.js`, worker, CSS) | BSD-3-Clause, MapLibre contributors | Ship its copyright notice and licence with the distributed build |
 | **Demo route** (`demo/memurubu-glitterheim-jot21.gpx`) | CC BY 4.0, ©Kartverket Turrutebasen | Credit Kartverket, link the licence, say what we changed |
-| **Resupply extract** (`data/shops.osm.bin`, generated at build time — D24) | ODbL 1.0, © OpenStreetMap contributors | Credit OpenStreetMap, offer the database under ODbL, include the licence text |
+| **Resupply extract** (`data/shops.osm.bin`, generated at build time — D24) | ODbL 1.0, © OpenStreetMap contributors | Credit OpenStreetMap, offer the database under ODbL, include the licence text (`licences/ODbL-1.0.txt`, served at `/data/ODbL-1.0.txt`) |
 
 ### Where a user sees it
 

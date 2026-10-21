@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "note": "The pin for generated data \u2014 the only thing about a derived dataset that lives in git (D24). The artefact itself is a build output: tools/ensure-data.mjs produces it or verifies a copy against this file.",
+  "artefacts": [
+    {
+      "file": "shops.osm.bin",
+      "provenance": "shops.osm.json",
+      "servedAt": "/data/shops.osm.bin",
+      "builtBy": "tools/build-shops.mjs",
+      "licence": "ODbL-1.0",
+      "attribution": "\u00a9 OpenStreetMap contributors",
+      "source": "https://download.geofabrik.de/europe/norway-latest.osm.pbf",
+      "sourceExtractDate": "2026-10-18",
+      "bytes": 174912,
+      "sha256": "cbd2f5925d9f239b0a3f04e5f5e0461f251da3836aa5df1f6d253ea178264ca2",
+      "counts": {
+        "total": 8571
+      }
+    }
+  ]
+}

@@ -22,7 +22,7 @@
  *   `hoursRecorded` says only "OSM had an hours tag". A point with no hours is
  *   labelled unverified, never assumed open.
  * - There is no build timestamp in the binary. `builtAt` is therefore a module
- *   constant naming the committed extract (`data/MEASUREMENTS.md`), overridable
+ *   constant naming the served extract (`data/shops.osm.json`), overridable
  *   through `parseShopIndex(buffer, { builtAt })`.
  * - The `0x04` "unmanned fuel" bit is a heuristic from the extractor, not a fact.
  */
@@ -36,9 +36,12 @@ export const SHOP_INDEX_MAGIC = 'NPLSHP01';
 /** Where the bundled file is served from. */
 export const SHOP_INDEX_PATH = '/data/shops.osm.bin';
 /**
- * Build date of the committed extract (`data/MEASUREMENTS.md`,
- * `data/shops.osm.json`). The binary itself carries no date, so a *different*
- * file must be labelled by its caller through `parseShopIndex(buffer, { builtAt })`.
+ * Fallback build date, used only when no provenance is supplied.
+ *
+ * The served build reads the real date from `data/shops.osm.json`; the binary
+ * itself carries none, so a different file must be labelled by its caller through
+ * `parseShopIndex(buffer, { builtAt })`. This constant is the label for the pinned
+ * artefact (`tools/data-manifest.json` records its source extract date, D24).
  */
 export const COMMITTED_INDEX_BUILT_AT = '2026-10-19T13:41:49.167Z';
 
