@@ -562,19 +562,47 @@ uses a fraction of a percent of the allowance, with room for retries.
   status. A rejected hook returns 502 and says so in the log: a silent success
   would look like a refresh that happened. `POST /trigger` with an
   `x-trigger-key` header (secret `TRIGGER_KEY`) is the manual pull after an outage.
-- Workers Builds job: build `npm ci && bash tools/refresh-shops.sh && npm run
-  build`, deploy `npx wrangler deploy`. The refresh step is the producer, the
-  `npm run build` after it is the consumer (`tools/ensure-data.mjs` verifies what
-  was just produced), and the deploy ships that freshly built
-  `data/shops.osm.bin`.
+- Workers Builds job: the commands it infers, build `npm run build` and deploy
+  `npx wrangler deploy`. The platform does not read a build command from the
+  repository (it ignores `[build]` in `wrangler.jsonc`), so anything typed into the
+  dashboard is state this repo cannot see and cannot test. The build is therefore
+  self-sufficient in a container, and the inferred default is the correct one.
+- The container's data step, in `tools/ensure-data.mjs`: no local artefact and no
+  `$TRUHIKER_DATA_URL` → it runs `tools/refresh-shops.sh` itself, then verifies what
+  that produced exactly as it verifies anything else. Only `$WORKERS_CI` (injected
+  by the platform and by nothing else — a generic `CI=true` must not download 1.4 GB)
+  triggers it, so a plain local checkout still gets the "this checkout cannot build
+  yet" message instead of a surprise download. The explicit
+  `npm ci && bash tools/refresh-shops.sh && npm run build` still works, and is
+  redundant rather than required.
+  - **Rehearsed in the gate.** `npm run deploy:rehearsal`, a step of `npm run
+    verify`, builds a bare clone in a temp directory: the preflight refusal and its
+    advice, the container's environment, the producer's guards, a published-copy
+    build end to end, and the container data step driven by a stand-in producer. The
+    1.4 GB download is the only part not rehearsed; its wiring and its guards are.
+  - **The produced artefact differs from the pin, and that is fine.** The refresh
+    rebuilds from today's extract, so its SHA-256 cannot equal the one in
+    `tools/data-manifest.json`; the consumer step therefore accepts a local
+    artefact that agrees with its **own provenance** and says so loudly, instead of
+    failing a build that did exactly what it was asked to (D24, *consumer*). What
+    it does not accept is an artefact with no provenance, an artefact that is not
+    self-consistent, an index whose record count is not plausibly the same
+    database (0.75–1.25× the pin's: a regional or truncated extract indexes a few
+    hundred points and reads on screen as "no shops in Norway"), or one whose
+    extract date is older than the pin's. Those are damaged or wrong, not fresh.
 - `tools/refresh-shops.sh` — downloads with `curl -fL --retry` (an HTML error page
   must not be parsed as a PBF), refuses a file under 500 MB (a truncated extract
   parses as "no POIs", the worst failure: an empty index would ship silently),
-  builds with `--max-old-space-size=3072` inside the container's 8 GB, then runs
-  `inspect-shops --verify` so a refresh that breaks the checksum, the counts or the
-  coordinate bounds fails the build instead of deploying. The temp PBF is deleted
-  in the same run: the container's disk holds the extract (1.4 GB), `node_modules`
-  and `dist` at once, and nothing more is needed.
+  reads the extract date the mirror publishes (`norway-updates/state.txt`) and
+  passes it as `--source-date`, builds with `--max-old-space-size=3072` inside the
+  container's 8 GB, then runs `inspect-shops --verify` so a refresh that breaks the
+  checksum, the counts or the coordinate bounds fails the build instead of
+  deploying. The date is not decoration: the binary stores none, so without it the
+  served provenance is undated and neither the freshness check above nor *About
+  data* can say what is being served. When the timestamp cannot be read the
+  provenance stays undated and the build says so, rather than inventing one. The
+  temp PBF is deleted in the same run: the container's disk holds the extract
+  (1.4 GB), `node_modules` and `dist` at once, and nothing more is needed.
 
 **Consequence, stated plainly.** The deployed artefact can be newer than the pin in
 `tools/data-manifest.json`. The committed *manifest* is what a rebuild has to
@@ -582,11 +610,22 @@ reproduce — SHA-256, bytes, record count — and the binary and its provenance
 build outputs that are never in git (D24), so the
 site no longer depends on someone remembering, and a checkout no longer carries a
 second copy of a file we already serve. `<meta>`/`About data` report the extract date
-of whichever file is actually served, so the UI cannot claim freshness it does not
-have.
+of whichever file is actually served — `loadShopIndex` reads it from the served
+provenance, and only falls back to the committed build date when that file cannot be
+read — so the UI cannot claim freshness it does not have.
 
-**Manual paths.** `npm run refresh:shops` locally, and
-`npm run deploy:cron` to publish the trigger Worker.
+**Nothing runs the release gate on that build.** The deploy is `refresh-shops.sh &&
+npm run build && wrangler deploy`; `npm run verify` is a local command and this
+repository has no CI (see AGENTS.md). So after a refresh the pin is stale and stays
+stale until someone runs the gate and updates `tools/data-manifest.json` from the
+artefact that was actually shipped. That is deliberate — a build container cannot
+commit a pin update — and it is the reason the consumer accepts drift only under the
+checks above: the pin is not being enforced at deploy time, so the checks that are
+are the ones that stop a bad index from shipping.
+
+**Manual paths.** `npm run refresh:shops` locally, `npm run deploy:rehearsal` to
+exercise the deploy build without deploying, and `npm run deploy:cron` to publish the
+trigger Worker.
 
 ## D24. Generated data is built, never committed
 
@@ -612,16 +651,33 @@ not the build notes. The pin is `tools/data-manifest.json`.**
   - *producer* — with `$OSM_PBF` (or `--from-pbf <file>`) it rebuilds from
     Geofabrik's extract, rewrites the provenance, and **warns** if the bytes differ
     from the committed pin: the monthly refresh ships newer data than the commit
-    describes (D23).
-  - *consumer* — with no PBF it reuses a local artefact **only if it matches the
-    pin**, or fetches a published copy from `$TRUHIKER_DATA_URL` and verifies it.
-  - with neither, the build **fails** and names the three paths. It never ships an
-    empty index: an empty list reads on screen as "there are no shops in Norway"
-    (D7).
+    describes (D23). It **fails** if the rebuilt index is not plausibly the same
+    database (0.75–1.25× the pin's count): a regional or truncated extract is not
+    a refresh, and the index it produces reads on screen as "no shops in Norway".
+  - *consumer* — with no PBF it reuses a local artefact **if it matches the
+    pin**. If it does not, it is accepted only when it can be vouched for without
+    the pin (D23): the bytes are the ones their own provenance describes, the
+    record count is plausibly the same database (0.75–1.25× the pin's, so a valid
+    but nearly empty index cannot ship — D7), and the provenance's extract date is
+    not older than the pin's. The drift is then reported, naming the artefact, its
+    provenance's record count and the two dates. Same bytes as the pin with a
+    different recorded count stays fatal: that is the pin's content check failing,
+    not drift. With no local artefact at all it fetches a published copy from
+    `$TRUHIKER_DATA_URL` and verifies that against the pin — or, in a Workers build
+    container, produces one by running `tools/refresh-shops.sh` (D23): a deploy
+    cannot depend on a setting it cannot see.
+  - outside a container, with neither, the build **fails** and names the three
+    paths. It never ships an empty index: an empty list reads on screen as "there
+    are no shops in Norway" (D7).
 - **What the pin does and does not prove.** A consumer build proves the bytes are
   the ones the commit describes, and that the served provenance agrees on the
-  count. It cannot prove the data came from the same extract: the manifest records
-  the source URL and extract date, not the PBF's own hash.
+  count; the drift case above proves the weaker thing a producer run can prove
+  about itself — checksum against its own provenance, a plausible count, and an
+  extract no older than the pin. Neither can prove the data came from the same
+  extract: the manifest records the source URL and extract date, not the PBF's own
+  hash. Where the pin has to be current is the release gate, so `npm run verify`
+  still fails on drift — but nothing runs that gate automatically (D23), so treat
+  the warning in a deploy log as the only notice you will get.
 - **What is *not* an artefact.** Sourced fixtures are inputs and stay committed:
   the route fixture (`test/fixtures/memurubu-glitterheim-jot21.gpx`, CC BY 4.0
   Turrutebasen — formerly the bundled demo, D26) and the other test fixtures: a

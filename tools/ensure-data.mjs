@@ -165,6 +165,30 @@ async function ensureNotices() {
 }
 
 /**
+ * Is this record count a plausible build of the same database?
+ *
+ * The pin's count is the only independent reference a build has, and the worst
+ * failure this script knows about is an index that is technically valid and nearly
+ * empty: it reads on screen as "there are no shops in Norway" (D7). A monthly
+ * refresh moves the count by a fraction of a percent, so a wide band still catches a
+ * regional extract, a truncated parse and a zero-record file — the failures that
+ * look like data — while tolerating a year of drift.
+ */
+const COUNT_BAND = { min: 0.75, max: 1.25 };
+
+function plausibleCount(total, pinned) {
+  if (!Number.isInteger(total) || total <= 0) {
+    return { ok: false, reason: `records ${String(total)}` };
+  }
+  if (typeof pinned !== 'number' || pinned <= 0) return { ok: true };
+  const ratio = total / pinned;
+  if (ratio < COUNT_BAND.min || ratio > COUNT_BAND.max) {
+    return { ok: false, reason: `${total} records against the pin's ${pinned}` };
+  }
+  return { ok: true };
+}
+
+/**
  * Does this artefact match the **pin**?
  *
  * The artefact's own provenance is not the authority — it is written by the same
@@ -182,6 +206,32 @@ export function verifyPinned(buffer, entry) {
     return { ok: false, reason: `provenance records ${String(total)} records, the pin says ${entry.counts.total}` };
   }
   return { ok: true };
+}
+
+/**
+ * Are we in a Workers build container rather than on a developer's machine?
+ *
+ * `WORKERS_CI=1` is injected by Workers Builds and nothing else, which matters: a
+ * generic `CI=true` must not trigger a 1.4 GB download on every unrelated CI run.
+ * `CI` is deliberately ignored.
+ */
+function isWorkersBuild() {
+  return (process.env.WORKERS_CI ?? '').trim() !== '';
+}
+
+/**
+ * Run the documented producer (`tools/refresh-shops.sh`) inside this build.
+ *
+ * The build command on Workers Builds is dashboard state, not repository state —
+ * the platform does not read `[build]` from `wrangler.jsonc`, and it infers
+ * `npm run build` — so a repository that cannot build from a bare clone is one
+ * forgotten setting away from a red deploy. Instead of depending on that setting,
+ * the build produces the data it needs when it is running in the container. The
+ * script is the same one the monthly refresh documents (D23): download, size guard,
+ * two passes, `inspect-shops --verify`.
+ */
+function produceFromExtract() {
+  execFileSync('bash', ['tools/refresh-shops.sh'], { stdio: 'inherit' });
 }
 
 /** Build from a PBF (producer mode). Rewrites the provenance as a side effect. */
@@ -251,7 +301,20 @@ async function main() {
     });
     if (!verdict.ok) throw new Error(`build from ${pbf} produced an unusable artefact: ${verdict.reason}`);
     // A producer does **not** fail on a difference from the pin: the monthly
-    // refresh ships newer data than the commit describes (D23). It says so.
+    // refresh ships newer data than the commit describes (D23). It does fail on an
+    // index that is not plausibly the same database, because a regional or
+    // truncated extract would otherwise ship as "Norway has four shops".
+    const builtCount = JSON.parse(
+      readFileSync(join(DATA_DIR, entry.provenance ?? 'shops.osm.json'), 'utf8'),
+    )?.counts?.total;
+    const plausibility = plausibleCount(builtCount, entry.counts?.total);
+    if (!plausibility.ok) {
+      throw new Error(
+        `the build from ${pbf} produced ${plausibility.reason}, which is not the extract this app\n` +
+          'serves. Refusing an index that would read on screen as "there are no shops in\n' +
+          'Norway": check that the PBF is the national extract.',
+      );
+    }
     if (sha256(bytes) !== entry.sha256) {
       console.warn(
         `ensure-data: ${entry.file} differs from the committed pin (sha256 ${sha256(bytes).slice(0, 12)}…);\n` +
@@ -266,42 +329,152 @@ async function main() {
   const entry = readManifest();
   const artefactPath = join(DATA_DIR, entry.file);
 
-  if (existsSync(artefactPath)) {
-    const verdict = verifyPinned(readFileSync(artefactPath), entry);
-    if (!verdict.ok) {
+  if (!existsSync(artefactPath)) {
+    // Nothing on disk. In order of preference: a published copy to verify against
+    // the pin, then — in a Workers build container only — the extract itself.
+    const fetched = await fetchPublished(entry);
+    if (fetched.ok) {
+      console.log(`ensure-data: ${fetched.how} — ${entry.counts?.total ?? '?'} records, sha256 verified`);
+    } else if (isWorkersBuild()) {
+      console.log(
+        `ensure-data: ${fetched.reason}; building from the Geofabrik extract instead\n` +
+          '  (Workers build container: generated data is never committed, D23/D24)',
+      );
+      produceFromExtract();
+      if (!existsSync(artefactPath)) {
+        throw new Error(
+          'the extract build reported success but wrote no artefact: `tools/refresh-shops.sh`\n' +
+            'and `tools/build-shops.mjs` disagree about where the output goes.',
+        );
+      }
+    } else {
       throw new Error(
-        `${artefactPath} does not match the committed pin: ${verdict.reason}\n` +
-          'Rebuild it (`npm run data:build` with $OSM_PBF set) or delete it and let the\n' +
-          'build fetch the published copy.',
+        `no ${artefactPath} and it could not be fetched (${fetched.reason}).\n` +
+          'Generated data is a build output, not a committed file (D24). One of:\n' +
+          '  npm run data:build            # rebuild from the Geofabrik PBF (needs $OSM_PBF)\n' +
+          '  TRUHIKER_DATA_URL=... npm run build   # fetch a published, pinned copy\n',
       );
     }
+  }
+
+  if (existsSync(artefactPath)) {
+    const bytes = readFileSync(artefactPath);
+
     // The provenance is not decoration: the app reads the extract date from
     // `/data/shops.osm.json` and shows it, and the ODbL notice is generated from
     // it. A binary without it is a build that would serve a data file nobody can
     // date or credit.
-    if (!existsSync(join(DATA_DIR, entry.provenance))) {
+    const provenancePath = join(DATA_DIR, entry.provenance);
+    if (!existsSync(provenancePath)) {
       throw new Error(
         `${artefactPath} has no ${entry.provenance} beside it. The provenance is a build\n` +
           'output too (D24): regenerate the pair with `npm run data:build`, or delete the\n' +
           'artefact and let the build fetch the published copy (which carries both).',
       );
     }
-    console.log(`ensure-data: ${entry.file} present and pinned — ${entry.counts?.total ?? '?'} records, sha256 verified`);
+
+    const pinned = verifyPinned(bytes, entry);
+    if (pinned.ok) {
+      console.log(`ensure-data: ${entry.file} present and pinned — ${entry.counts?.total ?? '?'} records, sha256 verified`);
+      await ensureNotices();
+      return;
+    }
+
+    // Not the pinned artefact. Several very different situations produce that, and
+    // the provenance is what tells them apart:
+    //
+    //   - a **producer** run in this checkout (`refresh-shops.sh` in a Workers
+    //     Builds container, D23) wrote a newer extract than the commit describes.
+    //     It wrote the provenance in the same run, so the pair agrees with itself.
+    //     The deployed artefact is *expected* to differ from the pin — `data/` is
+    //     never committed, so the pin cannot follow it — and refusing here would
+    //     fail every refresh build.
+    //   - a **damaged** or half-written artefact, which agrees with neither the pin
+    //     nor its own provenance. That must not ship: it would serve a data file
+    //     whose contents nobody can vouch for.
+    //
+    // What is *not* offered here is the pin's content check, so it is replaced with
+    // the checks that do not need a committed copy: the bytes are the ones their own
+    // provenance describes, the record count is plausibly the same database (an
+    // index of four points reads on screen as "there are no shops in Norway", D7),
+    // and the extract is not older than the pin's. Anything else, and `npm run
+    // verify` still fails afterwards — nothing runs that gate automatically.
+    let provenance;
+    try {
+      provenance = JSON.parse(readFileSync(provenancePath, 'utf8'));
+    } catch (error) {
+      throw new Error(
+        `${provenancePath} is not readable JSON (${error.message}). It is build output (D24):\n` +
+          'regenerate the pair with `npm run data:build`, or delete both files and let the\n' +
+          'build fetch the published copy.',
+      );
+    }
+
+    const self = verifyArtefact(bytes, provenance);
+    if (!self.ok) {
+      throw new Error(
+        `${artefactPath} matches neither the committed pin (${pinned.reason}) nor its own\n` +
+          `provenance (${self.reason}). Rebuild it (\`npm run data:build\` with $OSM_PBF set)\n` +
+          'or delete it and let the build fetch the published copy.',
+      );
+    }
+
+    // The same bytes as the pin with a different recorded count is not drift: the
+    // artefact is the pinned one and the provenance is wrong about it, which is the
+    // count check the pin exists to make (D24).
+    if (sha256(bytes) === entry.sha256) {
+      throw new Error(
+        `${artefactPath} is the pinned artefact, but ${pinned.reason}. The provenance is\n` +
+          'wrong about the data beside it (D24): rebuild the pair with `npm run data:build`\n' +
+          'or delete both and let the build fetch the published copy.',
+      );
+    }
+
+    const plausibility = plausibleCount(provenance?.counts?.total, entry.counts?.total);
+    if (!plausibility.ok) {
+      throw new Error(
+        `${artefactPath} is not the pinned artefact, and its own provenance records ${plausibility.reason}.\n` +
+          'An index that is valid but nearly empty is the failure this build refuses: on screen\n' +
+          'it reads as "there are no shops in Norway" (D7). Rebuild it from the national\n' +
+          'extract (`npm run refresh:shops`), or delete it and let the build fetch the\n' +
+          'published copy.',
+      );
+    }
+
+    const servedDate = typeof provenance?.source?.extractDate === 'string' ? provenance.source.extractDate : null;
+    const pinnedDate = typeof entry.sourceExtractDate === 'string' ? entry.sourceExtractDate : null;
+    if (servedDate && pinnedDate && servedDate < pinnedDate) {
+      throw new Error(
+        `${artefactPath} is older than the pin: its extract is ${servedDate} and the pin\n` +
+          `describes ${pinnedDate}. Shipping it would present older data as current.\n` +
+          'Rebuild it (`npm run refresh:shops`) or delete it and let the build fetch the\n' +
+          'published copy.',
+      );
+    }
+
+    const drift =
+      servedDate && pinnedDate
+        ? `is from a different extract than the pin (${servedDate} vs ${pinnedDate})`
+        : 'differs from the committed pin';
+    console.warn(
+      `ensure-data: ${entry.file} ${drift} — ${pinned.reason}\n` +
+        `  its own provenance describes these exact bytes (${provenance?.counts?.total ?? '?'} records),\n` +
+        '  so it is a produced artefact, not a damaged one: a refresh ships data the commit\n' +
+        '  predates (D23). Using it.\n' +
+        `  Nothing runs the release gate on this build: update ${MANIFEST} from the artefact\n` +
+        '  you actually ship, so the next `npm run verify` describes it.',
+    );
     await ensureNotices();
     return;
   }
 
-  const fetched = await fetchPublished(entry);
-  if (!fetched.ok) {
-    throw new Error(
-      `no ${artefactPath} and it could not be fetched (${fetched.reason}).\n` +
-        'Generated data is a build output, not a committed file (D24). One of:\n' +
-        '  npm run data:build            # rebuild from the Geofabrik PBF (needs $OSM_PBF)\n' +
-        '  TRUHIKER_DATA_URL=... npm run build   # fetch a published, pinned copy\n',
-    );
-  }
-  console.log(`ensure-data: ${fetched.how} — ${entry.counts?.total ?? '?'} records, sha256 verified`);
-  await ensureNotices();
+  // Reached only when both producers declined to write anything: the container path
+  // checks that for itself, so this is the last line of defence, not the message a
+  // developer should ever see.
+  throw new Error(
+    `no ${artefactPath} was produced. Nothing was built and nothing was fetched; the\n` +
+      'build must not continue without its data (D24).',
+  );
 }
 
 // Only run when executed directly: the helpers above are imported by the gate.

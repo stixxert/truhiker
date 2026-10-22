@@ -144,9 +144,34 @@ exhaust. Bundle: 18 files, ~605 KB brotli against a 620 KB gate and a
 (≤320 cases, ≤12 s), build, dist budget, a headless render at two breakpoints under
 the production CSP (which also asserts the **empty state**, the screen most visitors
 see), the end-to-end journey, an axe and keyboard accessibility audit, data
-integrity against the committed pin, a deploy dry run, a blocked-network
-failure-path run, i18n parity, the licence audit, the **served cache headers** (one
-path per asset kind, under workerd) and the hosting contract.
+integrity against the committed pin, a deploy dry run, a **deploy rehearsal** from a
+fresh clone, a blocked-network failure-path run, i18n parity, the licence audit, the
+**served cache headers** (one path per asset kind, under workerd) and the hosting
+contract.
+### The Workers Builds project
+
+A repository-connected Workers Builds project builds with the command it infers,
+`npm run build`, deploys with `npx wrangler deploy`, and needs no setting changed.
+That is deliberate, because the platform does **not** read a build command from
+`wrangler.jsonc`: whatever is in the dashboard is invisible to this repository and
+can drift from it. One red deploy came from exactly that (the inferred command met a
+deployment with no `data/`), so the build no longer depends on the setting.
+
+In a Workers build container (`WORKERS_CI=1`, injected by the platform) the data step
+produces what it cannot find: no artefact, no `$TRUHIKER_DATA_URL`, no `$OSM_PBF` →
+`tools/ensure-data.mjs` runs `tools/refresh-shops.sh`, downloads today's extract,
+builds and verifies the artefact, and the deploy ships that (D23). The artefact is
+then newer than the pin in `tools/data-manifest.json`, which the build reports rather
+than fails on: it accepts drift only when the artefact agrees with its own provenance,
+its record count is plausible and its extract is no older than the pin's. The pin is
+what `npm run verify` enforces, and no deploy runs that gate — so update the manifest
+from what you actually shipped, or the next local gate run will disagree with
+production (D23, D24).
+
+The deploy path is rehearsed on every gate run (`npm run deploy:rehearsal`, one step
+of `npm run verify`): a temp directory holding exactly what a clone contains is built
+with the command and environment the container uses, so a red Cloudflare build is
+caught here first.
 
 ### The monthly data refresh
 

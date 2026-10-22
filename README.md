@@ -62,6 +62,7 @@ npm run verify         # the release gate: run this before claiming anything wor
 | `npm test` | the hermetic suite: no network |
 | `npm run test:live` | opt-in: real Kartverket and MET requests |
 | `npm run preview` | serve the build |
+| `npm run deploy:rehearsal` | build a bare clone the way the deploy container does |
 
 ## Deploy
 
@@ -76,6 +77,12 @@ npx wrangler deploy
 The resupply extract refreshes monthly from a separate Worker with its own secrets;
 the commands and the configuration are in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+A repository-connected **Workers Builds** project needs no configuration beyond the
+commands it infers: the extract is build output and is never committed, so in a
+build container `npm run build` produces it before bundling. Nothing to set in the
+dashboard, and `npm run deploy:rehearsal` builds a bare clone the way the container
+does if you want to check that path locally.
 
 ## Data and attribution
 

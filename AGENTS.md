@@ -21,6 +21,7 @@ npm test               # hermetic suite (no network)
 npm run test:live      # real Kartverket/MET requests, opt-in
 npm run verify         # THE GATE — run this before claiming anything works
 npm run build          # typecheck, bundle, copy data and licences into dist/
+npm run deploy:rehearsal  # build a bare clone the way the deploy container does
 npm run visual-check   # headless Chromium at 1440 and 390 under the real CSP
 npx wrangler deploy    # static deploy (no Worker script)
 ```
@@ -28,7 +29,9 @@ npx wrangler deploy    # static deploy (no Worker script)
 `npm run verify` runs: typecheck, hermetic tests (budget: 320 cases, 12 s — currently ~3 s), build,
 bundle budget, a headless render and the e2e journey under workerd, the axe and
 keyboard accessibility gate, the blocked-network failure paths, i18n parity,
-licence audit and the hosting contract. A change that breaks it is not done.
+licence audit, the hosting contract and a **deploy rehearsal** — a fresh clone built
+with the container's commands, so a build that would fail on Cloudflare fails here
+first. A change that breaks it is not done.
 
 ## Hard rules
 
@@ -41,7 +44,10 @@ licence audit and the hosting contract. A change that breaks it is not done.
    ODbL data with non-ODbL data in one file.
 3. **One data artefact, deliberately.** The OSM resupply extract (ODbL, ~175 KB)
    is generated at build time by `tools/ensure-data.mjs` — from the Geofabrik PBF
-   when one is available, otherwise reused/fetched and verified — and **nothing
+   when one is available, otherwise reused/fetched and verified (a deploy build may
+   also accept an artefact newer than the pin when it is self-consistent, plausibly
+   complete and no older; `npm run verify` is still what enforces the pin, D23) — and
+   **nothing
    under `data/` is ever committed** (D24): not the binary, not the provenance the
    site serves, not build notes, **not the ODbL licence text**. The pin is
    `tools/data-manifest.json` (sha256, bytes, counts, source date), and it pins the

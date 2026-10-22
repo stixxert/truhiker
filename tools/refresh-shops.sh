@@ -42,7 +42,22 @@ echo "extract: $SIZE bytes"
 
 # --max-old-space-size is the build's own requirement (~1.4 GB across two passes);
 # the container has 8 GB, so this leaves generous headroom.
-node --max-old-space-size=3072 tools/build-shops.mjs --pbf "$PBF" --out data
+#
+# The provenance carries the extract date, and the binary carries none: without it
+# `data/shops.osm.json` comes out undated, so neither the build's freshness check nor
+# "About data" can say when the served points were taken. The mirror publishes the
+# timestamp of the current extract; ask it, and pass nothing rather than a guess if it
+# cannot be read (an undated provenance is honest, a fabricated date is not).
+SOURCE_DATE="$(curl -fsL --connect-timeout 30 \
+  "https://download.geofabrik.de/europe/norway-updates/state.txt" 2>/dev/null \
+  | sed -n 's/^timestamp=\([0-9][0-9-]*\)T.*/\1/p' | head -1 || true)"
+if [ -n "$SOURCE_DATE" ]; then
+  echo "extract date: $SOURCE_DATE"
+  node --max-old-space-size=3072 tools/build-shops.mjs --pbf "$PBF" --out data --source-date "$SOURCE_DATE"
+else
+  echo "extract date: unknown (state.txt unreadable) — provenance will be undated" >&2
+  node --max-old-space-size=3072 tools/build-shops.mjs --pbf "$PBF" --out data
+fi
 
 # The invariants the shipped file must keep: checksum matches provenance, counts
 # match, every point is in the realm, strings decode. A refresh that breaks one of

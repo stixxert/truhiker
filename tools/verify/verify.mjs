@@ -237,6 +237,15 @@ step("deploy dry run", () => {
   return out.trim().split("\n").pop();
 });
 
+step("deploy rehearsal", () => {
+  // The deploy path is the one nothing else on a developer's machine runs: a clone
+  // with no `data/`, no `node_modules`, and a build command that lives in the
+  // Cloudflare dashboard rather than in this repository. It shipped a red deploy
+  // once. Rehearsed here, on every gate run, so the next one fails locally instead.
+  const out = run("node", ["tools/verify/deploy-rehearsal.mjs"]);
+  return out.trim().split("\n").pop().replace("deploy-rehearsal: OK — ", "");
+});
+
 step("failure paths", () => {
   // Every live source blocked: the app must degrade visibly and stay alive.
   const out = run("node", ["tools/verify/failure-paths.mjs"]);

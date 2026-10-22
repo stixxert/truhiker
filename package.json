@@ -15,6 +15,7 @@
     "verify": "node tools/preflight.mjs && node tools/verify/verify.mjs",
     "cf:dev": "npm run build && npx wrangler dev",
     "deploy": "npm run build && npx wrangler deploy",
+    "deploy:rehearsal": "node tools/verify/deploy-rehearsal.mjs",
     "deploy:cron": "npx wrangler deploy -c worker/wrangler.jsonc",
     "refresh:shops": "bash tools/refresh-shops.sh",
     "data:build": "node tools/ensure-data.mjs --from-pbf \"${OSM_PBF:?set OSM_PBF to a norway-latest.osm.pbf}\"",
