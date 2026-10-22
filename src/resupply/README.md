@@ -63,9 +63,10 @@ strings  stringCount uint32 LE | stringCount × { byteLength varint, UTF-8 bytes
   stops, not one).
 
 `parseShopIndex(buffer)` is **pure** — no network, no clock — so tests read the
-built file from disk. `loadShopIndex(fetchImpl)` is the only fetch, and it
-asks for exactly `/data/shops.osm.bin`. The file is a build output (D24):
-`tools/ensure-data.mjs` produces or verifies it before every build.
+built file from disk. `loadShopIndex(fetchImpl)` is the only fetch, and it asks
+for two files: `/data/shops.osm.bin` and the `/data/shops.osm.json` beside it that
+dates it. The artefact is a build output (D24): `tools/ensure-data.mjs` produces
+or verifies it before every build.
 
 Failures are typed, not generic: `ShopIndexFormatError.reason` is one of
 `bad-magic`, `bad-version`, `truncated`, `bad-record`, `trailing-bytes`. A magic
@@ -181,7 +182,7 @@ the leg and in `plan.warnings`.
 | Does a **hut** sell food? | Unknown, and therefore **no**. Opt in explicitly and the plan flags the assumption. |
 | Is a **fuel station** staffed? | Unknown. `0x04` is the extractor's heuristic; an unmanned station counts for nothing, a staffed one is an assumption the plan names. Food there is convenience-grade. |
 | Is a point's **position** right? | As good as OSM. Way-derived POIs are a mean of member nodes, not a building centroid. |
-| Is the **index current**? | `builtAt` is the extract's build date, reported from the served `data/shops.osm.json`; the deployment reports the date of whichever file it actually serves; the binary stores no timestamp, so a different file must be labelled by its caller. |
+| Is the **index current**? | `builtAt` is the served file's own date: `loadShopIndex` takes `source.extractDate` (or `buildDate`) from `data/shops.osm.json`, so a refreshed deployment reports the extract it actually ships. Falling back to the committed build date only when that file cannot be read. The binary itself stores no timestamp. |
 | Which **chain** is it? | Unknown as a fact: `evidence` is `'osm'` for everything bundled. `'chain-verified'` exists in the type but no chain store-locator join exists, so it is never produced. |
 | **Whether the detour is walkable** | Unknown. Points beyond `detourPenaltyM` are flagged, and the extra walking distance is stated but not added to the plan. |
 | **Whether two legs connect** | Only that they do, if `alongRouteM` says so. Non-adjacent legs are bridged by a straight line and the bridged length is warned about. |

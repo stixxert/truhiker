@@ -21,9 +21,10 @@
  *   stored, so `ResupplyCandidate.openingHours` is never set from this file —
  *   `hoursRecorded` says only "OSM had an hours tag". A point with no hours is
  *   labelled unverified, never assumed open.
- * - There is no build timestamp in the binary. `builtAt` is therefore a module
- *   constant naming the served extract (`data/shops.osm.json`), overridable
- *   through `parseShopIndex(buffer, { builtAt })`.
+ * - There is no build timestamp in the binary. `builtAt` is therefore supplied by
+ *   the caller — `loadShopIndex` reads it from the served `data/shops.osm.json`,
+ *   and `parseShopIndex(buffer, { builtAt })` accepts it directly — falling back
+ *   to the committed build date when that file cannot be read.
  * - The `0x04` "unmanned fuel" bit is a heuristic from the extractor, not a fact.
  */
 
@@ -36,12 +37,19 @@ export const SHOP_INDEX_MAGIC = 'NPLSHP01';
 /** Where the bundled file is served from. */
 export const SHOP_INDEX_PATH = '/data/shops.osm.bin';
 /**
- * Fallback build date, used only when no provenance is supplied.
+ * The provenance served beside that file: the only thing that says *when* the
+ * points were taken, because the binary carries no date.
+ */
+export const SHOP_PROVENANCE_PATH = '/data/shops.osm.json';
+/**
+ * Fallback build date, used only when the provenance cannot be read.
  *
- * The served build reads the real date from `data/shops.osm.json`; the binary
- * itself carries none, so a different file must be labelled by its caller through
- * `parseShopIndex(buffer, { builtAt })`. This constant is the label for the pinned
- * artefact (`tools/data-manifest.json` records its source extract date, D24).
+ * The binary itself carries no timestamp, so the date has to come from somewhere:
+ * `loadShopIndex` reads `buildDate` out of the served provenance (a refresh ships
+ * newer data than the commit, D23), and this constant is the label for the pinned
+ * artefact (`tools/data-manifest.json` records its source extract date, D24). It is
+ * deliberately not the *primary* source — a build that serves fresh points under the
+ * committed date would be claiming a freshness it does not have.
  */
 export const COMMITTED_INDEX_BUILT_AT = '2026-10-19T13:41:49.167Z';
 
@@ -472,19 +480,49 @@ export function parseShopIndex(
  * Fetch and parse the bundled index. `fetchImpl` is injectable so tests never
  * touch the network; `fetch` is the only I/O in this module.
  *
+ * Two requests, started together: the 175 KB artefact and the ~4 KB provenance that
+ * dates it. The provenance is best-effort — an unreadable one leaves the committed
+ * build date in place rather than failing the load, because a missing date is not a
+ * reason to render an empty map (D7).
+ *
  * Not preloaded from `index.html`: a `<link rel="preload">` makes Vite treat the
  * file as a source asset and emit a second, content-hashed copy next to the one
  * `tools/verify/copy-data.mjs` ships — 170 KB of duplicate for a request the app
  * already starts at boot (`App.prefetchShopIndex`).
  */
 export async function loadShopIndex(fetchImpl: typeof fetch): Promise<ShopIndex> {
-  const response = await fetchImpl(SHOP_INDEX_PATH, {
-    headers: { accept: 'application/octet-stream' },
-  });
+  const [response, builtAt] = await Promise.all([
+    fetchImpl(SHOP_INDEX_PATH, { headers: { accept: 'application/octet-stream' } }),
+    servedBuildDate(fetchImpl),
+  ]);
   if (!response.ok) {
     throw new Error(
       `shop index fetch failed: HTTP ${response.status} ${response.statusText} from ${SHOP_INDEX_PATH}`,
     );
   }
-  return parseShopIndex(await response.arrayBuffer());
+  return parseShopIndex(await response.arrayBuffer(), builtAt ? { builtAt } : {});
+}
+
+/**
+ * The build date the served artefact should be labelled with, or `null`.
+ *
+ * `buildDate` is when the binary was built; `source.extractDate` is when the OSM
+ * extract itself was taken, and is the more honest of the two when both exist.
+ * Neither is required: the pinned artefacts of older builds have one or both unset.
+ */
+async function servedBuildDate(fetchImpl: typeof fetch): Promise<string | null> {
+  try {
+    const response = await fetchImpl(SHOP_PROVENANCE_PATH, { headers: { accept: 'application/json' } });
+    if (!response.ok) return null;
+    const provenance = (await response.json()) as {
+      buildDate?: unknown;
+      source?: { extractDate?: unknown };
+    };
+    const extractDate = provenance?.source?.extractDate;
+    if (typeof extractDate === 'string' && extractDate !== '') return extractDate;
+    const buildDate = provenance?.buildDate;
+    return typeof buildDate === 'string' && buildDate !== '' ? buildDate : null;
+  } catch {
+    return null;
+  }
 }

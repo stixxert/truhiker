@@ -84,6 +84,7 @@ export {
   COMMITTED_INDEX_BUILT_AT,
   SHOP_INDEX_MAGIC,
   SHOP_INDEX_PATH,
+  SHOP_PROVENANCE_PATH,
   ShopIndexFormatError,
   loadShopIndex,
   parseShopIndex,

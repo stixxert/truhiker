@@ -13,11 +13,13 @@ import { describe, expect, it } from 'vitest';
 import type { LonLat } from '../../src/core/geo';
 import { projectOntoRoute } from '../../src/plan/resupply';
 import {
+  COMMITTED_INDEX_BUILT_AT,
+  SHOP_INDEX_PATH,
+  SHOP_PROVENANCE_PATH,
   ShopIndexFormatError,
   hasVerifiedHours,
   loadShopIndex,
   parseShopIndex,
-  SHOP_INDEX_PATH,
   type ResupplyCandidate,
   type ShopIndex,
 } from '../../src/resupply';
@@ -157,18 +159,40 @@ function haversineM(a: LonLat, b: LonLat): number {
   return 2 * 6_371_008.8 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-describe('loadShopIndex — fetch once, parse offline', () => {
-  it('fetches /data/shops.osm.bin and rejects a bad magic or version with a typed error', async () => {
+describe('loadShopIndex — fetch twice, parse offline', () => {
+  it('labels the index with the served date, falls back to the committed one, and rejects a bad magic or version with a typed error', async () => {
     const buffer = committedBuffer();
     const calls: string[] = [];
+    const provenance = { buildDate: '2026-11-01T04:00:00.000Z', source: { extractDate: '2026-10-31' } };
     const fetchImpl = (async (input: string | URL | Request) => {
-      calls.push(String(input));
+      const path = String(input);
+      calls.push(path);
+      if (path === SHOP_PROVENANCE_PATH) return new Response(JSON.stringify(provenance));
       return new Response(buffer);
     }) as unknown as typeof fetch;
 
     const index = await loadShopIndex(fetchImpl);
-    expect(calls).toEqual([SHOP_INDEX_PATH]);
+    // The provenance is asked for alongside the artefact, not after it.
+    expect(calls.slice().sort()).toEqual([SHOP_INDEX_PATH, SHOP_PROVENANCE_PATH].sort());
     expect(index.count).toBe(8571);
+    // A refreshed deployment serves points newer than the commit, so the served
+    // provenance dates the index — the committed constant is only the fallback.
+    expect(index.builtAt).toBe('2026-10-31');
+
+    // No provenance (404, or a copy that is not JSON): the committed date stands in
+    // rather than the load failing, because a missing date is no reason to show an
+    // empty map.
+    const noProvenance = (async (input: string | URL | Request) =>
+      String(input) === SHOP_PROVENANCE_PATH
+        ? new Response('gone', { status: 404 })
+        : new Response(buffer)) as unknown as typeof fetch;
+    expect((await loadShopIndex(noProvenance)).builtAt).toBe(COMMITTED_INDEX_BUILT_AT);
+
+    const notJson = (async (input: string | URL | Request) =>
+      String(input) === SHOP_PROVENANCE_PATH
+        ? new Response('<html>a cached error page</html>')
+        : new Response(buffer)) as unknown as typeof fetch;
+    expect((await loadShopIndex(notJson)).builtAt).toBe(COMMITTED_INDEX_BUILT_AT);
 
     const reasonOf = (bytes: Uint8Array): string => {
       try {
