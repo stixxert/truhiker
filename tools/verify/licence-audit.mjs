@@ -19,17 +19,16 @@ const DIST = 'dist';
 const RULES = [
   { pattern: /^licences\//, licence: 'licence-text', note: 'redistributed notices' },
   { pattern: /^maplibre-.*\.(js|mjs|css)$/, licence: 'BSD-3-Clause', holder: 'MapLibre contributors' },
-  // Our own files carry no licence yet — one has deliberately not been chosen.
-  { pattern: /^index\.html$/, licence: 'app-code (no licence chosen)' },
-  { pattern: /^index-.*\.(js|css)$/, licence: 'app-code (no licence chosen)' },
-  { pattern: /^dem.*\.js$/, licence: 'app-code (no licence chosen)' },
+  // Our own files, under the project licence.
+  { pattern: /^index\.html$/, licence: 'Apache-2.0' },
+  { pattern: /^index-.*\.(js|css)$/, licence: 'Apache-2.0' },
+  { pattern: /^dem.*\.js$/, licence: 'Apache-2.0' },
   // Any other JS/CSS chunk is our own code (lazy-loaded engines, workers, etc.).
   // Listed after the MapLibre rule so third-party code is never counted as ours.
-  { pattern: /^[a-zA-Z0-9_.-]+\.(js|mjs|css)$/, licence: 'app-code (no licence chosen)' },
-  { pattern: /^404\.html$/, licence: 'app-code (no licence chosen)' },
-  { pattern: /^_headers$/, licence: 'app-code (no licence chosen)' },
-  { pattern: /^data\/shops\.osm\.bin$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },
-  // Provenance and checksum for the data artefact.
+  { pattern: /^[a-zA-Z0-9_.-]+\.(js|mjs|css)$/, licence: 'Apache-2.0' },
+  { pattern: /^404\.html$/, licence: 'Apache-2.0' },
+  { pattern: /^_headers$/, licence: 'Apache-2.0' },
+  { pattern: /^data\/shops\.osm\.bin$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },  // Provenance and checksum for the data artefact.
   { pattern: /^data\/shops\.osm\.json$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },
   // The licence text itself, served beside the data.
   { pattern: /^data\/ODbL-1\.0\.txt$/, licence: 'ODbL-1.0', holder: 'Open Data Commons' },
@@ -37,6 +36,8 @@ const RULES = [
 
 /** Notice texts that must be present because we redistribute the work. */
 const REQUIRED_NOTICES = [
+  ['licences/LICENSE', 'Apache §4(a): a copy of the project licence must travel with the code'],
+  ['licences/NOTICE', 'Apache §4(d): the NOTICE file must travel with the code'],
   ['licences/maplibre-gl-BSD-3-Clause.txt', 'MapLibre (BSD-3) requires its notice to travel with the code'],
   ['licences/ODbL-1.0.txt', 'the shops data is ODbL; the licence text must be reachable'],
   ['licences/shops.osm.ODbL-notice.txt', 'the ODbL data file needs its own attribution notice'],
@@ -84,6 +85,17 @@ if (!/Kartverket/.test(html) && !/Kartverket/.test(js)) {
 }
 if (files.some((file) => file.startsWith('data/shops.osm.')) && !/OpenStreetMap/.test(js + html)) {
   problems.push('the ODbL data ships without an OpenStreetMap attribution in the app');
+}
+
+// Every other credit the sources require to be visible. These live in the About
+// panel, so a regression that drops one has to fail here rather than be noticed by
+// a rights holder.
+for (const [credit, why] of [
+  ['Sentinel-2', 'the aerial layer is Copernicus Sentinel-2, CC BY 4.0'],
+  ['Mapterhorn', 'the 3D terrain is Mapterhorn, attribution required'],
+  ['MET Norway', 'the weather is MET Norway, NLOD / CC BY 4.0'],
+]) {
+  if (!(html + js).includes(credit)) problems.push(`the app carries no ${credit} credit: ${why}`);
 }
 
 for (const warning of warnings) console.warn(`licence-audit: warning — ${warning}`);

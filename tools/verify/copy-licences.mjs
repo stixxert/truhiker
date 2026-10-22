@@ -17,6 +17,9 @@ const OUT = join(DIST, 'licences');
 const COPIES = [
   ['node_modules/maplibre-gl/LICENSE.txt', 'maplibre-gl-BSD-3-Clause.txt'],
   ['data/ODbL-1.0.txt', 'ODbL-1.0.txt'],
+  // The project's own licence: Apache §4(a) and §4(d).
+  ['LICENSE', 'LICENSE'],
+  ['NOTICE', 'NOTICE'],
 ];
 
 if (!existsSync(DIST)) {
@@ -72,16 +75,18 @@ writeFileSync(
   join(OUT, 'TRUHIKER.txt'),
   `TruHiker — route planner for multi-day walking in Norway
 
-Application code and text: no licence has been chosen yet.
+Application code and text: Apache License 2.0 (see LICENSE).
 
 Bundled third-party material:
+  LICENSE                        Apache License 2.0, the app's own licence
+  NOTICE                         the app's copyright and third-party pointer
   maplibre-gl-BSD-3-Clause.txt   MapLibre GL JS, BSD-3-Clause
   ODbL-1.0.txt                   Open Database License, for data/shops.osm.bin
   shops.osm.ODbL-notice.txt      attribution and provenance for that data
 
 Live data sources (not redistributed; fetched by your browser):
   Kartverket  — basemap, elevation (DTM), trail and hut geometry — CC BY 4.0
-  Mapterhorn  — terrain tiles (derived from Kartverket) — see attribution.json
+  Mapterhorn  — terrain tiles (derived from Kartverket) — see mapterhorn.com/attribution
   MET Norway  — weather forecasts — NLOD / CC BY 4.0
   OpenStreetMap contributors — resupply points, under ODbL 1.0
 `,

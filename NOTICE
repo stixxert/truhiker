@@ -1,0 +1,9 @@
+TruHiker
+Copyright 2026 the TruHiker contributors
+
+This product is licensed under the Apache License, Version 2.0. A copy of the
+licence is in LICENSE beside this file.
+
+Third-party material carried by a build is listed in docs/LICENSES.md and in the
+licences/ directory of dist/: MapLibre GL JS (BSD-3-Clause) and the
+OpenStreetMap-derived resupply data (ODbL 1.0).

@@ -41,8 +41,8 @@ ceremony, and it belongs to the agent's workflow, not to the repository.
 | `verify/served-headers.mjs` | asserts the `Cache-Control` production actually serves per asset kind, under workerd — a source-text test cannot see the multi-pattern `_headers` rule | `npm run verify` |
 
 `npm run size` (bundle-size.mjs) and `npm run perf` are **not** steps of
-`npm run verify`: the dist budget is enforced by the gate, the *JS* budget and the
-timing budgets are checked when you run them by hand.
+`npm run verify`: the dist budget and the JS brotli budget are both enforced by the
+gate, and the timing budgets are checked when you run `npm run perf` by hand.
 
 The resupply data (`data/shops.osm.bin`, 175 KB) is a **build output**, not a
 committed file (D24): `tools/ensure-data.mjs` produces it during `npm run build`,

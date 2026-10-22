@@ -3,10 +3,10 @@
   "version": "0.2.0",
   "private": true,
   "description": "GPX route analyser for Norwegian hiking — elevation core and map shell",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   },
   "scripts": {
     "dev": "node tools/preflight.mjs && vite",

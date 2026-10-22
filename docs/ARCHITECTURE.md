@@ -148,10 +148,26 @@ integrity against the committed pin, a deploy dry run, a blocked-network
 failure-path run, i18n parity, the licence audit, the **served cache headers** (one
 path per asset kind, under workerd) and the hosting contract.
 
+### The monthly data refresh
+
+The extract is refreshed by a second Worker (`worker/wrangler.jsonc`) that runs a
+cron and posts a Cloudflare Deploy Hook, which rebuilds and redeploys the site. It
+needs two secrets, set once per account:
+
+```bash
+npx wrangler secret put DEPLOY_HOOK_URL -c worker/wrangler.jsonc
+npx wrangler secret put TRIGGER_KEY     -c worker/wrangler.jsonc
+npm run deploy:cron
+```
+
+With `DEPLOY_HOOK_URL` unset the Worker answers 500 and only logs it, so the monthly
+run fails silently and the site keeps serving the extract it already has: set the
+secrets before the first `deploy:cron`.
+
 ## Known limits
 
-- Routing is Turrutebasen marked trails only, for a box up to 1.5° around the two
-  points. Where the network does not connect them, it says so. OSM routing is not
+- Routing is Turrutebasen marked trails only, for a box capped at 1.5° per side and
+  1.5 deg² in area. Where the network does not connect them, it says so. OSM routing is not
   implemented; snapping still covers drawing and editing.
 - Routing endpoints are placed with the pointer; the keyboard can pan and zoom the
   map but cannot place a route endpoint. Drawing has a preview, a drag preview and a

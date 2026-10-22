@@ -37,7 +37,8 @@ These are the rules the product is built around, and the tests pin them:
 
 ## Quick start
 
-Node 22 or newer; a browser with WebGL2 and IndexedDB.
+Node 22.12 or newer (Vite 8's floor); a browser with WebGL2. Trips are stored in
+IndexedDB, with a localStorage fallback.
 
 ```bash
 npm ci
@@ -72,8 +73,9 @@ npm run build
 npx wrangler deploy
 ```
 
-The resupply extract refreshes monthly from a scheduled worker; the mechanics are
-in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The resupply extract refreshes monthly from a separate Worker with its own secrets;
+the commands and the configuration are in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Data and attribution
 
@@ -85,15 +87,11 @@ in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | **OpenStreetMap contributors** | resupply points (bundled) | ODbL 1.0 |
 
 Attribution is part of the interface: the map footer names ©Kartverket and
-© Mapterhorn, and **About data** (*Om data*) lists every source with its licence and
-a link.
+© Mapterhorn, and **About data** (*Om data*) lists every source with its attribution
+and a link.
 
 The resupply points are the only dataset bundled with the app; everything else is
-fetched live from the service that owns it and never stored or re-served.
-
-The licence for the application's own code has not been decided yet. The inventory
-of what ships and what each licence obliges us to do is in
-[docs/LICENSES.md](docs/LICENSES.md).
+fetched live from the service that owns it, and none of it is re-served by TruHiker.
 
 ## Privacy and network
 
@@ -104,9 +102,9 @@ and MET (weather) — and nothing else leaves the browser.
 
 ## Limits
 
-- **Routing** uses Kartverket's marked trails, within a box of about 1.5° per side.
-  OpenStreetMap is not used; the reasoning is D25 in
-  [docs/DECISIONS.md](docs/DECISIONS.md).
+- **Routing** uses Kartverket's marked trails, within a box capped at 1.5° per side
+  and 1.5 deg² in area (so a 1.5° square is refused). OpenStreetMap is not used; the
+  reasoning is D25 in [docs/DECISIONS.md](docs/DECISIONS.md).
 - **Drawing** is click-by-click, and a step that snaps at both ends follows the
   trail. Double-click, or **Fullfør**, ends the leg. There is no freehand mode and
   no keyboard way to place a vertex; dragging a vertex needs a pointer, and on
@@ -127,9 +125,8 @@ and MET (weather) — and nothing else leaves the browser.
 
 [docs/DECISIONS.md](docs/DECISIONS.md) records every default a user could reasonably
 expect to differ, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) the module boundaries
-and what the release gate does and does not prove, [docs/LICENSES.md](docs/LICENSES.md)
-the licence inventory, and [AGENTS.md](AGENTS.md) the rules for changing the
-repository.
+and what the release gate does and does not prove, and [AGENTS.md](AGENTS.md) the
+rules for changing the repository.
 
 ## How it was built
 

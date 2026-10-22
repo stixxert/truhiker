@@ -56,8 +56,8 @@ licence audit and the hosting contract. A change that breaks it is not done.
    loop inside `it`); `it.each` rows count separately. Prefer an acceptance test
    over three unit tests.
 7. **Conventional commits**, and never commit a tree that fails `npm run verify`,
-   or another agent's unfinished work. Author identity:
-   `Sivert <50026231+stixxert@users.noreply.github.com>`.
+   or another agent's unfinished work. Commit as the repository's configured git
+   identity; do not set or change an author.
 8. **No secrets**, no analytics, no third-party scripts. The only network origins
    are the ones in the CSP in `public/_headers`.
 

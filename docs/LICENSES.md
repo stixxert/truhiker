@@ -8,13 +8,14 @@ never stored or re-served.
 
 | What | Licence | What we have to do |
 | --- | --- | --- |
-| Application code, translations, nutrition table | No licence chosen yet | — |
+| Application code, translations, nutrition table | Apache License 2.0 | Ship a copy of the licence and the NOTICE with the build |
 | **MapLibre GL JS** (`maplibre-*.js`, worker, CSS) | BSD-3-Clause, MapLibre contributors | Ship its copyright notice and licence with the distributed build |
 | **Resupply extract** (`data/shops.osm.bin`, generated at build time — D24) | ODbL 1.0, © OpenStreetMap contributors | Credit OpenStreetMap, offer the database under ODbL, include the licence text (fetched into `data/ODbL-1.0.txt`, served at `/data/ODbL-1.0.txt`) |
 
-A licence for the application's own code has deliberately not been chosen yet: the
-first row grants nothing. Every obligation in this document comes from the
-third-party material listed, not from us.
+The application is Apache-2.0. Apache §4(a) requires a copy of the licence to travel
+with the distributed work and §4(d) the NOTICE if the work carries one, so both ship
+in `dist/licences/`; the licence audit fails if either is missing. Nothing about the
+licence is stated in the README — it is a repository fact, not a product claim.
 
 ### Where a user sees it
 
@@ -24,13 +25,13 @@ third-party material listed, not from us.
 - the resupply extract is downloadable, with the ODbL text served beside it at
   `/data/ODbL-1.0.txt`.
 
-All four notices are build output, not repository files. `tools/ensure-data.mjs`
+The notices are build output, not repository files. `tools/ensure-data.mjs`
 fetches the ODbL text into `data/ODbL-1.0.txt` and verifies it against a pinned
-SHA-256; `tools/verify/copy-licences.mjs` then puts it and MapLibre's BSD-3 notice
-(from `node_modules`) into `dist/licences/`, and generates the ODbL notice for the
-data and the app notice from the shipped provenance, so a notice cannot drift from
-the file it describes. The ODbL text is also served beside the data at
-`/data/ODbL-1.0.txt`.
+SHA-256; `tools/verify/copy-licences.mjs` then puts the ODbL text, MapLibre's BSD-3
+notice (from `node_modules`), and the project's `LICENSE` and `NOTICE` into
+`dist/licences/`, and generates the ODbL notice for the data and the app notice
+from the shipped provenance, so a notice cannot drift from the file it describes.
+The ODbL text is also served beside the data at `/data/ODbL-1.0.txt`.
 
 The files under `/licences/` are not a user-facing feature. They are the copies of
 the notices that BSD-3 and ODbL require to travel with the distributed code and
@@ -61,7 +62,8 @@ not part of `dist/`.
 `data/shops.osm.bin` **is** a derivative database of OpenStreetMap, and it is
 served publicly by the app. That public copy is what satisfies ODbL's
 share-alike and access terms. Its provenance — source, extract date, point count,
-SHA-256 — is in `data/shops.osm.json`; `tools/build-shops.mjs` regenerates it. It
+SHA-256 — is generated into `data/shops.osm.json` (build output, never committed);
+`tools/build-shops.mjs` regenerates it. It
 is never merged with non-ODbL data in one file.
 
 ## Fetched live, never redistributed
@@ -101,4 +103,5 @@ attribution in the built app. A file in `dist/` that matches no known licence is
 reported as a warning rather than stopping the build — it is a question for a
 maintainer, not a broken product.
 
-`npm audit --omit=dev` is the other half: no known vulnerabilities in what ships.
+`npm audit --omit=dev` is the other half, but nothing runs it: the gate does not call
+it, so it is a release-checklist step.

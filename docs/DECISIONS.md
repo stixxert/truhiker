@@ -527,8 +527,8 @@ the fix; more buttons was the disease.
   layer holds them to zoom ≥ 12 with a five-minute cache (D20).
 - **Rebuilding** is `npm run data:build` with `$OSM_PBF` pointing at a
   `norway-latest.osm.pbf` (or `node --max-old-space-size=3072
-  tools/build-shops.mjs --pbf <file> --out data`). The artefact is a build output
-  and is never committed (D24); the provenance file beside it is. The checksum, the
+  tools/build-shops.mjs --pbf <file> --out data`). The artefact and the provenance
+  file beside it are build outputs and are never committed (D24). The checksum, the
   per-kind counts and the coordinate bounds are pinned by a validation test, so a
   stale or corrupted artefact cannot ship quietly.
 
@@ -576,9 +576,10 @@ uses a fraction of a percent of the allowance, with room for retries.
   in the same run: the container's disk holds the extract (1.4 GB), `node_modules`
   and `dist` at once, and nothing more is needed.
 
-**Consequence, stated plainly.** The deployed artefact can be newer than the
-committed provenance. The committed *provenance* is the pin a rebuild has to
-reproduce; the binary itself is a build output and is never in git (D24), so the
+**Consequence, stated plainly.** The deployed artefact can be newer than the pin in
+`tools/data-manifest.json`. The committed *manifest* is what a rebuild has to
+reproduce — SHA-256, bytes, record count — and the binary and its provenance are
+build outputs that are never in git (D24), so the
 site no longer depends on someone remembering, and a checkout no longer carries a
 second copy of a file we already serve. `<meta>`/`About data` report the extract date
 of whichever file is actually served, so the UI cannot claim freshness it does not
@@ -741,3 +742,18 @@ geometry measures — even though the profile is sampled more coarsely.**
   the shorter sampled polyline"): the fixture's sampled polyline is measurably
   shorter, and the route still reports the measured length with increasing
   distances.
+
+## D28. The project licence is Apache 2.0, and the README does not mention it
+
+**Default: the application's own code is Apache-2.0. The licence is stated in
+`LICENSE`, `NOTICE` and `docs/LICENSES.md` — never in the README.**
+
+- **Why Apache 2.0.** Permissive, with an explicit patent grant and a NOTICE
+  mechanism for the third-party material a build carries, and compatible with the
+  ODbL data and the BSD-3 renderer, which is the constraint that actually binds.
+- **The obligation.** §4(a) requires a copy of the licence, and §4(d) the NOTICE, to
+  travel with the distributed work: `tools/verify/copy-licences.mjs` puts both in
+  `dist/licences/`, and `licence-audit` fails if either is missing.
+- **Not in the README.** The README is a product page, and it had already been made
+  to claim a licence the project did not have. A licence is a repository fact, not a
+  selling point; changing it is a deliberate act on `LICENSE`, not a doc edit.
