@@ -596,10 +596,13 @@ not the build notes. The pin is `tools/data-manifest.json`.**
   name, SHA-256, byte size and record count, plus the source URL, the extract date,
   the licence and the attribution. It is *configuration* — the same category as a
   lockfile — and it is the only thing about a derived dataset that git holds.
-- **What is signed off separately.** `licences/ODbL-1.0.txt`. It is a notice, not
-  data: it is copied into the build beside the artefact (`/data/ODbL-1.0.txt`, and
-  `dist/licences/`), because ODbL §4.3/§4.6 require the offer to travel with the
-  data. Titles, not build output, so it lives under `licences/`.
+- **The licence text is generated too.** There used to be a `licences/` directory
+  holding a committed copy of the ODbL text. It is gone: the text is not authored
+  here, so it is build output like everything else. `ensure-data` fetches it from
+  its publisher into `data/ODbL-1.0.txt` and verifies it against a pinned SHA-256 in
+  the manifest — the same discipline as the data — and the build copies it to
+  `/data/ODbL-1.0.txt` and `dist/licences/`, because ODbL §4.3/§4.6 require the
+  offer to travel with the database.
 - **What is not.** `data/shops.osm.bin`, `data/shops.osm.json` (the provenance the
   deployed site serves), and anything else a build writes there. `.gitignore` drops
   the whole directory and the gate fails if *any* path under `data/` is tracked —

@@ -34,7 +34,9 @@ by `tools/ensure-data.mjs` — from the Geofabrik PBF when one is available, oth
 from a verified local or published copy — and it is never committed (D24);
 `tools/data-manifest.json` is the committed pin (SHA-256, size, counts, source
 date) and `tools/build-shops.mjs` regenerates the artefact and its provenance.
-Nothing under `data/` is in git; `licences/ODbL-1.0.txt` is, because it is a notice. The file is 175 KB;
+Nothing under `data/` is in git — not the binary, not the provenance, and not the
+ODbL licence text, which `ensure-data` fetches into `data/ODbL-1.0.txt` and verifies
+against its own pin in the same manifest. The extract is 175 KB;
 rebuilding it from source needs the ~1.5 GB PBF, which is why the pin exists: a
 fresh clone verifies the artefact it gets instead of trusting it. The bytes the
 deployment serves are the public ODbL copy, so they are the offer the licence

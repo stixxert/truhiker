@@ -47,4 +47,5 @@ The resupply data (`data/shops.osm.bin`, 175 KB) is a **build output**, not a
 committed file (D24): `tools/ensure-data.mjs` produces it during `npm run build`,
 from the Geofabrik PBF when one is available and otherwise from a verified local or
 published copy. Nothing under `data/` is tracked; `data-manifest.json` is the pin
-(SHA-256, bytes, counts, source date) and `licences/ODbL-1.0.txt` is the notice.
+(SHA-256, bytes, counts, source date) — and it pins the ODbL text too, which
+`ensure-data` fetches and verifies the same way. No copy of either is committed.

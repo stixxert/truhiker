@@ -13,7 +13,7 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync, statSync, readFileSync, existsSync } from "node:fs";
 import { join, extname } from "node:path";
-import { verifyPinned } from "../ensure-data.mjs";
+import { verifyPinned, verifyNotice } from "../ensure-data.mjs";
 import { gzipSync, brotliCompressSync, constants } from "node:zlib";
 
 const ROOT = process.cwd();
@@ -212,10 +212,8 @@ step("data integrity", () => {
   if (trackedData.length > 0) {
     throw new Error(`generated data is tracked in git (see D24): ${trackedData.join(", ")}`);
   }
-  // The licence text is a notice, not data: it must be in the tree.
-  if (!existsSync(join(ROOT, "licences/ODbL-1.0.txt"))) {
-    throw new Error("licences/ODbL-1.0.txt is missing: the ODbL text must travel with the data we serve");
-  }
+  // The licence text is generated like the data it covers (D24): `ensure-data`
+  // fetches it into `data/` from its publisher and verifies it against the pin.
   run("node", ["tools/ensure-data.mjs"]);
   // Verify against the committed pin — the same verifier the build uses.
   const manifest = JSON.parse(readFileSync(join(ROOT, "tools/data-manifest.json"), "utf8"));
@@ -223,6 +221,14 @@ step("data integrity", () => {
   const binary = readFileSync(join(ROOT, "data", entry.file));
   const verdict = verifyPinned(binary, entry);
   if (!verdict.ok) throw new Error(`data/${entry.file}: ${verdict.reason}`);
+  for (const notice of manifest.notices ?? []) {
+    const path = join(ROOT, "data", notice.file);
+    if (!existsSync(path)) {
+      throw new Error(`data/${notice.file} is missing: the ODbL text must travel with the data we serve`);
+    }
+    const noticeVerdict = verifyNotice(readFileSync(path), notice);
+    if (!noticeVerdict.ok) throw new Error(`data/${notice.file}: ${noticeVerdict.reason}`);
+  }
   return `${entry.counts.total} points, sha256 matches the pin`;
 });
 

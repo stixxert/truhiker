@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "note": "The pin for generated data \u2014 the only thing about a derived dataset that lives in git (D24). The artefact itself is a build output: tools/ensure-data.mjs produces it or verifies a copy against this file.",
+  "note": "The pin for generated data \u2014 the only thing about a derived dataset that lives in git (D24). The artefacts themselves are build outputs: tools/ensure-data.mjs produces or verifies them against this file. That includes the licence text, which is fetched and pinned like the data it licenses.",
   "artefacts": [
     {
       "file": "shops.osm.bin",
@@ -16,6 +16,16 @@
       "counts": {
         "total": 8571
       }
+    }
+  ],
+  "notices": [
+    {
+      "file": "ODbL-1.0.txt",
+      "licence": "ODbL-1.0",
+      "title": "ODC Open Database License (ODbL) 1.0",
+      "source": "https://raw.githubusercontent.com/spdx/license-list-data/main/text/ODbL-1.0.txt",
+      "bytes": 25289,
+      "sha256": "77d2692c3d64efdd4db18dce2407699baf62930e2b50d6e5ed90b48acf16b7c1"
     }
   ]
 }

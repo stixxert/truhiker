@@ -19,14 +19,15 @@ const DIST = 'dist';
 const RULES = [
   { pattern: /^licences\//, licence: 'licence-text', note: 'redistributed notices' },
   { pattern: /^maplibre-.*\.(js|mjs|css)$/, licence: 'BSD-3-Clause', holder: 'MapLibre contributors' },
-  { pattern: /^index\.html$/, licence: 'proprietary', holder: 'Sivert Asakskogen' },
-  { pattern: /^index-.*\.(js|css)$/, licence: 'proprietary', holder: 'Sivert Asakskogen' },
-  { pattern: /^dem.*\.js$/, licence: 'proprietary', holder: 'Sivert Asakskogen' },
+  // Our own files carry no licence yet — one has deliberately not been chosen.
+  { pattern: /^index\.html$/, licence: 'app-code (no licence chosen)' },
+  { pattern: /^index-.*\.(js|css)$/, licence: 'app-code (no licence chosen)' },
+  { pattern: /^dem.*\.js$/, licence: 'app-code (no licence chosen)' },
   // Any other JS/CSS chunk is our own code (lazy-loaded engines, workers, etc.).
   // Listed after the MapLibre rule so third-party code is never counted as ours.
-  { pattern: /^[a-zA-Z0-9_.-]+\.(js|mjs|css)$/, licence: 'proprietary', holder: 'Sivert Asakskogen' },
-  { pattern: /^404\.html$/, licence: 'proprietary', holder: 'Sivert Asakskogen' },
-  { pattern: /^_headers$/, licence: 'proprietary', holder: 'Sivert Asakskogen' },
+  { pattern: /^[a-zA-Z0-9_.-]+\.(js|mjs|css)$/, licence: 'app-code (no licence chosen)' },
+  { pattern: /^404\.html$/, licence: 'app-code (no licence chosen)' },
+  { pattern: /^_headers$/, licence: 'app-code (no licence chosen)' },
   { pattern: /^data\/shops\.osm\.bin$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },
   // Provenance and checksum for the data artefact.
   { pattern: /^data\/shops\.osm\.json$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },

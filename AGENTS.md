@@ -43,9 +43,11 @@ licence audit and the hosting contract. A change that breaks it is not done.
    is generated at build time by `tools/ensure-data.mjs` — from the Geofabrik PBF
    when one is available, otherwise reused/fetched and verified — and **nothing
    under `data/` is ever committed** (D24): not the binary, not the provenance the
-   site serves, not build notes. The pin is `tools/data-manifest.json` (sha256,
-   bytes, counts, source date); `licences/ODbL-1.0.txt` is committed because it is
-   a notice. Do not add other generated data to the repo.
+   site serves, not build notes, **not the ODbL licence text**. The pin is
+   `tools/data-manifest.json` (sha256, bytes, counts, source date), and it pins the
+   licence text too: `ensure-data` fetches it into `data/` and verifies it, exactly
+   as it does the data it covers. The repository holds no copy of either. Do not
+   add other generated data to the repo.
 4. **Live-first.** Basemap, terrain, elevation, trails and weather are fetched from
    their sources. Only data with no usable live source is bundled.
 5. **No new dependencies without a reason.** The app has one runtime dependency

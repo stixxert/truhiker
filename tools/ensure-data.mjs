@@ -6,6 +6,9 @@
  *
  *   - a **binary** artefact under `data/` is a build output. It is never in git;
  *     `.gitignore` says so and the gate fails if one is tracked.
+ *   - the **licence text** that must ship beside that artefact is build output too.
+ *     It is fetched once from its publisher into `data/` and verified against the
+ *     same pin, so the tree carries no copy of it (D24).
  *   - the **pin** is `tools/data-manifest.json`, which *is* committed. It carries
  *     the SHA-256, the byte size and the counts a build has to reproduce, and it
  *     is configuration (like a lockfile), not data. The provenance file the build
@@ -76,6 +79,89 @@ function readManifest() {
   const entry = manifest?.artefacts?.[0];
   if (!entry?.file || !entry?.sha256) throw new Error(`${MANIFEST} has no usable artefact entry`);
   return entry;
+}
+
+/**
+ * Does this licence text match the pin?
+ *
+ * A notice is generated data in exactly the sense D24 means: it is fetched, not
+ * authored, and it has to arrive unmodified or not at all.
+ */
+export function verifyNotice(buffer, notice) {
+  if (buffer.byteLength === 0) return { ok: false, reason: 'notice is empty' };
+  if (typeof notice.bytes === 'number' && buffer.byteLength !== notice.bytes) {
+    return { ok: false, reason: `notice is ${buffer.byteLength} bytes, the pin says ${notice.bytes}` };
+  }
+  const digest = sha256(buffer);
+  if (digest !== notice.sha256) {
+    return { ok: false, reason: `sha256 ${digest} does not match the pinned ${notice.sha256}` };
+  }
+  return { ok: true };
+}
+
+function readNotices() {
+  const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8'));
+  const notices = manifest?.notices;
+  if (!Array.isArray(notices) || notices.length === 0) {
+    throw new Error(`${MANIFEST} has no "notices": the ODbL text has to ship beside the data it covers`);
+  }
+  for (const notice of notices) {
+    if (!notice?.file || !notice?.source || !notice?.sha256) {
+      throw new Error(`${MANIFEST}: a "notices" entry is missing file, source or sha256`);
+    }
+  }
+  return notices;
+}
+
+/**
+ * Put the licence texts in `data/`, verified against the pin.
+ *
+ * Reuse a local copy that matches; otherwise fetch the published text. A copy that
+ * does not match is refused rather than overwritten: an edited licence text is a
+ * mistake someone should see, not a file silently replaced.
+ */
+async function ensureNotices() {
+  for (const notice of readNotices()) {
+    const path = join(DATA_DIR, notice.file);
+    if (existsSync(path)) {
+      const verdict = verifyNotice(readFileSync(path), notice);
+      if (!verdict.ok) {
+        throw new Error(
+          `${path} does not match the pinned ${notice.title}: ${verdict.reason}\n` +
+            'Delete it and re-run: the build fetches and verifies the text from the pin.',
+        );
+      }
+      console.log(`ensure-data: ${path} present and pinned`);
+      continue;
+    }
+    let response;
+    try {
+      response = await fetch(notice.source, { signal: AbortSignal.timeout(30_000) });
+    } catch (error) {
+      throw new Error(
+        `could not fetch ${notice.title} from ${notice.source} (${error.message}), and the\n` +
+          `build must not ship the data without its licence text. Put a verified copy at\n` +
+          `${path}, or allow the fetch.`,
+      );
+    }
+    if (!response.ok) {
+      throw new Error(
+        `HTTP ${response.status} from ${notice.source}: the licence text cannot be fetched,\n` +
+          'and the build must not ship the data without it.',
+      );
+    }
+    const bytes = Buffer.from(await response.arrayBuffer());
+    const verdict = verifyNotice(bytes, notice);
+    if (!verdict.ok) {
+      throw new Error(
+        `${notice.source}: ${verdict.reason}\n` +
+          'Change the pin only after reading the new text and deciding it is still the licence.',
+      );
+    }
+    mkdirSync(DATA_DIR, { recursive: true });
+    writeFileSync(path, bytes);
+    console.log(`ensure-data: fetched ${notice.source} -> ${path}`);
+  }
 }
 
 /**
@@ -173,6 +259,7 @@ async function main() {
       );
     }
     console.log(`ensure-data: built ${entry.file} from ${pbf}`);
+    await ensureNotices();
     return;
   }
 
@@ -200,6 +287,7 @@ async function main() {
       );
     }
     console.log(`ensure-data: ${entry.file} present and pinned — ${entry.counts?.total ?? '?'} records, sha256 verified`);
+    await ensureNotices();
     return;
   }
 
@@ -213,6 +301,7 @@ async function main() {
     );
   }
   console.log(`ensure-data: ${fetched.how} — ${entry.counts?.total ?? '?'} records, sha256 verified`);
+  await ensureNotices();
 }
 
 // Only run when executed directly: the helpers above are imported by the gate.

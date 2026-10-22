@@ -4,8 +4,9 @@
  *
  * Redistributing MapLibre (BSD-3) in a build requires reproducing its copyright
  * notice and licence; the ODbL data file requires its own notice and a route to
- * the licence. These were previously absent from `dist/`, which is a real
- * compliance gap rather than a nicety.
+ * the licence. Both are build artefacts: MapLibre's text comes out of
+ * `node_modules`, and the ODbL text is fetched and pinned by `ensure-data` into
+ * `data/` like the data it covers (D24). Nothing here is a committed file.
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,7 +16,7 @@ const OUT = join(DIST, 'licences');
 
 const COPIES = [
   ['node_modules/maplibre-gl/LICENSE.txt', 'maplibre-gl-BSD-3-Clause.txt'],
-  ['licences/ODbL-1.0.txt', 'ODbL-1.0.txt'],
+  ['data/ODbL-1.0.txt', 'ODbL-1.0.txt'],
 ];
 
 if (!existsSync(DIST)) {
@@ -69,10 +70,9 @@ ${provenance.servedAt}. Tools used: ${provenance.builtBy}.
 // The app's own notice, plus a pointer to the full inventory in the repository.
 writeFileSync(
   join(OUT, 'TRUHIKER.txt'),
-  `TruHiker — GPX route analyser for Norwegian hiking
-https://github.com/stixxert/truhiker
+  `TruHiker — route planner for multi-day walking in Norway
 
-Application code: © Sivert Asakskogen. All rights reserved.
+Application code and text: no licence has been chosen yet.
 
 Bundled third-party material:
   maplibre-gl-BSD-3-Clause.txt   MapLibre GL JS, BSD-3-Clause

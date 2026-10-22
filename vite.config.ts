@@ -22,7 +22,7 @@ const nodeModulesRealPath = (() => {
  * `tools/verify/copy-licences.mjs` exists for exactly this, but `npm run build` does
  * not call it (package.json is owned elsewhere), and `vite build` empties
  * `dist/` — so `node tools/verify/licence-audit.mjs` failed on a clean build even
- * though the notices were all present in the repository. Running the script at
+ * though every notice was available at build time. Running the script at
  * the end of the bundle keeps one definition of what must ship, and makes the
  * audit reproducible from `npm run build`.
  */

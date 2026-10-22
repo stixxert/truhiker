@@ -8,9 +8,13 @@ never stored or re-served.
 
 | What | Licence | What we have to do |
 | --- | --- | --- |
-| Application code, translations, nutrition table | Proprietary, © Sivert Asakskogen, all rights reserved | — |
+| Application code, translations, nutrition table | No licence chosen yet | — |
 | **MapLibre GL JS** (`maplibre-*.js`, worker, CSS) | BSD-3-Clause, MapLibre contributors | Ship its copyright notice and licence with the distributed build |
-| **Resupply extract** (`data/shops.osm.bin`, generated at build time — D24) | ODbL 1.0, © OpenStreetMap contributors | Credit OpenStreetMap, offer the database under ODbL, include the licence text (`licences/ODbL-1.0.txt`, served at `/data/ODbL-1.0.txt`) |
+| **Resupply extract** (`data/shops.osm.bin`, generated at build time — D24) | ODbL 1.0, © OpenStreetMap contributors | Credit OpenStreetMap, offer the database under ODbL, include the licence text (fetched into `data/ODbL-1.0.txt`, served at `/data/ODbL-1.0.txt`) |
+
+A licence for the application's own code has deliberately not been chosen yet: the
+first row grants nothing. Every obligation in this document comes from the
+third-party material listed, not from us.
 
 ### Where a user sees it
 
@@ -20,11 +24,13 @@ never stored or re-served.
 - the resupply extract is downloadable, with the ODbL text served beside it at
   `/data/ODbL-1.0.txt`.
 
-`licences/` in the repository holds **one** file, the ODbL text. The other three
-notices are produced at build time into `dist/licences/` by
-`tools/verify/copy-licences.mjs`: MapLibre's BSD-3 notice is copied from
-`node_modules`, and the ODbL notice for the data and the app notice are generated
-from the shipped provenance, so a notice cannot drift from the file it describes.
+All four notices are build output, not repository files. `tools/ensure-data.mjs`
+fetches the ODbL text into `data/ODbL-1.0.txt` and verifies it against a pinned
+SHA-256; `tools/verify/copy-licences.mjs` then puts it and MapLibre's BSD-3 notice
+(from `node_modules`) into `dist/licences/`, and generates the ODbL notice for the
+data and the app notice from the shipped provenance, so a notice cannot drift from
+the file it describes. The ODbL text is also served beside the data at
+`/data/ODbL-1.0.txt`.
 
 The files under `/licences/` are not a user-facing feature. They are the copies of
 the notices that BSD-3 and ODbL require to travel with the distributed code and
