@@ -138,7 +138,7 @@ profile too; the caller replaces it with the user's own.
 every structural element is closed explicitly (no self-closing `<trkseg>`).
 
 ```
-<gpx version="1.1" creator="npl-map" xmlns=… xmlns:xsi=… xmlns:npl="urn:npl-map:gpx:1" …>
+<gpx version="1.1" creator="TruHiker" xmlns=… xmlns:xsi=… xmlns:npl="urn:npl-map:gpx:1" …>
   <metadata>
     <name>          trip name, XML-escaped
     <desc>          multi-line, see below
@@ -164,7 +164,7 @@ every structural element is closed explicitly (no self-closing `<trkseg>`).
    unknown);
 3. `©Kartverket` / `Turrutebasen` attribution **when the provenance mentions
    them**, with the licence strings we were given and an explicit
-   "modified by npl-map" note — CC BY 4.0 requires that statement. When the
+   "modified by TruHiker" note — CC BY 4.0 requires that statement. When the
    provenance does not mention them, no attribution is invented;
 4. one line per leg with its id, name, provenance and elevation source.
 

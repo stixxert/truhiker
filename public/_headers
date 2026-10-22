@@ -14,10 +14,22 @@
 # `tools/verify/served-headers.mjs` asserts the *served* result for each of these
 # paths under workerd, because a source-text test cannot see either rule.
 
-# HTML must never be cached immutably. `/index.html` itself 307s to `/`, which is
-# matched by the `/*` rule below and is revalidated by the platform default.
+# HTML must never be cached immutably. `/index.html` itself 307s to `/`, so both
+# spellings are listed: the platform default happened to revalidate `/`, but a
+# default is not a policy.
 /index.html
   Cache-Control: public, max-age=0, must-revalidate
+
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Licence texts change only with the build that writes them. A day, not a year:
+# they are not content-hashed, so a changed notice must not be pinned by caches.
+/licences/*
+  Cache-Control: public, max-age=86400
+
+/robots.txt
+  Cache-Control: public, max-age=86400
 
 # Data changes only when the extract is refreshed (D23).
 /data/*

@@ -37,6 +37,9 @@ const COORD_DECIMALS = 7;
 const ELE_DECIMALS = 1;
 
 /** Namespace for our own `<extensions>` elements. */
+// The XML namespace is an identifier, not a brand: GPX files exported before the
+// product was called TruHiker carry this URI, and the reader must keep accepting
+// them. Changing it is a format change, not a rename.
 const NPL_NS = 'urn:npl-map:gpx:1';
 
 export interface GpxOptions {
@@ -201,7 +204,7 @@ export function toGpx(trip: Trip, options: GpxOptions = {}): string {
   const lines: string[] = [];
   lines.push('<?xml version="1.0" encoding="UTF-8"?>');
   lines.push(
-    `<gpx version="1.1" creator="npl-map" xmlns="http://www.topografix.com/GPX/1/1" ` +
+    `<gpx version="1.1" creator="TruHiker" xmlns="http://www.topografix.com/GPX/1/1" ` +
       `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ` +
       `xmlns:npl="${NPL_NS}" ` +
       `xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">`,
@@ -211,13 +214,13 @@ export function toGpx(trip: Trip, options: GpxOptions = {}): string {
   const allSources = legs.flatMap((leg) => sourcesOf(leg.points));
   const attribution = attributionOf(legs);
   const desc: string[] = [];
-  desc.push(`Saved by npl-map. schemaVersion ${trip.schemaVersion ?? CURRENT_SCHEMA_VERSION}. Trip id ${trip.id}.`);
+  desc.push(`Saved by TruHiker. schemaVersion ${trip.schemaVersion ?? CURRENT_SCHEMA_VERSION}. Trip id ${trip.id}.`);
   desc.push(`Elevation: ${describeSources([...new Set(allSources)].sort())}.`);
   if (attribution.owners.length > 0) {
     desc.push(
       `Attribution: ©${attribution.owners.join(' / ')}` +
         (attribution.licences.length > 0 ? ` — ${attribution.licences.join('; ')}` : '') +
-        '. Modified: geometry and elevation were processed by npl-map.',
+        '. Modified: geometry and elevation were processed by TruHiker.',
     );
   }
   legs.forEach((leg, index) => {
@@ -313,7 +316,7 @@ export function toGeoJson(trip: Trip): string {
   return `${JSON.stringify(
     {
       type: 'FeatureCollection',
-      generator: 'npl-map',
+      generator: 'TruHiker',
       schemaVersion: trip.schemaVersion ?? CURRENT_SCHEMA_VERSION,
       name: trip.name,
       features,

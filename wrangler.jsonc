@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "route-analyser",
+  "name": "truhiker",
   "compatibility_date": "2026-10-01",
 
   // Static-only deployment: there is no Worker script.

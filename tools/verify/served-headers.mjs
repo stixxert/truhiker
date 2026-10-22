@@ -70,6 +70,12 @@ try {
   // The document itself must be revalidated, never immutable.
   await expectCache('/', 200, revalidate, true);
 
+  // Licence texts are not content-hashed, so they get a day, not a year.
+  const daily = /max-age=86400/;
+  await expectCache('/licences/LICENSE', 200, daily, true);
+  await expectCache('/licences/ODbL-1.0.txt', 200, daily, true);
+  await expectCache('/robots.txt', 200, daily, true);
+
   // An unknown path is a 404, not the app shell pretending to be one.
   const missing = await fetch(`${origin}/this-path-does-not-exist`);
   rows.push({ path: '/this-path-does-not-exist', status: missing.status, cache: '-' });

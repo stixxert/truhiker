@@ -36,6 +36,43 @@ if (/"main"\s*:/.test(config)) {
 }
 if (!/"directory"\s*:\s*"\.\/dist"/.test(config)) fail('assets.directory is not ./dist');
 
+// The monthly-refresh Worker has its own config, which the static dry run above
+// never reads: a regression there (a binding, an inline secret, a cron that stopped
+// matching the docs) would ship unverified. Validate the shape here; the Worker
+// itself is exercised by no gate, which is recorded in docs/ARCHITECTURE.md.
+const WORKER_CONFIG = join(ROOT, 'worker/wrangler.jsonc');
+const WORKER_MAIN = join(ROOT, 'worker/cron.ts');
+if (!existsSync(WORKER_CONFIG)) fail('worker/wrangler.jsonc is missing');
+if (!existsSync(WORKER_MAIN)) fail('worker/cron.ts is missing');
+
+/** Wrangler configs are JSONC; strip line and block comments before parsing. */
+function parseJsonc(text) {
+  return JSON.parse(text.replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, ''));
+}
+
+let worker;
+try {
+  worker = parseJsonc(readFileSync(WORKER_CONFIG, 'utf8'));
+} catch (error) {
+  fail(`worker/wrangler.jsonc does not parse: ${error.message}`);
+}
+
+if (worker.main !== 'cron.ts') fail('worker/wrangler.jsonc must have main: cron.ts');
+if (worker.name !== 'truhiker-refresh') fail(`worker name is ${String(worker.name)}, expected truhiker-refresh`);
+if (worker.assets || worker.site) fail('the cron worker must not serve assets');
+if (worker.vars && Object.keys(worker.vars).length > 0) {
+  fail('the cron worker must carry no inline vars; both values are secrets');
+}
+if (worker.routes || worker.route) fail('the cron worker must not claim a route');
+const crons = worker.triggers?.crons;
+if (!Array.isArray(crons) || crons.length !== 2) {
+  fail(`expected two crons (monthly, then the retry), got ${JSON.stringify(crons)}`);
+}
+const workerCode = readFileSync(WORKER_MAIN, 'utf8');
+for (const secret of ['DEPLOY_HOOK_URL', 'TRIGGER_KEY']) {
+  if (!workerCode.includes(secret)) fail(`worker/cron.ts does not read ${secret}`);
+}
+
 const work = mkdtempSync(join(tmpdir(), 'truhiker-deploy-'));
 try {
   cpSync(DIST, join(work, 'dist'), { recursive: true });

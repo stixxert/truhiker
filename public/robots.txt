@@ -1,0 +1,4 @@
+# TruHiker is a route planner, not a corpus: a crawler indexing it only finds the
+# app shell (the single page of a static site).
+User-agent: *
+Allow: /
