@@ -101,7 +101,7 @@ import {
 import { snapRouteLabel } from '../lib/snap-label';
 import { loadEngines } from './engine-loader';
 import { DOCUMENTED_HORIZON_DAYS, type EngineSurface } from './engine-types';
-import { TripSession, type SaveStatus } from './trip-session';
+import { TripSession, openForBoot, type SaveStatus } from './trip-session';
 import {
   availableCommands,
   clearSelection,
@@ -141,6 +141,12 @@ const ZOOM_STEP = 1;
  * deliberate short step survives, close enough that a double-click does not.
  */
 const FINISH_DUPLICATE_M = 20;
+/**
+ * Which trip was open last, so a returning visitor is not greeted with an empty
+ * screen while their walks sit in the library two taps away. Remembers an *id*, not
+ * a trip: the stored copy is always the authority.
+ */
+const LAST_TRIP_KEY = 'truhiker:last-trip';
 
 type ProfileStatus = 'empty' | 'loading' | 'ready' | 'error';
 type ProfileErrorKind = 'dem' | 'scope';
@@ -774,6 +780,13 @@ export class App {
 
   private handleSessionChange(): void {
     const trip = this.session?.trip ?? null;
+    if (trip) {
+      try {
+        this.storage?.setItem(LAST_TRIP_KEY, trip.id);
+      } catch {
+        // Blocked storage: the empty state is then the start of every visit.
+      }
+    }
     // Keep the route object identity when the name is unchanged: `showRouteOnMap`
     // uses identity to drop a stale render, and a needless spread would make the
     // first route draw (and its fit) look stale.
@@ -945,6 +958,21 @@ export class App {
     }
 
     const token = ++this.tripRenderToken;
+    // Draw the loading state now: the dialog used to show the previous (often empty)
+    // list until the store answered, which reads as "you have no trips".
+    dialog.render(
+      buildTripLibraryView(
+        {
+          summaries: [],
+          loading: true,
+          currentId: session.trip?.id ?? null,
+          problem: null,
+          importEnabled: this.engines !== null,
+          storage: null,
+        },
+        this.i18n,
+      ),
+    );
     void (async () => {
       await session.whenReady();
       const [summaries, usage] = await Promise.all([session.list(), session.usage()]);
@@ -979,7 +1007,21 @@ export class App {
   private async openSavedTrip(id: string): Promise<void> {
     const session = this.session;
     if (!session) return;
-    const trip = await session.open(id);
+    let trip: Trip | null = null;
+    try {
+      trip = await session.open(id);
+    } catch (error) {
+      // The row exists but its body does not read: say so, and leave the row (and
+      // its Delete) in place rather than pretending the trip is gone.
+      this.renderTrips();
+      this.showToast(
+        this.i18n.t('store.corruptTrip', {
+          message: error instanceof Error ? error.message : String(error),
+        }),
+        'warning',
+      );
+      return;
+    }
     if (!trip) {
       this.renderTrips();
       this.showToast(this.i18n.t('store.notFound'), 'warning');
@@ -1131,8 +1173,13 @@ export class App {
       // Reading the file can fail (the file was moved, the stream was cut):
       // that rejection must land in the same visible banner as a parse error,
       // not escape as an unhandled promise the user never sees.
+      // Reading + parsing a multi-megabyte GPX is synchronous-ish work with no
+      // progress of its own; say that it is happening before it starts.
+      const busy = (): string => this.i18n.t('banner.importing', { name: file.name });
+      this.banners.show({ id: 'import-busy', kind: 'info', message: busy(), retext: () => ({ message: busy() }) });
       text = await file.text();
-      const trip = await session.importFile(text, file.name);
+      const { trip, save } = await session.importFile(text, file.name);
+      this.banners.dismiss('import-busy');
       this.banners.dismiss('import-failed');
       this.editorUi = this.editorStateFor(trip);
       this.overlay?.setTrip(trip);
@@ -1143,8 +1190,23 @@ export class App {
       this.renderSaveStatus();
       this.renderTrips();
       this.resetWeatherForTrip();
-      this.showToast(this.i18n.t('trips.imported', { name: trip.name }));
+      // Say what actually happened: the route is on screen either way, but a trip
+      // that was not stored must not be announced as imported — this browser may
+      // lose it on reload, and the way out is the GPX download.
+      if (save.kind === 'saved') {
+        this.showToast(this.i18n.t('trips.imported', { name: trip.name }));
+      } else {
+        this.showToast(this.i18n.t('banner.importNotSaved', { name: trip.name }), 'warning');
+        this.banners.show({
+          id: 'import-not-saved',
+          kind: 'warning',
+          message: this.i18n.t('banner.importNotSaved', { name: trip.name }),
+          detail: save.message,
+          retext: () => ({ message: this.i18n.t('banner.importNotSaved', { name: trip.name }) }),
+        });
+      }
     } catch (error) {
+      this.banners.dismiss('import-busy');
       this.showImportFailed(error);
       // The map and profile do not depend on the store: show the route anyway.
       if (error instanceof StoreError && text.length > 0) {
@@ -2507,10 +2569,10 @@ export class App {
         : this.i18n.t(
             trip.legs.length === 1 ? 'editor.tripSummaryOne' : 'editor.tripSummaryMany',
             {
-            legs: this.i18n.format.number(trip.legs.length, { maximumFractionDigits: 0 }),
-            distance: this.i18n.format.distance(flat.distanceM),
-            points: this.i18n.format.number(flat.points.length, { maximumFractionDigits: 0 }),
-          },
+              legs: this.i18n.format.number(trip.legs.length, { maximumFractionDigits: 0 }),
+              distance: this.i18n.format.distance(flat.distanceM),
+              points: this.pointCountLabel(flat.points.length),
+            },
           );
 
     const rows = trip.legs.map((leg, index) => {
@@ -2530,7 +2592,7 @@ export class App {
       meta.className = 'leg-row-meta';
       meta.textContent = this.i18n.t('editor.legRowMeta', {
         distance: leg.distanceM === null ? '—' : this.i18n.format.distance(leg.distanceM),
-        points: this.i18n.format.number(leg.points.length, { maximumFractionDigits: 0 }),
+        points: this.pointCountLabel(leg.points.length),
       });
 
       button.append(name, meta);
@@ -2624,11 +2686,15 @@ export class App {
     else if (!this.offTrailComputed) offTrailLabel = this.i18n.t('editor.offTrailUnknown');
     else if (this.offTrailLabels.length === 0) offTrailLabel = this.i18n.t('editor.offTrailNone');
     else {
-      offTrailLabel = this.i18n.t('editor.offTrail', {
-        count: this.i18n.format.number(this.offTrailLabels.length, {
-          maximumFractionDigits: 0,
-        }),
-      });
+      // "1 stretches" is the kind of detail that makes a product feel translated.
+      offTrailLabel =
+        this.offTrailLabels.length === 1
+          ? this.i18n.t('editor.offTrailOne')
+          : this.i18n.t('editor.offTrail', {
+              count: this.i18n.format.number(this.offTrailLabels.length, {
+                maximumFractionDigits: 0,
+              }),
+            });
     }
 
     const hint = !this.engines
@@ -2666,6 +2732,11 @@ export class App {
   // -------------------------------------------------------------------------
 
   private async loadInitialRoute(): Promise<void> {
+    // Fold back any journal entry *before* anything decides what to open. `list`
+    // and `open` wait for the store, not for the journal, so without this the
+    // recovery could land after the app had already read the trip it recovered —
+    // the last-second edit would be in the store and invisible on screen.
+    await this.session?.whenReady();
     const hash = window.location.hash;
     if (hasRouteHash(hash)) {
       const text = decodeRouteHash(hash);
@@ -2680,9 +2751,41 @@ export class App {
         retext: () => ({ message: this.i18n.t('banner.hashInvalid') }),
       });
     }
-    // No route in the link and nothing saved: the empty state is the honest
-    // starting point. There is no bundled sample route (D26).
+    // Nothing in the address: reopen the trip this browser had open last, so a
+    // returning visitor does not land on an empty screen with their walks hidden in
+    // the library. If there is nothing to reopen, the empty state is the honest
+    // starting point (there is no bundled sample route, D26).
+    if (this.state.route === null && (await this.reopenLastTrip())) return;
     if (this.state.route === null) this.showEmptyState(true);
+  }
+
+  /** Reopen the last opened trip, if this browser remembers one that still exists. */
+  private async reopenLastTrip(): Promise<boolean> {
+    const session = this.session;
+    if (!session) return false;
+    let id: string | null = null;
+    try {
+      id = this.storage?.getItem(LAST_TRIP_KEY) ?? null;
+    } catch {
+      id = null;
+    }
+    if (id === null) return false;
+    const trips = await session.list();
+    if (!trips.some((trip) => trip.id === id)) return false;
+    // Quietly: this is the state the user left, not news. A body that cannot be
+    // read falls back to the empty state; the row stays in the library, where the
+    // user can see it and delete it.
+    const opened = await openForBoot(session, id);
+    if (!opened) return false;
+    this.editorUi = this.editorStateFor(opened);
+    this.overlay?.setTrip(opened);
+    this.overlay?.setMode(this.editorUi.mode);
+    this.overlay?.setSelection(null);
+    this.applyTripGeometry();
+    this.renderEditor();
+    this.renderSaveStatus();
+    this.updateRouteMeta();
+    return true;
   }
 
   private async loadGpxText(
@@ -2771,6 +2874,11 @@ export class App {
     await this.map.whenReady();
     if (this.state.route !== route) return;
     this.map.setRoute(route, { fit: this.editorUi.mode === 'view' });
+    // A route arriving (or being edited in) is a reason to make sure the trail
+    // network covers the view: `ensureSnapNetwork` can be skipped when it runs while
+    // the camera is still fitting, and without this retry nothing asked again until
+    // the user happened to move the map — the snap word sat on "no trails" forever.
+    if (this.editorUi.mode !== 'view' && this.editorUi.snapping) this.scheduleSnapPrefetch();
   }
 
   private sampleRoute(route: Route): void {
@@ -3115,6 +3223,21 @@ export class App {
    */
   private showEmptyState(visible: boolean): void {
     this.elements.emptyState.hidden = !visible;
+    // The profile's own visibility in the empty state is a CSS rule
+    // (`.stage:has(.empty-state:not([hidden]))`), so nothing here can flip the
+    // user's fold by accident.
+    if (!visible) return;
+    // Say that saved trips exist: otherwise "nothing here" is a lie for anyone who
+    // has used the app before, and the library is two taps into a menu.
+    void this.session?.list().then((trips) => {
+      const line = this.doc.getElementById('empty-saved');
+      if (!line) return;
+      line.hidden = trips.length === 0;
+      // One saved trip is its own sentence: "{n} saved trip(s)" shipped the
+      // parenthesis literally, which is the tell of an unpolished product.
+      if (trips.length === 1) line.textContent = this.i18n.t('empty.savedOne');
+      else if (trips.length > 1) line.textContent = this.i18n.t('empty.saved', { n: trips.length });
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -3282,6 +3405,7 @@ export class App {
     // The empty state's primary action is the same thing as the header's: an
     // empty screen should start a trip, not play a sample (D26).
     byId<HTMLButtonElement>('btn-empty-new').addEventListener('click', () => this.startNewTrip());
+    byId<HTMLButtonElement>('btn-empty-import').addEventListener('click', () => this.openFilePicker());
     byId<HTMLButtonElement>('btn-finish-draw').addEventListener('click', () => this.finishDraw());
     this.elements.editorSave.addEventListener('click', () => void this.saveTrip());
 
@@ -3385,9 +3509,12 @@ export class App {
       void this.saveTrip();
     });
 
-    // Leaving the page: flush a pending autosave. IndexedDB writes are async and
-    // the browser may not wait for them — docs/12-storage.md says so plainly.
+    // Leaving the page: `flush()` writes a synchronous journal first (localStorage),
+    // then attempts the store write. IndexedDB is async and the browser may not wait
+    // for it, so the journal is what keeps an edit made in the last second alive;
+    // it is recovered on the next boot if it is newer than the stored copy.
     window.addEventListener('pagehide', () => {
+      this.session?.writeJournalNow();
       void this.session?.flush();
     });
     this.doc.addEventListener('visibilitychange', () => {
@@ -3701,6 +3828,12 @@ export class App {
     this.openDialog(this.elements.paceDialog);
   }
 
+  /** "1 point" / "1 164 points" — a count with its unit, singular or plural. */
+  private pointCountLabel(count: number): string {
+    const n = this.i18n.format.number(count, { maximumFractionDigits: 0 });
+    return this.i18n.t(count === 1 ? 'editor.pointsOne' : 'editor.pointsMany', { n });
+  }
+
   private updatePaceDialogText(): void {
     this.elements.paceHint.textContent = this.i18n.t('pace.formula', {
       speed: this.i18n.format.number(this.pace.speedKmh, { maximumFractionDigits: 1 }),
@@ -3713,28 +3846,29 @@ export class App {
   // -------------------------------------------------------------------------
 
   private wireProfileCollapse(): void {
-    const panel = this.elements.profilePanel;
     const toggle = this.elements.profileToggle;
-    const apply = (collapsed: boolean): void => {
-      panel.classList.toggle('is-collapsed', collapsed);
-      this.elements.profileBody.hidden = collapsed;
-      toggle.setAttribute('aria-expanded', String(!collapsed));
-      toggle.setAttribute('aria-label', this.i18n.t(collapsed ? 'action.expand' : 'action.collapse'));
-      toggle.title = this.i18n.t(collapsed ? 'action.expand' : 'action.collapse');
-      if (!collapsed) requestAnimationFrame(() => this.chart.layout());
-    };
     const startCollapsed = window.matchMedia?.('(max-width: 760px)').matches ?? false;
-    apply(startCollapsed);
+    this.setProfileCollapsed(startCollapsed);
 
     toggle.addEventListener('click', () => {
-      const collapsed = !panel.classList.contains('is-collapsed');
-      apply(collapsed);
+      this.setProfileCollapsed(!this.elements.profilePanel.classList.contains('is-collapsed'));
     });
 
     // Re-apply the label on language change through the same path.
     this.i18n.onChange(() => {
-      apply(panel.classList.contains('is-collapsed'));
+      this.setProfileCollapsed(this.elements.profilePanel.classList.contains('is-collapsed'));
     });
+  }
+
+  private setProfileCollapsed(collapsed: boolean): void {
+    const panel = this.elements.profilePanel;
+    const toggle = this.elements.profileToggle;
+    panel.classList.toggle('is-collapsed', collapsed);
+    this.elements.profileBody.hidden = collapsed;
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+    toggle.setAttribute('aria-label', this.i18n.t(collapsed ? 'action.expand' : 'action.collapse'));
+    toggle.title = this.i18n.t(collapsed ? 'action.expand' : 'action.collapse');
+    if (!collapsed) requestAnimationFrame(() => this.chart.layout());
   }
 
   private wireDropzone(): void {

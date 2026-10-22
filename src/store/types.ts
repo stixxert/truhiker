@@ -33,7 +33,7 @@ export interface TripStoreLike {
   remove(id: string): MaybePromise<void>;
   toGpx(trip: Trip, options?: { legIds?: readonly string[]; includeElevation?: boolean }): string;
   toGeoJson(trip: Trip): string;
-  fromFile(text: string, filename: string): Trip;
+  fromFile(text: string, filename: string, options?: { maxPoints?: number }): Trip;
 }
 
 /** Bytes in use and available, as the browser reports them. */

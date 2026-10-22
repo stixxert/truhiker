@@ -81,6 +81,41 @@ describe('SnapService', () => {
     expect(PREFETCH_DEADLINE_MS).toBeGreaterThan(5000);
   });
 
+  /**
+   * A viewport that arrived *while* the service was hanging must not restart the
+   * deadline. It used to: the queued run began after the timeout, flipped the state
+   * back to `loading` (hiding the banner) and waited another deadline, so a user who
+   * zoomed as a service hung saw "Load trails…" for tens of seconds — the exact
+   * failure the deadline exists to bound.
+   */
+  it('does not restart the deadline for a viewport that arrived while it hung', async () => {
+    const fetched: number[] = [];
+    const service = new SnapService({
+      fetchBox: (bbox) => {
+        fetched.push(bbox.minLon);
+        return new Promise<never[]>(() => {});
+      },
+      prefetchDeadlineMs: 300,
+    });
+    const first = service.loadViewport(BBOX);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    // Queued, not started: the service is mid-hang.
+    const second = service.loadViewport({ ...BBOX, minLon: 8.6, maxLon: 8.8 });
+    await Promise.all([first, second]);
+
+    expect(service.status).toBe('failed');
+    expect(service.failureKind).toBe('timeout');
+    // The first view was attempted; the view queued during the hang never was. If it
+    // had been, it would have put the service back into `loading` and hidden the
+    // banner for another deadline.
+    expect(fetched.length).toBeGreaterThan(0);
+    expect(fetched.every((minLon) => minLon < 8.55)).toBe(true);
+    // A deliberate retry still fetches: the queue is dropped, the service is not dead.
+    const retry = service.loadViewport({ ...BBOX, minLon: 8.6, maxLon: 8.8 });
+    await retry;
+    expect(fetched.some((minLon) => minLon >= 8.55)).toBe(true);
+  });
+
   /** The retry the banner offers must actually retry, and recover when the service does. */
   it('recovers when a retry succeeds after a failure', async () => {
     let attempt = 0;

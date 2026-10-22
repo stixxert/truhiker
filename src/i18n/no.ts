@@ -132,12 +132,15 @@ export const no = {
   'store.corrupt': 'De lagrede turene kunne ikke leses fordi dataene er skadet.',
   'store.unsupported':
     'Nettleseren tillater ikke lagring her. Det skjer i privat modus eller når lagring er blokkert.',
+  'store.corruptTrip':
+    'Denne turen kan ikke leses fra lagringen ({message}). Slett den og importer GPX-filen på nytt.',
   'store.notFound': 'Turen finnes ikke lenger.',
   'store.generic': 'Noe gikk galt: {message}',
   'store.indexUnreadable': 'Turbiblioteket kunne ikke leses.',
 
   'trips.open': 'Turer',
   'trips.title': 'Lagrede turer',
+  'trips.loading': 'Leser turer …',
   'trips.empty':
     'Ingen turer er lagret ennå. Åpne en GPX-fil eller tegn en rute, så lagres den automatisk her.',
   'trips.untitled': 'Uten navn',
@@ -155,7 +158,7 @@ export const no = {
   'trips.duplicateSuffix': '(kopi)',
   'trips.delete': 'Slett',
   'trips.deleteConfirm': 'Slette «{name}»? Det kan ikke angres.',
-  'trips.exportGpx': 'Eksporter GPX',
+  'trips.exportGpx': 'Last ned GPX',
   'trips.exportGeoJson': 'Eksporter GeoJSON',
   'trips.import': 'Importer fil',
   'trips.newTrip': 'Ny tur',
@@ -163,7 +166,7 @@ export const no = {
   'trips.dropHint': 'Slipp en GPX- eller GeoJSON-fil her, eller velg en fil.',
   'trips.imported': 'Turen «{name}» er importert.',
   'trips.importFailed': 'Importen mislyktes: {message}',
-  'trips.current': 'åpen nå',
+  'trips.current': 'vises nå',
   'trips.settings': 'Turinnstillinger',
   'trips.engineMissing': 'Turbiblioteket er utilgjengelig i denne versjonen.',
   'trips.actionsFor': 'Handlinger for {name}',
@@ -208,7 +211,7 @@ export const no = {
   'weather.beyondHorizon': 'utenfor varselhorisonten',
   'weather.dayUnavailable': 'ikke tilgjengelig',
   'weather.noValues': 'ingen verdier',
-  'weather.noTrip': 'Last en rute først, så vises været for hver dag.',
+  'weather.noTrip': 'Åpne en tur for å se været for hver dag.',
   // D12: alerts are deliberately not implemented, and silence is not safety.
   'weather.alertsUnsupported':
     'Varsler om skred, flom og uvær er ikke støttet i denne versjonen. Fravær av varsel betyr ikke at det er trygt.',
@@ -246,8 +249,8 @@ export const no = {
   'editor.title': 'Ruteredigering',
   'editor.mode': 'Modus',
   'editor.snapState.off': 'Snapp av',
-  'editor.snapState.loading': 'Laster stier…',
-  'editor.snapState.failed': 'Stier feilet',
+  'editor.snapState.loading': 'Laster stier …',
+  'editor.snapState.failed': 'Stier utilgjengelig',
   'editor.snapState.idle': 'Ingen stier',
   'editor.snapState.hit': 'Snappet',
   'editor.snapState.miss': 'Utenfor sti',
@@ -258,10 +261,12 @@ export const no = {
   'editor.closePanel': 'Lukk redigering',
   'editor.legsTitle': 'Etapper',
   'editor.noLegs': 'Ingen etapper ennå — tegn det første punktet i kartet.',
-  'editor.tripSummaryOne': '1 etappe · {distance} · {points} punkter',
-  'editor.tripSummaryMany': '{legs} etapper · {distance} · {points} punkter',
+  'editor.pointsOne': '{n} punkt',
+  'editor.pointsMany': '{n} punkter',
+  'editor.tripSummaryOne': '1 etappe · {distance} · {points}',
+  'editor.tripSummaryMany': '{legs} etapper · {distance} · {points}',
   'editor.legRowName': 'Etappe {n}',
-  'editor.legRowMeta': '{distance} · {points} punkter',
+  'editor.legRowMeta': '{distance} · {points}',
   'editor.view': 'Vis',
   'editor.draw': 'Tegn',
   'editor.edit': 'Rediger',
@@ -278,9 +283,10 @@ export const no = {
   'banner.trailsFailed': 'Stinettet kunne ikke lastes. Du kan tegne, men punktene snapper ikke til sti.',
   'banner.trailsRetry': 'Prøv igjen',
   'editor.snapIdle': 'stinettet lastes når du tegner eller redigerer',
-  'editor.snapReady': 'stinettet er lastet – før musepekeren over kartet for å se hva den snapper til',
+  'editor.snapReady': 'Stinettet er lastet. Hold pekeren over kartet for å se hva et punkt snapper til.',
   // "avstikk" is the plan's detour (supply.detourValue); geometry that leaves a
   // mapped trail is "utenfor sti", so the two cannot be read as the same thing.
+  'editor.offTrailOne': 'én strekning utenfor sti',
   'editor.offTrail': '{count} strekninger utenfor sti',
   'editor.offTrailNone': 'hele ruten følger registrerte stier',
   'editor.offTrailUnknown': 'strekninger utenfor sti er ikke beregnet – stinettet er ikke lastet',
@@ -293,10 +299,10 @@ export const no = {
   'editor.deleteLeg': 'Slett etappe',
   'editor.legName': 'Etappenavn',
   'editor.renameApply': 'Lagre navn',
-  'editor.reroute': 'Følg sti',
+  'editor.reroute': 'Snapp utvalg til sti',
   'editor.rerouteHint':
-    'Fest til sti flytter punktene i den valgte strekningen til nærmeste turrute innenfor radiusen og erstatter sammenhengende stykker med stiens linje – den finner ikke nye veier, og der ingen sti er nær nok blir punktet stående som utenfor sti.',
-  'editor.rerouteNeedsSnap': 'Fest til sti krever at stinettet er lastet.',
+    'Flytter punktene i utvalget til nærmeste sti innenfor radiusen og erstatter sammenhengende strekk med stiens linje. Den finner ikke nye veier; der ingen sti er nær nok, blir punktet stående utenfor sti.',
+  'editor.rerouteNeedsSnap': 'Å snappe et utvalg til sti krever at stinettet er lastet.',
   'editor.route': 'Rute mellom punkter',
   'editor.routeHint': 'Finn en rute mellom to punkter langs Turrutebasen',
   'route.pickStart': 'Klikk startpunktet på kartet. Escape avbryter.',
@@ -312,14 +318,15 @@ export const no = {
   'route.needsLeg': 'Åpne eller tegn en etappe først.',
   'route.failed': 'Ruten kunne ikke legges inn.',
   'editor.rerouteNoTrail':
-    'Fant ingen sti innenfor radiusen. Strekningen er uendret og markert som utenfor sti.',
+    'Fant ingen sti innenfor radiusen. Utvalget er uendret og merket som utenfor sti.',
   'editor.selectHint':
     'Klikk et punkt for å velge det. Skift-klikk et annet punkt for å velge en strekning.',
-  'editor.drawHint': 'Klikk på kartet for å legge til punkter. Dobbeltklikk eller Fullfør avslutter.',
+  'editor.drawHint': 'Klikk på kartet for å legge til punkter. Dobbeltklikk eller trykk Fullfør for å avslutte etappen.',
   'editor.finish': 'Fullfør',
   'editor.viewHint': 'Bytt til Rediger for å flytte punkter, eller Tegn for å legge til nye.',
   'editor.engineMissing': 'Redigering er ikke tilgjengelig i denne versjonen.',
   'editor.noTrip': 'Ingen etapper å redigere.',
+  'editor.vertexCountOne': '{n} punkt',
   'editor.vertexCount': '{n} punkter',
   'editor.selection': '{leg}: punkt {from} av {total}',
   'editor.selectionSpan': '{leg}: punkt {from}–{to}',
@@ -358,7 +365,7 @@ export const no = {
   'settings.sexRequired': 'Velg ett alternativ.',
   'settings.supportRequired': 'Velg en forsyningsmodell.',
   'settings.saved': 'Turinnstillingene er lagret.',
-  'settings.missingTrip': 'Åpne eller last en rute før du endrer turinnstillingene.',
+  'settings.missingTrip': 'Åpne eller importer en tur før du endrer innstillingene for den.',
   'settings.engineMissing': 'Turinnstillinger er ikke tilgjengelige i denne versjonen.',
 
   'banner.enginesMissing':
@@ -395,6 +402,9 @@ export const no = {
   'banner.demFailed': 'Høydedata er utilgjengelig: {message}',
   'banner.workerFailed': 'Høydeberegningen stoppet: {message}',
   'banner.welcome': 'Kartet er klart.',
+  'banner.importing': 'Leser {name} …',
+  'banner.importNotSaved':
+    '«{name}» ble åpnet, men ikke lagret i denne nettleseren. Last den ned som GPX hvis du vil beholde den.',
   'banner.fileTooLarge': 'Filen er for stor ({size} MB). Maks {max} MB.',
   'banner.mapFailed': 'Kartet kunne ikke starte: {message}',
 
@@ -403,6 +413,8 @@ export const no = {
     'eller åpne en fil fra menyen. Ruten blir i nettleseren din – ingen konto, ingenting lastes opp.',
   // B4: the route itself never leaves the browser, but positions from it are
   // sent to fetch elevation, trails and weather. Say both, precisely.
+  'empty.savedOne': '1 lagret tur — åpne Turer i menyen for å hente den.',
+  'empty.saved': '{n} lagrede turer — åpne Turer i menyen for å hente en av dem.',
   'empty.privacy':
     'Ruten lagres bare i denne nettleseren. For å hente høydedata, stier, vær og 3D-terreng sender appen posisjoner fra ruten til Kartverket, MET, hoydedata.no og Mapterhorn. Ingen konto, ingen sporing.',
 
@@ -443,6 +455,8 @@ export const no = {
     'Forsyningspunkter (butikker, bensinstasjoner, post): © OpenStreetMap-bidragsyterne, ODbL 1.0. Filen er en avledet database og kan lastes ned.',
   'about.osmLink': 'openstreetmap.org/copyright',
   'about.odblLink': 'ODbL 1.0',
+  'about.dataDownload': 'Last ned datasettet (175 kB)',
+  'about.odblText': 'Lisensavtalen',
   'about.osmNote':
     'Forsyningspunktene er et OSM-uttrekk av butikker, bensinstasjoner og postpunkt. Åpningstider er ikke lagret i filen, bare hvorvidt OSM hadde dem.',
   'about.privacyTitle': 'Lagring og personvern',
@@ -454,14 +468,14 @@ export const no = {
   'supply.title': 'Forsyning og energi',
   'supply.tabResupply': 'Forsyning',
   'supply.tabEnergy': 'Energi',
-  'supply.radius': 'Korridor',
+  'supply.radius': 'Korridorbredde',
   'supply.radiusOption': '{km} km',
   'supply.radiusHint':
     'Punkter innenfor korridoren rundt ruten. Standard er 5 km; øk den for å se hva som finnes i nærheten. Hytter hentes alltid innenfor 5 km. Avstikkeren fra ruten vises per punkt og legges ikke til distansen.',
   'supply.refresh': 'Oppdater',
   'supply.legsTitle': 'Etapper',
   'supply.warningsTitle': 'Forbehold',
-  'supply.engineWarnings': 'Maskinelle merknader (engelsk, uendret)',
+  'supply.engineWarnings': 'Detaljer fra planleggeren (på engelsk)',
   'supply.pointsTitle': 'Punkter langs ruten',
   'supply.noTrip': 'Ingen tur er lastet. Åpne en GPX-fil eller lag en ny rute.',
   'supply.noRoute': 'Turen har ingen rutegeometri, så det er ingen korridor å lete i.',
@@ -490,7 +504,7 @@ export const no = {
   'supply.anchorStart': 'Start',
   'supply.anchorEnd': 'Slutt',
   'supply.legNumbers': '{distance} · {days} · {kcal} kcal · {kg} kg mat · {cost} kr',
-  'supply.carryWarning': 'Bær {kg} kg i {days}. Du kan bære mat for høyst {max} dager.',
+  'supply.carryWarning': 'Bær {kg} kg i {days}. Det meste du kan bære er {max}.',
   // D14: with no daily distance the plan assumes one, and says so on screen.
   'supply.warnDailyKmFallback':
     'Ingen kilometer per dag er satt i turinnstillingene, så planen antar {km} km per dag. Hver dagberegning under bygger på den antakelsen.',

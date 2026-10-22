@@ -240,9 +240,13 @@ export class EditorToolbar {
       }
     }
     this.hint.textContent = model.hint;
-    this.count.textContent = model.vertexCount > 0
-      ? this.i18n.t('editor.vertexCount', { n: model.vertexCount })
-      : '';
+    // Singular when there is one: a point count of 1 printed "1 points".
+    this.count.textContent =
+      model.vertexCount > 0
+        ? this.i18n.t(model.vertexCount === 1 ? 'editor.vertexCountOne' : 'editor.vertexCount', {
+            n: model.vertexCount,
+          })
+        : '';
   }
 
   private submitRename(): void {

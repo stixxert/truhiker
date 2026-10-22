@@ -37,7 +37,9 @@ if (!existsSync('node_modules')) {
 if (!existsSync('data')) {
   problems.push(
     'data/ is missing (it is build output, not committed — D24):\n' +
-      '    run `OSM_PBF=… npm run data:build`, or set TRUHIKER_DATA_URL to a published copy',
+      '    run `npm run refresh:shops` (downloads the Geofabrik extract and builds it),\n' +
+      '    `OSM_PBF=… npm run data:build` to reuse a local extract, or set\n' +
+      '    TRUHIKER_DATA_URL to a published copy',
   );
 }
 

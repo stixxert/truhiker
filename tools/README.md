@@ -6,6 +6,7 @@ Build and verification tooling. None of this ships to the browser.
 | --- | --- |
 | `build-shops.mjs` | rebuilds that extract from the Geofabrik Norway PBF |
 | `inspect-shops.mjs` | decodes the extract: `--stats`, `--verify`, `--near LAT,LON` |
+| `screenshot.mjs` | the README hero image, from the built app under the real CSP: `--lang en|no`, `--out FILE`. It asserts the route, the resupply list, the profile and the basemap actually rendered, so a stale or wrong-language picture fails instead of shipping |
 | `verify/verify.mjs` | the gate: types, tests, build, bundle, runtime render, e2e, a11y, failure paths, i18n, licences, hosting |
 | `verify/visual-check.mjs [--runtime]` | headless Chromium check of both breakpoints under the real CSP; `--runtime` serves through `wrangler dev` (the default via `npm run visual-check`), the bare form uses the static server (`npm run visual-check:static`) |
 | `verify/e2e.mjs` | the scripted journey: load → resupply → energy → weather → save → reload, in workerd (huts from a fixture, not the live WFS; elevation from a synthetic DEM) |

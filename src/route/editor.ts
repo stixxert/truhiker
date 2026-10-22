@@ -393,6 +393,10 @@ class Editor implements RouteEditorWithCommands {
     this.past.length = 0;
     this.future.length = 0;
   }
+
+  replaceCurrent(trip: Trip): void {
+    this.current = trip;
+  }
 }
 
 /**

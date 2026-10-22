@@ -110,6 +110,51 @@ async function storeWith(
   return { store, recorder };
 }
 
+/**
+ * A stalled IndexedDB is not an error the browser reports: the open request simply
+ * never settles. Without a ceiling the save status would stay "Lagrer…" forever and
+ * every later autosave would queue behind it. The store gives up, says why, and
+ * falls back to localStorage — the same path a refused database takes.
+ */
+describe('IndexedDB store — a database that never answers', () => {
+  it('gives up on a stalled open and falls back, rather than hanging the save status', async () => {
+    const never = { open: () => ({}) } as unknown as IDBFactory;
+    const started = Date.now();
+    const storage = await createTripStorage({
+      factory: never,
+      storage: new FakeStorage(),
+      timeoutMs: 40,
+    });
+    // Bounded by the timeout, not by the browser.
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(storage.backend).toBe('localstorage');
+    expect(storage.problem ?? '').toMatch(/did not answer within 40 ms/);
+
+    // ... and the fallback is usable, so the user does not lose the trip.
+    await storage.save(syntheticTrip());
+    expect((await storage.list()).length).toBe(1);
+  });
+});
+
+/**
+ * A 15 MB GPX can hold millions of points, and the importer would freeze the tab
+ * while it parsed and measured them. The cap turns that into a message.
+ */
+describe('import guard', () => {
+  it('refuses a track with more points than the cap, and names the way out', async () => {
+    const gpx = `<?xml version="1.0"?><gpx version="1.1" creator="t"><trk><trkseg>
+      ${Array.from({ length: 5 }, (_, i) => `<trkpt lat="${61 + i * 0.001}" lon="8"><ele>100</ele></trkpt>`).join('')}
+    </trkseg></trk></gpx>`;
+    const store = await createTripStorage({ factory: new IDBFactory(), storage: new FakeStorage() });
+    const { fromFile } = await import('../../src/store/serialize');
+    expect(() => fromFile(gpx, 'lang.gpx', { maxPoints: 4 })).toThrow(/holds 5 points/);
+    expect(() => fromFile(gpx, 'lang.gpx', { maxPoints: 4 })).toThrow(/up to 4/);
+    // Under the cap it imports normally.
+    expect(fromFile(gpx, 'kort.gpx', { maxPoints: 5 }).legs[0]?.points).toHaveLength(5);
+    await store.remove?.('x');
+  });
+});
+
 describe('IndexedDB store', () => {
   it('round-trips a trip as a structured clone, keeps a summary beside it, and lists from summaries only', async () => {
     const { store, recorder } = await storeWith();

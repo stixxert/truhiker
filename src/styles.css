@@ -423,8 +423,24 @@ button {
   letter-spacing: 0.06em;
 }
 
-.seg-tabs {
-  margin-right: auto;
+/* The supply drawer's tabs live on their own row under the head: the panel title
+   ("Resupply and energy", "Forsyning og energi") does not fit beside them, and a
+   title that wraps into the tab track reads as a collision. The row is the track;
+   the two buttons share its width evenly. */
+.panel-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 3px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+.panel-tabs .seg-btn {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 /* Inputs share one shape: a well with a focus ring, no inner shadow tricks. */
@@ -1125,6 +1141,20 @@ button {
   --stack: 124px;
 }
 
+/* Nothing to draw, nothing to plot: with the empty state up, the card owns the
+   screen and the readout -- the profile plus the measure strip that captions it --
+   steps aside. A CSS rule, not app state, because an empty-state transition must
+   never flip the user's own fold. Hiding the profile alone left the strip behind
+   with no card under it, sitting on the map. */
+.stage:has(.empty-state:not([hidden])) .profile,
+.stage:has(.empty-state:not([hidden])) #stats {
+  display: none;
+}
+
+.stage:has(.empty-state:not([hidden])) {
+  --stack: 76px;
+}
+
 /* The default-body notice is a real row inside the readout, so the stack grows
    with it and nothing has to be clipped to keep the numbers honest. */
 .stage:has(.stat-notice:not([hidden])) {
@@ -1156,17 +1186,15 @@ button {
   outline-offset: -4px;
 }
 
-/* MapLibre's scale bar sits bottom-left; the chrome below keeps clear of it. */
+/* MapLibre's scale bar sits bottom-left; the chrome below keeps clear of it.
+   The surface (fill, edge, radius) is owned by the later rule that gives it the
+   panel's own material — this block must not set it with `!important`, which is
+   how the bar ended up as bare text with a bracket under it. */
 .maplibregl-ctrl-scale {
-  border: 0 !important;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.45) !important;
-  background: rgba(11, 16, 19, 0.72) !important;
-  color: var(--text) !important;
   font-size: var(--t-1) !important;
   font-variant-numeric: tabular-nums;
-  padding: 1px 5px !important;
+  padding: 1px 6px !important;
   margin: 0 0 calc(var(--stack) + 8px) 12px !important;
-  border-radius: var(--r-1);
 }
 
 .maplibregl-popup {
@@ -1363,7 +1391,11 @@ button {
   gap: 5px;
   padding: 2px 8px;
   border-radius: var(--r-1);
-  background: rgba(11, 16, 19, 0.72);
+  /* Nearly opaque: the basemap's own labels run underneath this chip, and at 0.72
+     they showed through as a muddy smudge behind the licence text. */
+  background: rgba(11, 16, 19, 0.93);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   font-size: 10.5px;
   color: var(--muted);
   max-width: calc(100% - 24px);
@@ -1417,7 +1449,9 @@ button {
   z-index: 8;
   display: grid;
   place-items: center;
-  padding: var(--s-5);
+  /* Clear the map's own chrome at the bottom (scale bar and licence line, which on a
+     phone land right where the card ends): the card centres in the space above it. */
+  padding: var(--s-5) var(--s-5) calc(var(--stack) + var(--s-4));
   background: radial-gradient(ellipse at 50% 42%, rgba(11, 16, 19, 0.32), rgba(11, 16, 19, 0.78));
   pointer-events: none;
 }
@@ -1445,6 +1479,14 @@ button {
   font-size: var(--t-4);
   font-weight: 600;
   letter-spacing: -0.014em;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
 }
 
 .empty-card p {
@@ -2190,7 +2232,7 @@ button {
 
 /* Resupply + energy ------------------------------------------------------ */
 
-.seg-tabs .seg-btn {
+.panel-tabs .seg-btn {
   padding: 0 12px;
   font-size: var(--t-2);
 }
@@ -2992,6 +3034,22 @@ button {
   flex: none;
   width: 24px;
   height: 24px;
+}
+
+/* The pace control sits right after "2 h 1 min". With no resting surface its
+   stroke drew a circle-and-stem that read as the letter ø welded to the value —
+   a typo in the app's most-read number. A quiet ring makes it a button. */
+.stat-value-row .icon-btn {
+  border-color: var(--line-strong);
+  border-radius: 50%;
+  background: var(--panel-3);
+  color: var(--muted);
+}
+
+.stat-value-row .icon-btn:hover {
+  border-color: var(--line-strong);
+  background: var(--panel-3);
+  color: var(--text);
 }
 
 .stat-value-row .i {

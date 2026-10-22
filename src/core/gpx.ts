@@ -130,7 +130,18 @@ function repairNamespaces(xml: string): string | null {
  * Parse a GPX document. Throws on unparseable XML or missing coordinates;
  * incomplete points are never silently dropped.
  */
-export function parseGpx(xml: string): GpxDocument {
+export interface ParseGpxOptions {
+  /**
+   * Receives the document that was parsed (after any namespace repair).
+   *
+   * The importer needs the same DOM for the `<metadata>` block; without this it
+   * parsed the file a second time, which on a 15 MB upload doubled the stall on the
+   * main thread for no benefit.
+   */
+  readonly onDocument?: (document: Document) => void;
+}
+
+export function parseGpx(xml: string, options: ParseGpxOptions = {}): GpxDocument {
   // Strip a UTF-8 BOM if present; xmldom would otherwise see it as content.
   const source = xml.charCodeAt(0) === 0xfeff ? xml.slice(1) : xml;
   // A GPX file never declares a doctype. Refusing one closes the entity-expansion
@@ -177,6 +188,8 @@ export function parseGpx(xml: string): GpxDocument {
   if (localNameOf(root) !== 'gpx') {
     throw new Error(`GPX: root element is <${root.nodeName}>, expected <gpx>`);
   }
+
+  options.onDocument?.(doc);
 
   const tracks: GpxTrack[] = collectDescendants(root, 'trk').map((element) => {
     const name = trackName(element);

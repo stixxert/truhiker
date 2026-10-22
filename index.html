@@ -736,34 +736,10 @@
           <aside class="side-panel" id="supply-panel" hidden aria-labelledby="supply-title">
             <header class="panel-head">
               <!-- The tabs were the panel's only title. A panel head is a heading
-                   and a control row, in that order, in both drawers. -->
+                   and a control row, in that order, in both drawers. The tabs get
+                   their own row: "Forsyning og energi" / "Resupply and energy" does
+                   not fit beside them, and a wrapped title reads as a collision. -->
               <h2 id="supply-title" data-i18n="supply.title">Forsyning</h2>
-              <div class="seg seg-tabs" role="tablist" aria-labelledby="supply-title">
-                <button
-                  class="seg-btn"
-                  id="supply-tab-resupply"
-                  type="button"
-                  role="tab"
-                  aria-selected="true"
-                  aria-controls="supply-section-resupply"
-                  data-i18n="supply.tabResupply"
-                >
-                  Forsyning
-                </button>
-                <button
-                  class="seg-btn"
-                  id="supply-tab-energy"
-                  type="button"
-                  role="tab"
-                  aria-selected="false"
-                  aria-controls="supply-section-energy"
-                  tabindex="-1"
-                  data-i18n="supply.tabEnergy"
-                >
-                  Energi
-                </button>
-              </div>
-              <h2 class="sr-only" id="supply-title" data-i18n="supply.title">Forsyning og energi</h2>
               <div class="panel-head-actions">
                 <button class="btn btn-small" id="supply-refresh" type="button" data-i18n="supply.refresh">
                   Oppdater
@@ -778,6 +754,31 @@
                 </button>
               </div>
             </header>
+            <div class="panel-tabs" role="tablist" aria-labelledby="supply-title">
+              <button
+                class="seg-btn"
+                id="supply-tab-resupply"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="supply-section-resupply"
+                data-i18n="supply.tabResupply"
+              >
+                Forsyning
+              </button>
+              <button
+                class="seg-btn"
+                id="supply-tab-energy"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="supply-section-energy"
+                tabindex="-1"
+                data-i18n="supply.tabEnergy"
+              >
+                Energi
+              </button>
+            </div>
             <p class="panel-status" id="supply-status" role="status" aria-live="polite"></p>
 
             <section
@@ -895,12 +896,21 @@
                 <path d="M4 38L18 12l8 14 5-7 9 19H4z" fill="none" stroke="currentColor" stroke-width="1.5" />
               </svg>
               <h2 data-i18n="empty.title">Slipp en GPX-fil her</h2>
+              <p class="empty-saved" id="empty-saved" hidden></p>
               <p data-i18n="empty.body">
                 eller åpne en fil fra menyen. Ruten blir i nettleseren din – ingen konto, ingenting lastes opp.
               </p>
-              <button class="btn btn-primary" id="btn-empty-new" type="button" data-i18n="action.newRoute">
-                Ny rute
-              </button>
+              <!-- The headline invites a file, so the file is the primary action. On a
+                   phone the header's Import GPX lives behind the menu, and a card whose
+                   only button started a blank route was a dead end for the common case. -->
+              <div class="empty-actions">
+                <button class="btn btn-primary" id="btn-empty-import" type="button" data-i18n="action.importGpx">
+                  Importer GPX
+                </button>
+                <button class="btn" id="btn-empty-new" type="button" data-i18n="action.newRoute">
+                  Ny rute
+                </button>
+              </div>
               <p class="empty-privacy" data-i18n="empty.privacy">
                 Ruten lagres bare i denne nettleseren. For å hente høydedata, stier, vær og 3D-terreng sendes
                 posisjoner fra ruten til Kartverket, MET, hoydedata.no og Mapterhorn. Ingen konto, ingen sporing.
@@ -1066,6 +1076,8 @@
               <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener" data-i18n="about.odblLink"
                 >ODbL 1.0</a
               >
+              <a href="./data/shops.osm.bin" download data-i18n="about.dataDownload">Last ned datasettet (175 kB)</a>
+              <a href="./data/ODbL-1.0.txt" target="_blank" rel="noopener" data-i18n="about.odblText">Lisensavtalen</a>
             </li>
             <li>
               <strong>MapLibre GL JS</strong>

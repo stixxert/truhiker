@@ -717,3 +717,27 @@ a provenance popover, a failure path, an origin tag that other code branches on 
 and it teaches a first-time visitor to look at someone else's walk instead of
 starting their own. The import path is the thing worth showing, and now the gates
 prove it works.
+
+## D27. One route, one distance
+
+**Default: every panel reports the same length for the same route — the length its
+geometry measures — even though the profile is sampled more coarsely.**
+
+- **The problem:** a GPX with dense points (the test track has 1,164 points over
+  9 km) is resampled at 25 m for the map and the elevation profile. Resampling
+  interpolates along the polyline, so the sampled path is a little shorter than
+  the file's: the route panel said 9.16 km while the profile's Distance said
+  9.01 km, on one screen, for one route.
+- **The fix:** `buildRoute` keeps the measured length (`pathLength` of the input
+  coordinates) and scales the sampled cumulative distances so their last value is
+  that length. Sample positions stay ordered and proportional; only the total,
+  and the labels derived from it, change.
+- **Why not the other direction** (report the sampled length everywhere): the
+  numbers a walker compares against are the ones their own GPX says, and the
+  resampled figure is an artefact of how the profile samples terrain, not a
+  better estimate of the trail. Scaling the *profile* towards the route keeps the
+  figure a user can check.
+- **Pinned by** `test/route.test.ts` ("reports the route's measured length, not
+  the shorter sampled polyline"): the fixture's sampled polyline is measurably
+  shorter, and the route still reports the measured length with increasing
+  distances.

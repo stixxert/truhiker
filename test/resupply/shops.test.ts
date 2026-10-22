@@ -47,7 +47,7 @@ function names(candidates: readonly ResupplyCandidate[]): string[] {
   return candidates.map((candidate) => candidate.name);
 }
 
-describe('parseShopIndex — the committed binary', () => {
+describe('parseShopIndex — the bundled extract', () => {
   it('decodes 8,571 points with the measured per-kind counts, and reconstructs names', () => {
     const started = performance.now();
     const index = parseShopIndex(committedBuffer());
@@ -57,8 +57,8 @@ describe('parseShopIndex — the committed binary', () => {
     // The binary stores no timestamp; the loader labels it with the extract date.
     expect(index.builtAt).toBe('2026-10-19T13:41:49.167Z');
 
-    // Per-kind counts must sum to the total; each is the measured value in
-    // data/MEASUREMENTS.md §1. `post`/`parcel` are the two addressable kinds that
+    // Per-kind counts must sum to the total; each is a measured value from the
+    // pinned extract. `post`/`parcel` are the two addressable kinds that
     // the binary stores as `post_office` / `parcel_locker`.
     const byKind = new Map<string, number>();
     const all = index.near({ lon: 11.10911, lat: 62.52748 }, 5_000_000);
@@ -192,7 +192,7 @@ describe('loadShopIndex — fetch once, parse offline', () => {
   });
 });
 
-describe('the committed artefact', () => {
+describe('the served artefact', () => {
   it('matches its published checksum, stays inside Norway, and decodes every name', () => {
     const bytes = readFileSync(new URL('../../data/shops.osm.bin', import.meta.url));
     // The pin, not the artefact's own provenance: the provenance is written by the

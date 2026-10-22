@@ -121,8 +121,10 @@ export class TripLibraryDialog {
 
   render(view: TripLibraryView): void {
     this.view = view;
-    this.empty.hidden = !view.empty;
-    this.empty.textContent = view.emptyMessage ?? '';
+    const loading = view.loading;
+    this.empty.hidden = !(view.empty || loading);
+    this.empty.textContent = loading ? this.i18n.t('trips.loading') : (view.emptyMessage ?? '');
+    this.empty.dataset.loading = loading ? 'true' : 'false';
     this.problem.hidden = view.problem === null;
     this.problem.textContent = view.problem ?? '';
     if (view.problemDetail) this.problem.title = view.problemDetail;

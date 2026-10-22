@@ -79,6 +79,8 @@ export interface IndexedDbOptions {
   estimate?: () => Promise<{ usage?: number; quota?: number } | null>;
   /** `navigator.storage.persist` seam. */
   persist?: () => Promise<boolean>;
+  /** How long an IndexedDB operation may take; default {@link IDB_TIMEOUT_MS}. */
+  timeoutMs?: number;
 }
 
 export interface IndexedDbTripStore extends AsyncTripStore {
@@ -154,6 +156,7 @@ async function inTransaction<R>(
   stores: readonly string[],
   mode: IDBTransactionMode,
   work: (tx: IDBTransaction) => R | Promise<R>,
+  timeoutMs?: number,
 ): Promise<R> {
   const tx = db.transaction(stores as string[], mode);
   const committed = new Promise<void>((resolve, reject) => {
@@ -173,7 +176,7 @@ async function inTransaction<R>(
     await committed.catch(() => undefined);
     throw error;
   }
-  await committed;
+  await withTimeout(committed, `IndexedDB ${mode} transaction`, timeoutMs);
   return result;
 }
 
@@ -181,7 +184,44 @@ async function inTransaction<R>(
 /* Opening                                                             */
 /* ------------------------------------------------------------------ */
 
-function openDatabase(factory: IDBFactory, name: string, version: number): Promise<IDBDatabase> {
+/**
+ * How long an IndexedDB operation may take before it is treated as unavailable.
+ *
+ * A stalled open (a corrupt profile, a locked database, a bug in the engine) never
+ * fires `onerror`: the promise simply never settles, `saveNow` stays in `saving`
+ * forever, and every later autosave queues behind it. A timeout turns that silent
+ * hang into the same visible state a refused database produces.
+ */
+const IDB_TIMEOUT_MS = 8_000;
+
+function withTimeout<T>(work: Promise<T>, what: string, timeoutMs = IDB_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new StoreError('unsupported', `${what} did not answer within ${timeoutMs} ms`));
+    }, timeoutMs);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+function openDatabase(
+  factory: IDBFactory,
+  name: string,
+  version: number,
+  timeoutMs?: number,
+): Promise<IDBDatabase> {
+  return withTimeout(openDatabaseInner(factory, name, version), 'IndexedDB open', timeoutMs);
+}
+
+function openDatabaseInner(factory: IDBFactory, name: string, version: number): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
     let open: IDBOpenDBRequest;
     try {
@@ -269,6 +309,7 @@ export function createIndexedDbTripStore(options: IndexedDbOptions = {}): Indexe
   const maxBytes = options.maxBytes ?? MAX_INDEXEDDB_TRIP_BYTES;
   const estimate = options.estimate ?? defaultEstimate;
   const persist = options.persist ?? defaultPersist;
+  const timeoutMs = options.timeoutMs ?? IDB_TIMEOUT_MS;
 
   let connection: Promise<IDBDatabase> | null = null;
   let persistent = false;
@@ -281,7 +322,7 @@ export function createIndexedDbTripStore(options: IndexedDbOptions = {}): Indexe
       );
     }
     if (connection === null) {
-      connection = openDatabase(factory, dbName, version).catch((error: unknown) => {
+      connection = openDatabase(factory, dbName, version, timeoutMs).catch((error: unknown) => {
         connection = null;
         throw error;
       });
@@ -345,14 +386,18 @@ export function createIndexedDbTripStore(options: IndexedDbOptions = {}): Indexe
           ? summaries.index(UPDATED_AT_INDEX).getAll()
           : summaries.getAll();
         return request(get as IDBRequest<StoredTripSummary[]>);
-      });
+      }, timeoutMs);
       return [...rows].sort(byUpdatedAtDesc);
     },
 
     async load(id: string): Promise<Trip | null> {
       const database = await db();
-      const raw = await inTransaction(database, [BODIES], 'readonly', (tx) =>
-        request(tx.objectStore(BODIES).get(id) as IDBRequest<unknown>),
+      const raw = await inTransaction(
+        database,
+        [BODIES],
+        'readonly',
+        (tx) => request(tx.objectStore(BODIES).get(id) as IDBRequest<unknown>),
+        timeoutMs,
       );
       if (raw === undefined || raw === null) return null;
       try {
@@ -378,7 +423,7 @@ export function createIndexedDbTripStore(options: IndexedDbOptions = {}): Indexe
         await inTransaction(database, [BODIES, SUMMARIES], 'readwrite', (tx) => {
           tx.objectStore(BODIES).put(body);
           tx.objectStore(SUMMARIES).put(summary);
-        });
+        }, timeoutMs);
       } catch (error) {
         throw writeError(error, body, bytes);
       }
@@ -389,7 +434,7 @@ export function createIndexedDbTripStore(options: IndexedDbOptions = {}): Indexe
       await inTransaction(database, [BODIES, SUMMARIES], 'readwrite', (tx) => {
         tx.objectStore(BODIES).delete(id);
         tx.objectStore(SUMMARIES).delete(id);
-      });
+      }, timeoutMs);
     },
 
     toGpx(trip, gpxOptions) {
@@ -417,8 +462,12 @@ export function createIndexedDbTripStore(options: IndexedDbOptions = {}): Indexe
 
       try {
         const database = await db();
-        const existing = await inTransaction(database, [SUMMARIES], 'readonly', (tx) =>
-          request(tx.objectStore(SUMMARIES).getAll() as IDBRequest<StoredTripSummary[]>),
+        const existing = await inTransaction(
+          database,
+          [SUMMARIES],
+          'readonly',
+          (tx) => request(tx.objectStore(SUMMARIES).getAll() as IDBRequest<StoredTripSummary[]>),
+          timeoutMs,
         );
         const known = new Map(existing.map((row) => [row.id, row]));
 
@@ -439,7 +488,7 @@ export function createIndexedDbTripStore(options: IndexedDbOptions = {}): Indexe
             bodies.put(trip);
             summaries.put(summarize(trip, bytes));
           }
-        });
+        }, timeoutMs);
 
         // Committed. Only now is it safe to drop the localStorage copies.
         const removed = removeLegacyKeys(legacy, handled);
@@ -630,6 +679,8 @@ export interface TripStorageOptions {
   maxBytes?: number;
   estimate?: () => Promise<{ usage?: number; quota?: number } | null>;
   persist?: () => Promise<boolean>;
+  /** How long an IndexedDB operation may take before the localStorage fallback. */
+  timeoutMs?: number;
   /** Skip the localStorage import (tests that assert on a clean database). */
   migrate?: boolean;
 }
@@ -659,6 +710,7 @@ export async function createTripStorage(options: TripStorageOptions = {}): Promi
     maxBytes: options.maxBytes,
     estimate: options.estimate,
     persist: options.persist,
+    timeoutMs: options.timeoutMs,
   });
 
   try {

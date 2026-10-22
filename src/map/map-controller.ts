@@ -45,6 +45,9 @@ const MAPTERHORN_TILEJSON = 'https://tiles.mapterhorn.com/tilejson.json';
  * Credit required by the metadata: "Copernicus Sentinel-2 data (year) / processed
  * by the Norwegian Mapping Authority".
  */
+/** Zoom the empty first screen never goes below: at less, Norway is a speck. */
+const HOME_MIN_ZOOM = 4.4;
+
 const AERIAL_LAYER_YEAR = '2025';
 const AERIAL_URL =
   'https://wms.geonorge.no/skwms1/wms.sentinel2?service=WMS&version=1.3.0&request=GetMap' +
@@ -756,6 +759,8 @@ export class MapController {
   private cameraFrame = 0;
   private ready = false;
   private disposed = false;
+  /** True once a route has been handed to the map; the home camera then stands down. */
+  private hasRoute = false;
   private resupply: ResupplyMapPoint[] = [];
   /** Rolling hash of the drawn points; `null` until the first set is applied. */
   private resupplySignature: number | null = null;
@@ -808,6 +813,18 @@ export class MapController {
       // Markers can be set before the style finished loading; paint them now.
       this.applyResupply();
       this.applyResupplySelection();
+      // The first screen is the country, not a fragment of it. At the fixed
+      // centre/zoom the basemap's coverage left a diagonal slice of coast in the
+      // corner of an empty sea; a route, when one arrives, takes over the camera.
+      // Deferred one frame: on a phone the container has not been measured at
+      // `load`, and a fit against a stale height framed the country in a corner.
+      if (!this.hasRoute) {
+        requestAnimationFrame(() => {
+          if (this.disposed || this.hasRoute) return;
+          this.map.resize();
+          this.fitHome();
+        });
+      }
     });
 
     const scheduleCamera = (): void => {
@@ -1226,6 +1243,7 @@ export class MapController {
   }
 
   setRoute(route: Route | null, options: { fit: boolean } = { fit: true }): void {
+    if (route !== null) this.hasRoute = true;
     const coordinates = route ? displayCoordinates(route.points) : [];
     const lineSource = this.map.getSource('route');
     if (lineSource && 'setData' in lineSource) {
@@ -1276,6 +1294,25 @@ export class MapController {
   fitRoute(route: Route): void {
     const bounds = routeBounds(route.points);
     if (bounds) this.fitBounds(bounds);
+  }
+
+  /**
+   * Mainland Norway: the area the basemap and the elevation service cover, framed
+   * with the padding the panels need. Used once, for the empty first screen.
+   */
+  private fitHome(): void {
+    const narrow = (this.map.getCanvas()?.clientWidth ?? 900) < 620;
+    const bounds: [number, number, number, number] = [4.2, 57.6, 31.2, 71.2];
+    const camera = this.map.cameraForBounds(bounds, { padding: narrow ? 20 : 40 });
+    // Framing the country's *width* on a phone lands at z3.2, where Norway is a
+    // speck in a tall black viewport. On a narrow screen a floor keeps it legible
+    // and lets the tall axis do the cropping; a wide screen takes the whole fit.
+    const fit = camera?.zoom ?? HOME_MIN_ZOOM;
+    const zoom = narrow ? Math.max(fit, HOME_MIN_ZOOM) : fit;
+    this.map.jumpTo({
+      center: camera?.center ?? { lng: 12.6, lat: 64.5 },
+      zoom,
+    });
   }
 
   fitBounds(bounds: Bounds): void {

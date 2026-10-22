@@ -38,7 +38,7 @@ describe('acceptance: edit, save, reload', () => {
 
     const first = newSession(storage);
     await first.whenReady();
-    const imported = await first.importFile(readFileSync(DEMO, 'utf8'), 'gjendesheim-besseggen.gpx');
+    const { trip: imported } = await first.importFile(readFileSync(DEMO, 'utf8'), 'gjendesheim-besseggen.gpx');
     const legId = imported.legs[0]!.id;
 
     // A scripted edit sequence covering geometry, splitting and naming.
@@ -79,7 +79,7 @@ describe('acceptance: edit, save, reload', () => {
     const gpx = second.exportGpx();
     expect(gpx).toBeTruthy();
     const third = newSession(memoryStorage());
-    const reimported = await third.importFile(gpx!, 'reload.gpx');
+    const { trip: reimported } = await third.importFile(gpx!, 'reload.gpx');
     expect(reimported.legs[0]!.points).toHaveLength(edited.legs[0]!.points.length);
   });
 });

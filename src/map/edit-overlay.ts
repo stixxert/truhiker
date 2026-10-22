@@ -22,8 +22,10 @@
 import type {
   GeoJSONSource,
   Map as MapLibreMapType,
+  MapGeoJSONFeature,
   MapLayerMouseEvent,
   MapMouseEvent,
+  MapTouchEvent,
 } from 'maplibre-gl';
 
 import type { RoutePoint, Trip } from '../contracts';
@@ -96,6 +98,8 @@ export class EditOverlay {
   private previewPoint: LonLat | null = null;
   private routeMode = false;
   private suppressedClick = false;
+  /** Last touch tap, for double-tap-to-finish (touch has no dblclick). */
+  private lastTap: { at: number; x: number; y: number } | null = null;
   private selection: VertexSelection | null = null;
 
   /**
@@ -215,6 +219,11 @@ export class EditOverlay {
     window.addEventListener('blur', this.onWindowRelease);
     map.on('mouseout', this.onMouseLeave);
     map.on('mousedown', LAYER_HANDLES, this.onHandleDown);
+    // Touch never produces mousedown/mouseup on the map, so a handle could be
+    // selected but not dragged on a phone. Same state machine, touch input.
+    map.on('touchstart', this.onTouchStart);
+    map.on('touchmove', this.onTouchMove);
+    map.on('touchend', this.onTouchEnd);
     map.on('dblclick', this.onDoubleClick);
     map.on('moveend', this.onCameraChange);
     map.on('zoomend', this.onCameraChange);
@@ -315,6 +324,10 @@ export class EditOverlay {
     this.map.off('mouseup', this.onMouseUp);
     this.map.off('mouseout', this.onMouseLeave);
     this.map.off('mousedown', LAYER_HANDLES, this.onHandleDown);
+    this.map.off('touchstart', this.onTouchStart);
+    this.map.off('touchmove', this.onTouchMove);
+    this.map.off('touchend', this.onTouchEnd);
+    this.map.off('dblclick', this.onDoubleClick);
     this.map.off('moveend', this.onCameraChange);
     this.map.off('zoomend', this.onCameraChange);
     this.installed = false;
@@ -399,6 +412,7 @@ export class EditOverlay {
       return;
     }
     const point: LonLat = { lon: event.lngLat.lng, lat: event.lngLat.lat };
+    if (this.mode === 'draw' && this.isDoubleTap(event)) return;
     if (this.mode === 'draw') {
       const snap = this.deps.snap(point);
       this.deps.onDrawPoint(snap ? snap.snappedPoint : point, snap);
@@ -428,35 +442,76 @@ export class EditOverlay {
     if (!this.enabled || this.routeMode || this.mode !== 'edit') return;
     const feature = event.features?.[0];
     if (!feature) return;
+    this.beginDrag(feature, event.lngLat, event.originalEvent as MouseEvent | undefined, event);
+  };
+
+  /** Touch has no layer-scoped event in this MapLibre build: hit-test the handles. */
+  private onTouchStart = (event: MapTouchEvent): void => {
+    if (!this.enabled || this.routeMode || this.mode !== 'edit') return;
+    const feature = this.map.queryRenderedFeatures(event.point, { layers: [LAYER_HANDLES] })[0];
+    if (!feature) return;
+    this.beginDrag(feature, event.lngLat, undefined, event);
+  };
+
+  private beginDrag(
+    feature: MapGeoJSONFeature,
+    lngLat: { lng: number; lat: number },
+    original: MouseEvent | undefined,
+    event: { preventDefault(): void },
+  ): void {
     const legId = String(feature.properties?.legId ?? '');
     const index = Number(feature.properties?.index ?? -1);
     if (legId.length === 0 || !Number.isInteger(index) || index < 0) return;
     event.preventDefault();
     this.drag = { legId, index };
-    this.previewPoint = { lon: event.lngLat.lng, lat: event.lngLat.lat };
+    this.previewPoint = { lon: lngLat.lng, lat: lngLat.lat };
     this.suppressedClick = true;
     // The click event that follows this mouseup belongs to the drag, not to a
     // new point. Clear the flag shortly after so the *next* click is normal.
     window.setTimeout(() => {
       this.suppressedClick = false;
     }, 60);
+    // A touch that starts on a handle must move the vertex, not pan the map.
     this.map.dragPan.disable();
-    const original = event.originalEvent as MouseEvent | undefined;
     this.deps.onSelect(legId, index, Boolean(original?.shiftKey));
-  };
+  }
+
+  /** One drag step: preview where the vertex would land. Shared by mouse and touch. */
+  private onDragPoint(point: LonLat): void {
+    this.previewPoint = point;
+    const snapped = this.deps.isSnapping() ? this.deps.snap(point) : null;
+    const target = snapped ? snapped.snappedPoint : point;
+    this.showSnapPreview(target);
+    // Show the shape the leg is about to take: the two segments either side of the
+    // dragged vertex, following the snapped position. Without it a drag was blind
+    // until release — the same problem the draw preview exists to solve.
+    if (this.drag) this.updateDragPreview(this.drag, target);
+  }
+
+  /**
+   * Double-tap ends a leg on touch. `dblclick` is mouse-only, so without this a
+   * phone had no gesture for "done" at all (the Fullfør button is the other way).
+   */
+  private isDoubleTap(event: MapMouseEvent): boolean {
+    const original = event.originalEvent as (PointerEvent | undefined);
+    if (original?.pointerType !== 'touch') return false;
+    const now = Date.now();
+    const last = this.lastTap;
+    if (last && now - last.at < 350 && Math.hypot(event.point.x - last.x, event.point.y - last.y) < 34) {
+      this.lastTap = null;
+      this.updateDraft(null);
+      this.deps.onFinishDraw?.();
+      return true;
+    }
+    this.lastTap = { at: now, x: event.point.x, y: event.point.y };
+    return false;
+  }
 
   private onMouseMove = (event: MapMouseEvent): void => {
     if (!this.enabled || !this.installed) return;
     const point: LonLat = { lon: event.lngLat.lng, lat: event.lngLat.lat };
     if (this.drag) {
-      this.previewPoint = point;
-      const snapped = this.deps.isSnapping() ? this.deps.snap(point) : null;
-      const target = snapped ? snapped.snappedPoint : point;
-      this.showSnapPreview(target);
-      // Show the shape the leg is about to take: the two segments either side of the
-      // dragged vertex, following the snapped position. Without it a drag was blind
-      // until release — the same problem the draw preview exists to solve.
-      this.updateDragPreview(this.drag, target);
+      this.onDragPoint(point);
       return;
     }
     if (this.mode !== 'draw' && this.mode !== 'edit') return;
@@ -512,6 +567,19 @@ export class EditOverlay {
     const snap = this.deps.snap(point);
     this.deps.onMoveVertex(drag.legId, drag.index, snap ? snap.snappedPoint : point, snap);
   }
+
+  /** Touch movement while dragging: the same preview, without a pointer. */
+  private onTouchMove = (event: MapTouchEvent): void => {
+    if (!this.drag || !this.enabled) return;
+    const point = event.lngLat;
+    this.onDragPoint({ lon: point.lng, lat: point.lat });
+  };
+
+  private onTouchEnd = (event: MapTouchEvent): void => {
+    if (!this.drag) return;
+    const point = event.lngLat;
+    this.endDrag({ lon: point.lng, lat: point.lat });
+  };
 
   private onMouseUp = (event: MapMouseEvent): void => {
     if (!this.drag) return;

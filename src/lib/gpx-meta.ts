@@ -8,7 +8,7 @@
  * that block.
  */
 
-import { DOMParser, type Element } from '@xmldom/xmldom';
+import { DOMParser, type Element, type Document as XmlDocument } from '@xmldom/xmldom';
 
 export interface GpxMetadata {
   /** `<metadata><name>`, falling back to the first track name. */
@@ -78,18 +78,17 @@ export function parseTurrutebasenDescription(description: string): {
 }
 
 /**
- * Read `<metadata>` (plus the first `<trk><name>` as a fallback). Never throws:
- * metadata is decoration, and a malformed document is already rejected by the
- * real parser before this is called.
+ * Read `<metadata>` (plus the first `<trk><name>` as a fallback) from a document
+ * that is **already parsed**. Never throws: metadata is decoration, and a malformed
+ * document is rejected by the real parser before this is called.
+ *
+ * Not on the import path: the importer reads `<metadata>` in `store/serialize.ts`
+ * and the geometry in `core/gpx.ts`. This reader exists so the store's tests can
+ * assert what `toGpx` writes without a second implementation of the format; it is
+ * not shipped (nothing in `src/` imports it, so the bundle never contains it).
  */
-export function parseGpxMetadata(xml: string): GpxMetadata {
+export function parseGpxMetadataFrom(documentNode: XmlDocument): GpxMetadata {
   const result: GpxMetadata = {};
-  let documentNode;
-  try {
-    documentNode = new DOMParser().parseFromString(xml, 'application/xml');
-  } catch {
-    return result;
-  }
   const root = documentNode.documentElement;
   if (!root) return result;
 
@@ -114,4 +113,13 @@ export function parseGpxMetadata(xml: string): GpxMetadata {
   }
 
   return result;
+}
+
+/** Convenience wrapper: parse the text, then read the metadata from it. */
+export function parseGpxMetadata(xml: string): GpxMetadata {
+  try {
+    return parseGpxMetadataFrom(new DOMParser().parseFromString(xml, 'application/xml'));
+  } catch {
+    return {};
+  }
 }

@@ -22,6 +22,12 @@ export interface TripRowView {
 
 export interface TripLibraryView {
   readonly rows: readonly TripRowView[];
+  /**
+   * The store has not answered yet. Distinct from `empty`: "we have not read your
+   * trips" is not "you have none", and the dialog used to show the previous (or an
+   * empty) list while a slow store was still thinking.
+   */
+  readonly loading: boolean;
   readonly empty: boolean;
   readonly emptyMessage: string | null;
   /** Explanation when the index could not be read (corrupt, blocked). */
@@ -64,6 +70,8 @@ export function formatTripDate(iso: string, locale: string): string {
 
 interface TripLibraryInput {
   summaries: readonly TripSummary[];
+  /** The store has not answered yet — do not claim the list is empty. */
+  loading?: boolean;
   currentId: string | null;
   problem: SaveStatus | null;
   importEnabled: boolean;
@@ -140,10 +148,13 @@ export function buildTripLibraryView(
       ? i18n.t(input.problem.code === 'corrupt' ? 'store.corrupt' : 'store.indexUnreadable')
       : null;
 
+  const loading = input.loading === true;
   return {
     rows,
-    empty: rows.length === 0,
-    emptyMessage: rows.length === 0 ? i18n.t('trips.empty') : null,
+    loading,
+    // An empty list while loading is not "you have no trips".
+    empty: !loading && rows.length === 0,
+    emptyMessage: !loading && rows.length === 0 ? i18n.t('trips.empty') : null,
     problem,
     problemDetail: input.problem?.message ?? null,
     importEnabled: input.importEnabled,

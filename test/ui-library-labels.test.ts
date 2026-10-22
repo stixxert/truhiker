@@ -22,6 +22,22 @@ function summary(overrides: Partial<TripSummary> = {}): TripSummary {
   };
 }
 
+/**
+ * "We have not read your trips" is not "you have no trips": the dialog used to
+ * render the previous (often empty) list while the store was still answering.
+ */
+describe('trip library view — loading', () => {
+  it('does not claim the list is empty while the store has not answered', () => {
+    const view = buildTripLibraryView(
+      { summaries: [], loading: true, currentId: null, problem: null, importEnabled: true, storage: null },
+      createI18n('no'),
+    );
+    expect(view.loading).toBe(true);
+    expect(view.empty).toBe(false);
+    expect(view.emptyMessage).toBeNull();
+  });
+});
+
 describe('trip library view', () => {
   it('renders name, distance, updated date and leg count', () => {
     const view = buildTripLibraryView(

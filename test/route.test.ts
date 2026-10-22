@@ -10,6 +10,7 @@ import {
   pickTrack,
   routeBounds,
 } from '../src/lib/route';
+import { haversine, pathLength } from '../src/core/geo';
 
 const simpleGpx = `<?xml version="1.0"?>
 <gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
@@ -79,6 +80,31 @@ describe('buildRoute', () => {
       ],
     });
     expect(long.points.length).toBeLessThanOrEqual(MAX_SAMPLES + 2);
+  });
+
+  it('reports the route\'s measured length, not the shorter sampled polyline', () => {
+    // A zigzag: resampling at 25 m cuts its corners, so the sampled polyline is
+    // measurably shorter than the track. The route must still report one length —
+    // the one its own geometry measures — and the profile must inherit it.
+    const coords = Array.from({ length: 200 }, (_, i) => ({
+      lon: 8.3 + i * 0.00004,
+      lat: 61.5 + (i % 2 === 0 ? 0.00022 : -0.00022),
+    }));
+    const route = buildRoute({ origin: 'file', coords });
+    const measured = pathLength(coords);
+    const sampled = route.points.reduce((sum, point, i) => {
+      if (i === 0) return 0;
+      const previous = route.points[i - 1]!;
+      return sum + haversine(previous, point);
+    }, 0);
+    // The fixture actually exercises the correction: sampling alone loses length.
+    expect(sampled).toBeLessThan(measured * 0.99);
+    expect(route.distanceM).toBeCloseTo(measured, 6);
+    expect(route.distances[route.distances.length - 1]).toBeCloseTo(measured, 6);
+    // Sample positions keep their order, so the axis still reads left to right.
+    for (let i = 1; i < route.distances.length; i += 1) {
+      expect(route.distances[i]!).toBeGreaterThan(route.distances[i - 1]!);
+    }
   });
 
   it('rejects routes that cannot produce a profile and drops non-finite coordinates', () => {

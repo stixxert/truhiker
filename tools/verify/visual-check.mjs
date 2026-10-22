@@ -319,7 +319,11 @@ function isAllowedTileNetworkError(entry) {
   const haystack = `${entry.text} ${entry.url}`;
   const hosts = [...hostsIn(haystack), ...(entry.url ? hostsIn(entry.url) : [])];
   if (!hosts.some(isAllowedHost)) return false;
-  return /failed to load|err_|ajaxerror|failed to fetch|networkerror|timed out|timeout|status of \d{3}/i.test(
+  // A tile that arrives without `Access-Control-Allow-Origin` is the same class of
+  // event as one that fails: a live source degraded (an egress proxy can strip the
+  // header, and Geonorge does not always send it). The app shows the basemap banner;
+  // the gate records it as a tolerated live-source failure rather than an app error.
+  return /failed to load|err_|ajaxerror|failed to fetch|networkerror|timed out|timeout|status of \d{3}|blocked by cors policy|access-control-allow-origin/i.test(
     haystack,
   );
 }
@@ -593,7 +597,7 @@ async function checkViewport(browser, viewport, expectedHeaders) {
           const empty = document.querySelector('#empty-state');
           return !!empty && !empty.hidden;
         },
-        { timeout: 15_000 },
+        { timeout: 20_000 },
       )
       .catch(() => {});
     const firstScreen = await page.evaluate(() => {

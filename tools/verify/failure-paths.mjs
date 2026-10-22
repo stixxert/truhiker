@@ -262,14 +262,47 @@ try {
     { timeout: 30_000 },
   );
   await other.waitForTimeout(1000);
+  // Wait for the initial fit to land. Clicking while the camera is still easing in
+  // from world zoom puts the two picks tens of degrees apart, and the router then
+  // answers "area too large" — that race, not the router, is what made this step
+  // flaky. The scale bar is the only camera signal the page exposes: it reads tens
+  // of kilometres at route scale and thousands at world zoom.
+  await other
+    .waitForFunction(
+      () => {
+        const text = document.querySelector('.maplibregl-ctrl-scale')?.textContent?.trim() ?? '';
+        const match = /([\d.,]+)\s*(km|m)$/.exec(text);
+        if (!match) return false;
+        const value = Number(match[1].replace(',', '.'));
+        const km = match[2] === 'm' ? value / 1000 : value;
+        return Number.isFinite(km) && km <= 20;
+      },
+      undefined,
+      { timeout: 20_000 },
+    )
+    .catch(() => {});
   await other.click('[data-mode="edit"]');
-  await other.waitForTimeout(400);
+  await other.waitForTimeout(200);
   await other.click('#btn-route');
-  await other.waitForTimeout(300);
+  // The pick has to be armed before the first click, or the click is swallowed and
+  // the toast is still the invitation to start (the other half of the flake).
+  await other
+    .waitForFunction(
+      () => /Klikk startpunktet|Click the start point/i.test(document.querySelector('#toast')?.textContent ?? ''),
+      undefined,
+      { timeout: 10_000 },
+    )
+    .catch(() => {});
   const otherCanvas = await other.locator('.maplibregl-canvas').boundingBox();
   if (otherCanvas) {
     await other.mouse.click(otherCanvas.x + otherCanvas.width * 0.45, otherCanvas.y + otherCanvas.height * 0.5);
-    await other.waitForTimeout(300);
+    await other
+      .waitForFunction(
+        () => /Klikk målpunktet|Click the end point/i.test(document.querySelector('#toast')?.textContent ?? ''),
+        undefined,
+        { timeout: 10_000 },
+      )
+      .catch(() => {});
     await other.mouse.click(otherCanvas.x + otherCanvas.width * 0.55, otherCanvas.y + otherCanvas.height * 0.5);
     const noPath = await other
       .waitForFunction(
@@ -286,6 +319,70 @@ try {
   if (otherErrors.length > 0) problems.push(`disconnected-routing page errors: ${otherErrors.join(' | ')}`);
   if (otherUnhandled.length > 0) problems.push(`disconnected-routing unhandled rejections: ${otherUnhandled.join(' | ')}`);
   await disconnected.close();
+
+  // 7b. A source that *hangs* — accepts the connection and never answers — is the
+  //     shape that bit this app in real life (`wfs.geonorge.no` answered `/` in
+  //     0.12 s and never answered the WFS path). A refused connection resolves in
+  //     microseconds; this one keeps the request open so the app's own deadlines are
+  //     what has to save the user.
+  {
+    const hanging = await browser.newPage();
+    const hangErrors = [];
+    hanging.on('pageerror', (error) => hangErrors.push(error.message));
+    // Never fulfil: the route handler simply does not answer.
+    // Returning without an action leaves the request stalled in Playwright; awaiting a
+    // promise that never settles is explicit about it.
+    await hanging.route('**wfs.geonorge.no/**', () => new Promise(() => {}));
+    await hanging.route('**api.met.no/**', () => new Promise(() => {}));
+    await hanging.goto(`${runtime.origin}/`, { waitUntil: 'domcontentloaded' });
+    await importRoute(hanging);
+    // Zoom in explicitly: the prefetch is skipped below z10, and this step is about
+    // the deadline, not about whether the fit happened to land above the floor.
+    for (let i = 0; i < 6; i += 1) await hanging.click('#btn-zoom-in').catch(() => {});
+    await hanging.waitForTimeout(1200);
+    await hanging.click('[data-mode="draw"]');
+
+    // The viewport prefetch has a 12 s deadline; the banner names it. This step
+    // proves the failure reaches the DOM — the *bound* is pinned by the unit test
+    // (`SnapService` with a 300 ms deadline), because a loaded machine can delay a
+    // 12 s timer by tens of seconds, and a browser gate that measures the clock
+    // would then fail for reasons that have nothing to do with the app.
+    const bannerShown = await hanging
+      .waitForFunction(
+        () => /svarte ikke|did not answer/i.test(document.body.innerText),
+        undefined,
+        { timeout: 60_000 },
+      )
+      .then(() => true)
+      .catch(() => false);
+    if (!bannerShown) {
+      const seen = (await hanging.evaluate(() => document.body.innerText).catch(() => ''))
+        .replace(/\s+/g, ' ')
+        .slice(0, 200);
+      problems.push(`a hanging trail service did not produce the deadline banner within 60 s (${seen})`);
+    }
+
+    // Weather: a hung MET request must end in the panel's unavailable state, not in
+    // a spinner that never resolves (the client's 15 s timeout).
+    await hanging.click('#btn-weather').catch(() => {});
+    const weatherAnswers = await hanging
+      .waitForFunction(
+        () => /ikke tilgjengelig|not available|avbrutt|timed out|tidsavbrudd/i.test(
+          document.getElementById('weather-panel')?.innerText ?? '',
+        ),
+        undefined,
+        { timeout: 45_000 },
+      )
+      .then(() => true)
+      .catch(() => false);
+    if (!weatherAnswers) {
+      problems.push(
+        `a hanging MET request left the weather panel unresolved after 30 s (${(await hanging.locator('#weather-panel').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 200)})`,
+      );
+    }
+    if (hangErrors.length > 0) problems.push(`hanging-source page errors: ${hangErrors.join(' | ')}`);
+    await hanging.close();
+  }
 
   // 8. Nothing may escape as an uncaught error or an unhandled rejection.
   const unhandled = await page.evaluate(() => window.__unhandledRejections ?? []);

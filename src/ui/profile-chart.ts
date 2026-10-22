@@ -548,7 +548,9 @@ export class ProfileChart {
 
       ctx.fillStyle = this.theme.muted;
       ctx.textAlign = index === 0 ? 'left' : 'center';
-      const label = d === 0 ? '0' : this.i18n.format.distanceAxis(d);
+      // Even the origin is a distance with a unit: a bare "0" next to "2 km" reads
+      // as a different kind of number.
+      const label = this.i18n.format.distanceAxis(d);
       if (x > plot.x + plot.width - 18) continue;
       ctx.fillText(label, x, baseY + 5);
     }

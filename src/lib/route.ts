@@ -83,11 +83,20 @@ export function buildRoute(input: RouteInput): Route {
   if (points.length < 2) throw new Error('route has zero length');
 
   const distances = cumulativeDistances(points);
+  const sampledLength = distances[distances.length - 1] ?? 0;
+  // Resampling at 25 m cuts the corners of a dense track, so the sampled polyline
+  // is a little shorter than the file says. Left alone, the route panel reported
+  // the file's length while the profile reported the sampled one — one route, two
+  // numbers (9.16 km next to 9.01 km). The samples keep their relative positions
+  // and the total is the route's measured length, which every panel then shares.
+  const scale = sampledLength > 0 ? lengthEstimate / sampledLength : 1;
+  const scaled =
+    scale === 1 ? distances : distances.map((distance) => distance * scale);
   return {
     name: input.name?.trim() || '',
     points,
-    distances,
-    distanceM: distances[distances.length - 1],
+    distances: scaled,
+    distanceM: lengthEstimate,
     origin: input.origin,
     fileName: input.fileName,
     gpxText: input.gpxText,

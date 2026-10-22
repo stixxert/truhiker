@@ -155,6 +155,14 @@ export interface RouteEditor {
   redo(): Trip;
   /** Replace the whole trip (e.g. after loading a file) and clear history. */
   reset(trip: Trip): void;
+  /**
+   * Replace the document but **keep** undo/redo.
+   *
+   * For a change that does not touch the geometry — the trip's name, the body
+   * profile, the day's assumptions. Renaming a trip used to clear the whole undo
+   * stack, so the next Undo was a no-op with the button already greyed out.
+   */
+  replaceCurrent(trip: Trip): void;
 }
 
 /* ------------------------------------------------------------------ */
@@ -247,5 +255,5 @@ export interface TripStore {
   toGpx(trip: Trip, options?: { legIds?: readonly string[]; includeElevation?: boolean }): string;
   toGeoJson(trip: Trip): string;
   /** Parse an uploaded file into a Trip. Throws StoreError on malformed input. */
-  fromFile(text: string, filename: string): Trip;
+  fromFile(text: string, filename: string, options?: { maxPoints?: number }): Trip;
 }

@@ -16,7 +16,7 @@
  * writes itself.
  */
 
-import { DOMParser, type Document, type Element } from '@xmldom/xmldom';
+import type { Document, Element } from '@xmldom/xmldom';
 
 import { StoreError } from '../contracts';
 import type {
@@ -443,14 +443,6 @@ interface GpxMeta {
   legId?: string;
 }
 
-function readElementAttributes(xml: string): Document | null {
-  try {
-    const documentNode = new DOMParser().parseFromString(xml, 'application/xml');
-    return documentNode?.documentElement ? documentNode : null;
-  } catch {
-    return null;
-  }
-}
 
 function parseEleSource(raw: string | undefined): ElevationSource | undefined {
   return raw === 'dem' || raw === 'gpx' || raw === 'none' ? raw : undefined;
@@ -471,13 +463,18 @@ function trackMeta(track: Element): GpxMeta {
  * GPX parser — `src/core/gpx.ts` is — it only recovers what `toGpx` writes, and
  * it never throws: missing metadata simply means an unnamed trip.
  */
-function gpxMeta(xml: string): {
+/**
+ * Read the provenance block from an **already parsed** document.
+ *
+ * It used to parse the XML again (`readElementAttributes(xml)`), so an import paid
+ * for two full parses of the same 15 MB file — the second one was pure duplication.
+ */
+function gpxMeta(document: Document | null): {
   trip: Omit<GpxMeta, 'legId'>;
   tracks: GpxMeta[];
   routes: GpxMeta[];
 } {
-  const documentNode = readElementAttributes(xml);
-  const root = documentNode?.documentElement ?? null;
+  const root = document?.documentElement ?? null;
   const metadata = descendant(root, 'metadata');
   const tracks: GpxMeta[] = [];
   const routes: GpxMeta[] = [];
@@ -508,10 +505,14 @@ function pointsFromGpxTrack(track: GpxTrack, eleSource: ElevationSource | undefi
   });
 }
 
-function tripFromGpx(text: string, filename: string): Trip {
+/** Above this an import is refused with a message instead of freezing the tab. */
+const MAX_IMPORT_POINTS = 100_000;
+
+function tripFromGpx(text: string, filename: string, maxPoints = MAX_IMPORT_POINTS): Trip {
   let document: GpxDocument;
+  let dom: Document | null = null;
   try {
-    document = parseGpx(text);
+    document = parseGpx(text, { onDocument: (parsed) => { dom = parsed; } });
   } catch (error) {
     throw new StoreError(
       'corrupt',
@@ -519,7 +520,18 @@ function tripFromGpx(text: string, filename: string): Trip {
     );
   }
 
-  const meta = gpxMeta(text);
+  const meta = gpxMeta(dom);
+  const pointCount =
+    document.tracks.reduce((total, track) => total + track.points.length, 0) +
+    document.routes.reduce((total, route) => total + route.points.length, 0);
+  if (pointCount > maxPoints) {
+    throw new StoreError(
+      'unsupported',
+      `GPX "${filename}" holds ${pointCount.toLocaleString('nb-NO')} points; the importer ` +
+        `handles up to ${maxPoints.toLocaleString('nb-NO')}. Split the track ` +
+        `into stages and import them as separate trips.`,
+    );
+  }
   const usable = (track: GpxTrack): boolean => track.points.length >= 2;
   // Tracks win; a file that only has routes (a planned, not recorded, line) uses
   // those. Both are read by src/core/gpx.ts, which never merges tracks.
@@ -658,9 +670,13 @@ function tripFromGeoJson(text: string, filename: string): Trip {
  * plain `Error`. The imported trip gets `defaultProfile()`; the caller replaces
  * it with the user's own.
  */
-export function fromFile(text: string, filename: string): Trip {
+export function fromFile(
+  text: string,
+  filename: string,
+  options: { maxPoints?: number } = {},
+): Trip {
   const extension = extensionOf(filename);
-  if (extension === 'gpx') return tripFromGpx(text, filename);
+  if (extension === 'gpx') return tripFromGpx(text, filename, options.maxPoints);
   if (extension === 'geojson' || extension === 'json') return tripFromGeoJson(text, filename);
   throw new StoreError(
     'unsupported',

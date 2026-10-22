@@ -11,7 +11,7 @@ import type {
 } from '../src/contracts';
 import { StoreError } from '../src/contracts';
 import type { EngineSurface } from '../src/app/engine-types';
-import { AUTOSAVE_DELAY_MS, TripSession } from '../src/app/trip-session';
+import { AUTOSAVE_DELAY_MS, TripSession, openForBoot } from '../src/app/trip-session';
 import type { StorageUsage, TripStoreLike } from '../src/store/types';
 
 const PROFILE: UserProfile = {
@@ -94,6 +94,9 @@ function createFakeEditor(start: Trip): RouteEditor {
       past.length = 0;
       future.length = 0;
     },
+    replaceCurrent(next: Trip) {
+      current = next;
+    },
   };
 }
 
@@ -105,6 +108,8 @@ class FakeStore implements TripStoreLike {
   readonly trips = new Map<string, Trip>();
   failSave: Error | null = null;
   failList: Error | null = null;
+  /** When set, `load` returns null for a trip that is still listed. */
+  failLoad: Error | null = null;
   /** When set, saves wait for this promise — the write is "in flight". */
   gate: Promise<void> | null = null;
   saves = 0;
@@ -121,6 +126,7 @@ class FakeStore implements TripStoreLike {
   }
 
   load(id: string): Trip | null {
+    if (this.failLoad) return null;
     return this.trips.get(id) ?? null;
   }
 
@@ -365,12 +371,16 @@ describe('TripSession — library', () => {
 
   it('imports a file, adopts and persists it before resolving, and exports without adopting', async () => {
     const { session, store } = harness();
-    const imported = await session.importFile('Importert', 'tur.gpx');
+    const { trip: imported, save } = await session.importFile('Importert', 'tur.gpx');
     expect(imported.name).toBe('Importert');
+    // The save result is reported, not swallowed: the caller says "imported" only
+    // when the write committed.
+    expect(save.kind).toBe('saved');
     expect(session.trip?.name).toBe('Importert');
     expect(store.trips.has(imported.id)).toBe(true);
 
     await expect(session.importFile('bad', 'bad.gpx')).rejects.toBeInstanceOf(StoreError);
+
 
     // Exporting never adopts: the open trip stays the open trip.
     store.trips.set('other', trip('other', 'Andre'));
@@ -379,6 +389,106 @@ describe('TripSession — library', () => {
     expect(await session.exportGeoJsonFor('other')).toContain('Andre');
     expect(session.trip?.id).toBe(imported.id);
     expect(await session.exportGpxFor('missing')).toBeNull();
+
+    // A store that refuses the write must not look like a successful import: the
+    // caller decides what to say, so the outcome has to reach it. (Last, because it
+    // adopts a trip with the same id the fake reuses.)
+    store.failSave = new StoreError('quota-exceeded', 'storage is full');
+    const refused = await session.importFile('Ikke lagret', 'stor.gpx');
+    expect(refused.save.kind).toBe('error');
+    expect(refused.save.message ?? '').toMatch(/full/i);
+    expect(store.trips.get(refused.trip.id)?.name).not.toBe('Ikke lagret');
+    expect(session.trip?.name).toBe('Ikke lagret');
+  });
+});
+
+/**
+ * Renaming a trip or changing your body weight must not destroy the undo stack: it
+ * used to, so the next Undo was a no-op with the button already greyed out.
+ */
+/**
+ * A trip the library lists but cannot read is damaged, not missing. Saying "not
+ * found" invited a re-import over a row that is still there.
+ */
+describe('TripSession — a listed trip with an unreadable body', () => {
+  it('reports damage with the reason instead of pretending the trip is gone', async () => {
+    const { session, store } = harness();
+    await session.adopt(trip('t1', 'Tur'), { save: 'manual' });
+    await session.saveNow();
+    // The summary survives; the body does not read.
+    store.failLoad = new Error('body unreadable');
+    await expect(session.open('t1')).rejects.toMatchObject({ code: 'corrupt' });
+    // A genuinely unknown id is still "not found" — no throw.
+    await expect(session.open('t9')).resolves.toBeNull();
+  });
+});
+
+/**
+ * Boot must survive a trip it cannot read. `open` throws on a corrupt body so the
+ * library can report it; the boot path did not ask for that row, so a damaged
+ * last-opened trip has to mean "nothing to reopen" and an empty state — not the
+ * fatal "the app could not start" screen it used to reach.
+ */
+describe('openForBoot — a damaged last-opened trip is not fatal', () => {
+  it('returns null for any unreadable trip and the trip when it is readable', async () => {
+    const corrupt = {
+      open: async () => {
+        throw new StoreError('corrupt', 'body unreadable');
+      },
+    };
+    await expect(openForBoot(corrupt, 't1')).resolves.toBeNull();
+
+    // Not only StoreError: a store that throws something else must not take boot down.
+    const broken = {
+      open: async () => {
+        throw new Error('store exploded');
+      },
+    };
+    await expect(openForBoot(broken, 't1')).resolves.toBeNull();
+
+    const readable = { open: async (id: string) => trip(id, 'Tur') };
+    await expect(openForBoot(readable, 't1')).resolves.toMatchObject({ id: 't1' });
+  });
+
+  it('is what the boot path uses, so a corrupt body never rejects through start()', async () => {
+    const { session, store } = harness();
+    await session.adopt(trip('t1', 'Tur'), { save: 'manual' });
+    await session.saveNow();
+    store.failLoad = new Error('body unreadable');
+    // The raw call rejects; the boot wrapper resolves — the difference between the
+    // fatal start path and the empty state.
+    await expect(session.open('t1')).rejects.toMatchObject({ code: 'corrupt' });
+    await expect(openForBoot(session, 't1')).resolves.toBeNull();
+  });
+});
+
+describe('TripSession — history survives a meta-only change', () => {
+  it('keeps undo intact for a rename and a profile change, and resets when geometry changes', async () => {
+    const { session } = harness();
+    await session.adopt(trip('t1', 'Tur'), { save: 'manual' });
+    const legId = session.trip!.legs[0]!.id;
+    session.apply({ type: 'insert', legId, index: 1, point: { lon: 8.005, lat: 61.005 } });
+    expect(session.editor?.canUndo).toBe(true);
+
+    // A rename is the same geometry under a new name: the stack survives.
+    session.rewrite({ ...session.trip!, name: 'Nytt navn' });
+    expect(session.editor?.canUndo).toBe(true);
+    expect(session.trip?.name).toBe('Nytt navn');
+
+    // ... and so does a profile change.
+    session.rewrite({ ...session.trip!, profile: { ...PROFILE, massKg: 81 } });
+    expect(session.editor?.canUndo).toBe(true);
+    expect(session.trip?.profile.massKg).toBe(81);
+
+    // The stack still walks back over the geometry edit (the fake editor returns the
+    // previous snapshot, which is all `undo` promises here).
+    expect(session.editor?.canUndo).toBe(true);
+    session.undo();
+    expect(session.editor?.canUndo).toBe(false);
+
+    // A rewrite that changes the legs is a different document: history resets.
+    session.rewrite({ ...trip('t1', 'Annen tur'), legs: [leg('annet-1')] });
+    expect(session.editor?.canUndo).toBe(false);
   });
 });
 

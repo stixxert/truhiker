@@ -71,6 +71,30 @@ interface TripSessionOptions {
   now?: () => Date;
   schedule?: ScheduleFn;
   onChange?: (session: TripSession) => void;
+  /** Where the last-chance journal is written; defaults to `localStorage`. */
+  journal?: Storage | null;
+}
+
+/**
+ * The last-chance journal (D6).
+ *
+ * Autosave is debounced by a second and the write is async, so an edit made while
+ * the tab is closing is routinely lost — the browser does not wait for IndexedDB.
+ * `pagehide` is the last moment a *synchronous* write can still land, and
+ * `localStorage` is the only storage that is synchronous, so the current trip is
+ * written there on the way out and recovered at the next boot when it is newer than
+ * what the store holds.
+ */
+const JOURNAL_PREFIX = 'truhiker:journal:';
+
+/** `localStorage`, or `null` when the browser refuses it (private mode, policy). */
+function safeLocalStorage(): Storage | null {
+  try {
+    const storage = (globalThis as { localStorage?: Storage }).localStorage;
+    return storage ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function defaultSchedule(callback: () => void, delayMs: number): () => void {
@@ -105,6 +129,7 @@ export class TripSession {
   private readonly now: () => Date;
   private readonly schedule: ScheduleFn;
   private readonly onChangeListener: ((session: TripSession) => void) | undefined;
+  private readonly journalStorage: Storage | null;
 
   private store: TripStoreLike | null = null;
   private storeError: string | null = null;
@@ -116,6 +141,8 @@ export class TripSession {
 
   /** Resolves once the storage backend has been chosen (or refused). */
   private readonly ready: Promise<void>;
+  /** Recovery runs once, before anything reads the store. */
+  private journalRecovered = false;
   /** Bumped on every change, so a slow save cannot claim a newer trip. */
   private sequence = 0;
   /** Saves run one at a time, in the order they were requested. */
@@ -128,6 +155,8 @@ export class TripSession {
     this.schedule = options.schedule ?? defaultSchedule;
     this.onChangeListener = options.onChange;
     this.createStorage = options.createStorage ?? null;
+    this.journalStorage =
+      options.journal === undefined ? safeLocalStorage() : options.journal;
 
     if (options.store !== undefined) {
       this.store = options.store;
@@ -165,8 +194,12 @@ export class TripSession {
   // -------------------------------------------------------------------------
 
   /** Resolves when the store is ready; the UI awaits this before its first list. */
-  whenReady(): Promise<void> {
-    return this.ready;
+  async whenReady(): Promise<void> {
+    await this.ready;
+    if (!this.journalRecovered) {
+      this.journalRecovered = true;
+      await this.recoverJournal();
+    }
   }
 
   get trip(): Trip | null {
@@ -264,7 +297,20 @@ export class TripSession {
     if (!this.store) return null;
     try {
       const trip = await this.store.load(id);
-      if (!trip) return null;
+      if (!trip) {
+        // The library lists this trip, so "not found" would be a lie: the body is
+        // unreadable. Say that, and let the row's Delete be the way out.
+        let summaries: readonly TripSummary[] = [];
+        try {
+          summaries = await this.store.list();
+        } catch {
+          summaries = [];
+        }
+        if (summaries.some((summary) => summary.id === id)) {
+          throw new StoreError('corrupt', 'the stored copy of this trip cannot be read');
+        }
+        return null;
+      }
       this.cancelPending();
       this.editorInstance = this.engines.createEditor(trip);
       this.current = trip;
@@ -273,6 +319,9 @@ export class TripSession {
       return trip;
     } catch (error) {
       this.setStatus(saveStatusForError(error));
+      // Damage is the caller's business: the library row is still there, so the
+      // dialog must say why it will not open instead of showing "not found".
+      if (error instanceof StoreError && error.code === 'corrupt') throw error;
       return null;
     }
   }
@@ -322,10 +371,21 @@ export class TripSession {
    * (profile, name, import, reroute result). History is cleared by
    * `editor.reset`, which is the documented path for a whole-trip replacement.
    */
+  /**
+   * Replace the document.
+   *
+   * History survives when the *geometry* is untouched (a rename, a profile change):
+   * those edits used to clear the undo stack, so the next Undo did nothing and the
+   * button was already grey. A rewrite that changes the legs still resets, because
+   * the old snapshots describe a different route.
+   */
   rewrite(trip: Trip): Trip {
     const next = this.touch(trip);
+    const geometrySame =
+      this.current !== null && JSON.stringify(this.current.legs) === JSON.stringify(next.legs);
     if (this.editorInstance) {
-      this.editorInstance.reset(next);
+      if (geometrySame) this.editorInstance.replaceCurrent(next);
+      else this.editorInstance.reset(next);
     } else {
       this.editorInstance = this.engines.createEditor(next);
     }
@@ -353,11 +413,95 @@ export class TripSession {
   }
 
   /**
+   * Write the current trip to the journal **synchronously**.
+   *
+   * Called first in `flush()`, before any `await`, because that is the only point
+   * where the page is still alive and the write is guaranteed to complete.
+   */
+  writeJournalNow(): void {
+    const trip = this.current;
+    const storage = this.journalStorage;
+    if (!trip || !storage) return;
+    try {
+      storage.setItem(`${JOURNAL_PREFIX}${trip.id}`, JSON.stringify(trip));
+    } catch {
+      // Full or blocked storage: the status line already says saving failed.
+    }
+  }
+
+  /** Drop a journal entry once the store holds at least that version. */
+  private clearJournal(tripId: string): void {
+    const storage = this.journalStorage;
+    if (!storage) return;
+    try {
+      storage.removeItem(`${JOURNAL_PREFIX}${tripId}`);
+    } catch {
+      // nothing to do
+    }
+  }
+
+  /**
+   * Recover a journal entry that is newer than the stored trip.
+   *
+   * Runs once, after the store is ready and before the app decides what to open.
+   * A journal entry for a trip the store never received is written back too — that
+   * is the case where the tab closed during the very first save.
+   */
+  private async recoverJournal(): Promise<void> {
+    const storage = this.journalStorage;
+    const store = this.store;
+    if (!storage || !store) return;
+    let keys: string[] = [];
+    try {
+      for (let index = 0; index < storage.length; index += 1) {
+        const key = storage.key(index);
+        if (key !== null && key.startsWith(JOURNAL_PREFIX)) keys.push(key);
+      }
+    } catch {
+      return;
+    }
+    for (const key of keys) {
+      let recovered: Trip | null = null;
+      try {
+        const raw = storage.getItem(key);
+        recovered = raw === null ? null : (JSON.parse(raw) as Trip);
+      } catch {
+        recovered = null;
+      }
+      if (!recovered || typeof recovered.id !== 'string') {
+        try {
+          storage.removeItem(key);
+        } catch {
+          // ignore
+        }
+        continue;
+      }
+      let stored: Trip | null = null;
+      try {
+        stored = await store.load(recovered.id);
+      } catch {
+        stored = null;
+      }
+      if (stored === null || stored.updatedAt < recovered.updatedAt) {
+        try {
+          await store.save(recovered);
+          this.clearJournal(recovered.id);
+        } catch {
+          // Leave the journal: the next boot tries again.
+        }
+      } else {
+        this.clearJournal(recovered.id);
+      }
+    }
+  }
+
+  /**
    * Flush a pending autosave. Called on `pagehide`/`visibilitychange`: the
-   * browser may not give an async write time to finish, so an edit made in the
-   * last moment before the tab closes can still be lost (a stated limit, D6).
+   * browser may not give an async write time to finish, so the journal is written
+   * synchronously first and the store write is attempted after it.
    */
   async flush(): Promise<void> {
+    this.writeJournalNow();
     await this.ready;
     const pending = this.cancelAutosave !== null;
     this.cancelPending();
@@ -391,6 +535,9 @@ export class TripSession {
       // the old one, so the status must not claim it is saved.
       if (sequence === this.sequence) this.setStatus({ kind: 'saved', at: this.now().getTime() });
       else if (this.status.kind !== 'saving') this.setStatus({ kind: 'dirty' });
+      // The store holds this version, so the last-chance copy is redundant — even
+      // when a newer edit exists, that edit has its own journal write on exit.
+      this.clearJournal(trip.id);
     } catch (error) {
       if (this.current?.id !== trip.id) return this.status;
       this.setStatus(saveStatusForError(error));
@@ -478,17 +625,23 @@ export class TripSession {
   }
 
   /** Parse an uploaded file into a trip, adopt it and save it before resolving. */
-  async importFile(text: string, filename: string): Promise<Trip> {
+  /**
+   * Import a file and store it, returning **what happened to the save**.
+   *
+   * It used to return the trip and swallow the write result: a quota or blocked
+   * store left the caller showing "Importert: …" while the status line said
+   * nothing had been stored. The caller now decides what to say.
+   */
+  async importFile(text: string, filename: string): Promise<{ trip: Trip; save: SaveStatus }> {
     await this.ready;
     if (!this.store) {
       throw new StoreError('unsupported', this.storeError ?? 'storage unavailable');
     }
     const trip = this.store.fromFile(text, filename);
     this.adopt(trip, { save: 'manual' });
-    // Awaited so the caller (and the library list) sees the saved row; a failed
-    // write is reported through the status line, not thrown at the importer.
-    await this.saveNow();
-    return trip;
+    // Awaited so the caller (and the library list) sees the saved row.
+    const save = await this.saveNow();
+    return { trip, save };
   }
 
   exportGpx(options?: { legIds?: readonly string[]; includeElevation?: boolean }): string | null {
@@ -581,5 +734,24 @@ export class TripSession {
   private setStatus(status: SaveStatus): void {
     this.status = status;
     this.onChangeListener?.(this);
+  }
+}
+
+/**
+ * Open a trip for the boot path.
+ *
+ * The library reports a corrupt body to the user, because they asked to open that
+ * row. Boot did not ask: a trip this browser merely remembers going unreadable is a
+ * reason to show the empty state, not to abort startup with "the app could not
+ * start" — so every failure here means "nothing to reopen".
+ */
+export async function openForBoot(
+  session: Pick<TripSession, 'open'>,
+  id: string,
+): Promise<Trip | null> {
+  try {
+    return await session.open(id);
+  } catch {
+    return null;
   }
 }

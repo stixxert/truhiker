@@ -160,6 +160,11 @@ export class SnapService {
         // Stop the requests still in flight: a late answer would otherwise land in
         // the index after the user has been told the network is unavailable.
         this.prefetcher.cancel();
+        // Drop the queued viewport too. It arrived while this run hung, and running
+        // it would restart the deadline and hide the failure banner for another
+        // dozen seconds: the queue is follow-up work, not a second attempt at a
+        // service that has already failed. The next pan is the retry.
+        this.queued = null;
         this.state = 'failed';
         this.errorKind = 'timeout';
         this.error = `the trail service did not answer within ${Math.round(this.deadlineMs / 1000)} s`;
@@ -184,6 +189,7 @@ export class SnapService {
         this.state = 'ready';
       }
     } catch (error) {
+      this.queued = null;
       this.state = 'failed';
       this.errorKind = 'failed';
       this.error = messageOf(error);

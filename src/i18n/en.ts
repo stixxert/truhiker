@@ -128,12 +128,15 @@ export const en: Record<MessageKey, string> = {
   'store.corrupt': 'The saved trips could not be read because the data is damaged.',
   'store.unsupported':
     'This browser does not allow storage here. That happens in private mode or when storage is blocked.',
+  'store.corruptTrip':
+    'This trip cannot be read from storage ({message}). Delete it and import the GPX again.',
   'store.notFound': 'That trip no longer exists.',
   'store.generic': 'Something went wrong: {message}',
   'store.indexUnreadable': 'The trip library could not be read.',
 
   'trips.open': 'Trips',
   'trips.title': 'Saved trips',
+  'trips.loading': 'Reading trips …',
   'trips.empty':
     'No trips are saved yet. Open a GPX file or draw a route and it is saved here automatically.',
   'trips.untitled': 'Untitled',
@@ -151,7 +154,7 @@ export const en: Record<MessageKey, string> = {
   'trips.duplicateSuffix': '(copy)',
   'trips.delete': 'Delete',
   'trips.deleteConfirm': 'Delete “{name}”? This cannot be undone.',
-  'trips.exportGpx': 'Export GPX',
+  'trips.exportGpx': 'Download GPX',
   'trips.exportGeoJson': 'Export GeoJSON',
   'trips.import': 'Import file',
   'trips.newTrip': 'New trip',
@@ -159,7 +162,7 @@ export const en: Record<MessageKey, string> = {
   'trips.dropHint': 'Drop a GPX or GeoJSON file here, or choose a file.',
   'trips.imported': 'The trip “{name}” was imported.',
   'trips.importFailed': 'Import failed: {message}',
-  'trips.current': 'open now',
+  'trips.current': 'currently open',
   'trips.settings': 'Trip settings',
   'trips.engineMissing': 'The trip library is unavailable in this build.',
   'trips.actionsFor': 'Actions for {name}',
@@ -204,8 +207,7 @@ export const en: Record<MessageKey, string> = {
   'weather.beyondHorizon': 'outside the forecast horizon',
   'weather.dayUnavailable': 'not available',
   'weather.noValues': 'no values',
-  'weather.noTrip':
-    'Load a route first and the weather for each day is shown.',
+  'weather.noTrip': 'Load a trip to see the forecast for each day.',
   // D12: alerts are deliberately not implemented, and silence is not safety.
   'weather.alertsUnsupported':
     'Warnings for avalanche, flood and severe weather are not supported in this version. The absence of a warning does not mean it is safe.',
@@ -243,8 +245,8 @@ export const en: Record<MessageKey, string> = {
   'editor.title': 'Route editing',
   'editor.mode': 'Mode',
   'editor.snapState.off': 'Snap off',
-  'editor.snapState.loading': 'Load trails…',
-  'editor.snapState.failed': 'Trails failed',
+  'editor.snapState.loading': 'Loading trails…',
+  'editor.snapState.failed': 'Trails unavailable',
   'editor.snapState.idle': 'No trails',
   'editor.snapState.hit': 'Snapped',
   'editor.snapState.miss': 'Off trail',
@@ -255,10 +257,12 @@ export const en: Record<MessageKey, string> = {
   'editor.closePanel': 'Close editing',
   'editor.legsTitle': 'Legs',
   'editor.noLegs': 'No legs yet — draw the first point on the map.',
-  'editor.tripSummaryOne': '1 leg · {distance} · {points} points',
-  'editor.tripSummaryMany': '{legs} legs · {distance} · {points} points',
+  'editor.pointsOne': '{n} point',
+  'editor.pointsMany': '{n} points',
+  'editor.tripSummaryOne': '1 leg · {distance} · {points}',
+  'editor.tripSummaryMany': '{legs} legs · {distance} · {points}',
   'editor.legRowName': 'Leg {n}',
-  'editor.legRowMeta': '{distance} · {points} points',
+  'editor.legRowMeta': '{distance} · {points}',
   'editor.view': 'View',
   'editor.draw': 'Draw',
   'editor.edit': 'Edit',
@@ -275,7 +279,8 @@ export const en: Record<MessageKey, string> = {
   'banner.trailsFailed': 'The trail network could not be loaded. You can still draw, but points will not snap to trails.',
   'banner.trailsRetry': 'Try again',
   'editor.snapIdle': 'the trail network loads when you draw or edit',
-  'editor.snapReady': 'trail network loaded – move the pointer over the map to see what it snaps to',
+  'editor.snapReady': 'Trail network loaded. Hover over the map to see what a point will snap to.',
+  'editor.offTrailOne': 'one stretch outside a mapped trail',
   'editor.offTrail': '{count} stretches outside a mapped trail',
   'editor.offTrailNone': 'the whole route follows recorded trails',
   'editor.offTrailUnknown':
@@ -289,10 +294,10 @@ export const en: Record<MessageKey, string> = {
   'editor.deleteLeg': 'Delete leg',
   'editor.legName': 'Leg name',
   'editor.renameApply': 'Save name',
-  'editor.reroute': 'Follow trails',
+  'editor.reroute': 'Snap selection to trail',
   'editor.rerouteHint':
-    'Snap span to trail moves the points in the selected span to the nearest foot trail within the radius and replaces continuous runs with that trail’s line – it does not find new paths, and where no trail is close enough the point stays outside a mapped trail.',
-  'editor.rerouteNeedsSnap': 'Snapping a span to a trail needs the trail network to be loaded.',
+    'Moves the points in the selection to the nearest mapped trail within the radius and replaces continuous runs with that trail’s line. It does not find new paths; where no trail is close enough the point stays outside a mapped trail.',
+  'editor.rerouteNeedsSnap': 'Snapping a selection to a trail needs the trail network to be loaded.',
   'editor.route': 'Route between points',
   'editor.routeHint': 'Find a route between two points along Turrutebasen',
   'route.pickStart': 'Click the start point on the map. Escape cancels.',
@@ -308,14 +313,15 @@ export const en: Record<MessageKey, string> = {
   'route.needsLeg': 'Open or draw a leg first.',
   'route.failed': 'The route could not be added.',
   'editor.rerouteNoTrail':
-    'No trail was found within the radius. The span is unchanged and marked as outside a mapped trail.',
+    'No trail was found within the radius. The selection is unchanged and marked as outside a mapped trail.',
   'editor.selectHint':
     'Click a point to select it. Shift-click another point to select a span.',
-  'editor.drawHint': 'Click the map to add points. Double-click, or Finish, ends the leg.',
+  'editor.drawHint': 'Click the map to add points. Double-click or press Finish to end the leg.',
   'editor.finish': 'Finish',
   'editor.viewHint': 'Switch to Edit to move points, or Draw to add new ones.',
   'editor.engineMissing': 'Editing is unavailable in this build.',
   'editor.noTrip': 'There are no legs to edit.',
+  'editor.vertexCountOne': '{n} point',
   'editor.vertexCount': '{n} points',
   'editor.selection': '{leg}: point {from} of {total}',
   'editor.selectionSpan': '{leg}: points {from}–{to}',
@@ -354,7 +360,7 @@ export const en: Record<MessageKey, string> = {
   'settings.sexRequired': 'Choose one option.',
   'settings.supportRequired': 'Choose a support model.',
   'settings.saved': 'Trip settings saved.',
-  'settings.missingTrip': 'Open or load a route before changing trip settings.',
+  'settings.missingTrip': 'Open or import a trip before changing its settings.',
   'settings.engineMissing': 'Trip settings are unavailable in this build.',
 
   'banner.enginesMissing':
@@ -391,6 +397,9 @@ export const en: Record<MessageKey, string> = {
   'banner.demFailed': 'Elevation data is unavailable: {message}',
   'banner.workerFailed': 'The elevation calculation stopped: {message}',
   'banner.welcome': 'The map is ready.',
+  'banner.importing': 'Reading {name} …',
+  'banner.importNotSaved':
+    '“{name}” was opened but not saved in this browser. Download it as GPX if you want to keep it.',
   'banner.fileTooLarge': 'The file is too large ({size} MB). Maximum {max} MB.',
   'banner.mapFailed': 'The map could not start: {message}',
 
@@ -399,6 +408,8 @@ export const en: Record<MessageKey, string> = {
     'or open one from the menu. Your route stays in your browser — no account, nothing uploaded.',
   // B4: the route itself never leaves the browser, but positions from it are
   // sent to fetch elevation, trails and weather. Say both, precisely.
+  'empty.savedOne': '1 saved trip — open Trips in the menu to load it.',
+  'empty.saved': '{n} saved trips — open Trips in the menu to load one.',
   'empty.privacy':
     'The route is stored only in this browser. To fetch elevation, trails, weather and 3D terrain the app sends positions from the route to Kartverket, MET, hoydedata.no and Mapterhorn. No account, no tracking.',
 
@@ -439,6 +450,8 @@ export const en: Record<MessageKey, string> = {
     'Resupply points (shops, fuel stations, post): © OpenStreetMap contributors, ODbL 1.0. The file is a derivative database and can be downloaded.',
   'about.osmLink': 'openstreetmap.org/copyright',
   'about.odblLink': 'ODbL 1.0',
+  'about.dataDownload': 'Download the dataset (175 kB)',
+  'about.odblText': 'Licence text',
   'about.osmNote':
     'The resupply points are an OSM extract of shops, fuel stations and post points. Opening hours are not stored in the file — only whether OSM had them.',
   'about.privacyTitle': 'Storage and privacy',
@@ -449,14 +462,14 @@ export const en: Record<MessageKey, string> = {
   'supply.title': 'Resupply and energy',
   'supply.tabResupply': 'Resupply',
   'supply.tabEnergy': 'Energy',
-  'supply.radius': 'Corridor',
+  'supply.radius': 'Corridor width',
   'supply.radiusOption': '{km} km',
   'supply.radiusHint':
     'Points within the corridor along the route. The default is 5 km; increase it to see what exists nearby. Huts are always fetched within 5 km. The detour is shown per point and never added to the distance.',
   'supply.refresh': 'Refresh',
   'supply.legsTitle': 'Legs',
   'supply.warningsTitle': 'Caveats',
-  'supply.engineWarnings': 'Engine notes (English, verbatim)',
+  'supply.engineWarnings': 'Details from the planner (in English)',
   'supply.pointsTitle': 'Points along the route',
   'supply.noTrip': 'No trip is loaded. Open a GPX file or draw a new route.',
   'supply.noRoute': 'The trip has no route geometry, so there is no corridor to search.',
@@ -486,7 +499,7 @@ export const en: Record<MessageKey, string> = {
   'supply.anchorEnd': 'End',
   'supply.legNumbers': '{distance} · {days} · {kcal} kcal · {kg} kg food · {cost} NOK',
   'supply.carryWarning':
-    'Carry {kg} kg for {days}. You can carry food for at most {max} days.',
+    'Carry {kg} kg for {days}. The most you can carry is {max}.',
   // D14: with no daily distance the plan assumes one, and says so on screen.
   'supply.warnDailyKmFallback':
     'No kilometres per day is set in the trip settings, so the plan assumes {km} km per day. Every day count below follows from that assumption.',
