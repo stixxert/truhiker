@@ -40,11 +40,11 @@ const DEFAULT_PIXEL_SIZE_M = 10;
 /**
  * Cell size, paired with the pixel size.
  *
- * Requests are latency-bound, not bandwidth-bound: 48 five-kilometre windows for
- * a 165 km route cost ~29 s at concurrency 6, while 12 twenty-kilometre windows
- * of the same data cost a quarter of that. Bigger cells only stay reasonable
- * because the pixel size grows at the same time — the pixel count per request is
- * what has to stay bounded (20 km at 30 m is 667x667).
+ * Requests are latency-bound, not bandwidth-bound: 47 five-kilometre windows for
+ * a 165 km route cost 28.8 s, while 11 twenty-kilometre windows of the same data
+ * cost 4.6 s. Bigger cells only stay reasonable because the pixel size grows at
+ * the same time — the pixel count per request is what has to stay bounded
+ * (20 km at 30 m is 667x667).
  */
 function cellSizeFor(pixelSizeM: number): number {
   if (pixelSizeM <= 10) return 5_000;
@@ -53,7 +53,7 @@ function cellSizeFor(pixelSizeM: number): number {
   return 20_000;
 }
 
-/** Four to six windows in flight: fast enough, polite enough. */
+/** Eight windows in flight: fast enough, polite enough. */
 const CONCURRENCY = 8;
 
 /** One cached source per pixel size: a 20 m raster cannot answer a 10 m job. */
@@ -109,21 +109,15 @@ scope.onmessage = (event: MessageEvent): void => {
       const total = countCells(points, cellSizeFor(pixelSizeM));
       let done = 0;
 
-      // Progress without changing the core: wrap the window loader, which is
-      // called exactly once per distinct cell (the class de-duplicates, and a
-      // cached cell still resolves through here on a repeat job).
-      const loadWindow = source.getWindow.bind(source);
-      source.getWindow = (ix: number, iy: number) => {
-        const promise = loadWindow(ix, iy);
-        return promise.then((raster) => {
+      // Progress comes from a per-call hook, never from patching the shared
+      // source: jobs overlap (a cancelled job keeps computing), and per-instance
+      // state let one job's restore detach another job's wrapper mid-run.
+      const elevations = await source.sampleElevations(points.slice(), {
+        onWindow: () => {
           done++;
           scope.postMessage({ type: 'progress', jobId, phase: 'download', done, total });
-          return raster;
-        });
-      };
-
-      const elevations = await source.sampleElevations(points.slice());
-      source.getWindow = loadWindow;
+        },
+      });
       // Everything is downloaded; what remains is the profile maths on the main
       // thread. Saying so is the difference between "still waiting" and "done in
       // a moment".

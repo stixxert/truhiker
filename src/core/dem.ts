@@ -38,10 +38,23 @@ interface DemRaster extends Raster {
   sampleUtm(x: number, y: number): number;
 }
 
+/** Per-call options for one `sampleElevations` run. */
+export interface SampleElevationsOptions {
+  /**
+   * Called once for every cell's window as it resolves — a cached window counts
+   * too, because the cell still had to be resolved.
+   *
+   * It is a per-call closure on purpose: overlapping calls on one source must not
+   * share it, which mutable instance state (or wrapping `getWindow` on the
+   * instance) cannot promise.
+   */
+  onWindow?: () => void;
+}
+
 /** The one thing the profile pipeline needs from an elevation provider. */
 export interface ElevationSource {
   /** Elevation (metres) for each point, in the same order. `NaN` = NoData. */
-  sampleElevations(points: LonLat[]): Promise<number[]>;
+  sampleElevations(points: LonLat[], options?: SampleElevationsOptions): Promise<number[]>;
 }
 
 /** Pixel dimensions for a DEM window. */
@@ -360,7 +373,10 @@ export class HoydedataDem implements ElevationSource {
     }
   }
 
-  async sampleElevations(points: LonLat[]): Promise<number[]> {
+  async sampleElevations(
+    points: LonLat[],
+    options: SampleElevationsOptions = {},
+  ): Promise<number[]> {
     const out = new Array<number>(points.length).fill(Number.NaN);
     if (points.length === 0) return out;
 
@@ -379,9 +395,13 @@ export class HoydedataDem implements ElevationSource {
     }
 
     const list = [...cells.values()];
-    const rasters = await mapWithConcurrency(list, this.concurrency, (cell) =>
-      this.getWindow(cell.ix, cell.iy),
-    );
+    const rasters = await mapWithConcurrency(list, this.concurrency, async (cell) => {
+      const raster = await this.getWindow(cell.ix, cell.iy);
+      // Report from inside *this* call's mapper: the closure belongs to the call,
+      // so an overlapping call has its own counter and neither can detach the other.
+      options.onWindow?.();
+      return raster;
+    });
 
     for (let c = 0; c < list.length; c++) {
       const raster = rasters[c];

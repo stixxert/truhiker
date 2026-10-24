@@ -46,6 +46,41 @@ function syntheticServer(options: { width?: number; height?: number; noData?: nu
   return state;
 }
 
+/**
+ * The same fake service, but every response is held until it is released.
+ *
+ * This is what makes two `sampleElevations` calls genuinely overlap: both issue
+ * their window requests before either can finish, and the test chooses which one
+ * completes first.
+ */
+function gatedServer(): {
+  fetch: typeof fetch;
+  waiting: () => number;
+  issued: () => number;
+  /** Resolve the oldest (`first`) or newest (`last`) held response. */
+  release: (order?: 'first' | 'last') => void;
+} {
+  const inner = syntheticServer();
+  const waiters: Array<() => void> = [];
+  let issued = 0;
+  const fetchImpl = (async (input: Parameters<typeof fetch>[0]) => {
+    issued++;
+    await new Promise<void>((resolve) => {
+      waiters.push(resolve);
+    });
+    return inner.fetch(input);
+  }) as typeof fetch;
+  return {
+    fetch: fetchImpl,
+    waiting: () => waiters.length,
+    issued: () => issued,
+    release: (order = 'first') => {
+      const resolve = order === 'first' ? waiters.shift() : waiters.pop();
+      resolve?.();
+    },
+  };
+}
+
 describe('demExportUrl', () => {
   it('carries the ArcGIS exportImage parameters the service requires', () => {
     const url = new URL(demExportUrl(BBOX, { width: 128, height: 64 }));
@@ -227,5 +262,74 @@ describe('HoydedataDem.sampleElevations (synthetic service)', () => {
     const dem = new HoydedataDem({ fetchImpl: server.fetch });
     await expect(dem.sampleElevations([{ lon: 40, lat: 60 }])).rejects.toThrow(/central meridian/);
     expect(server.calls).toBe(0);
+  });
+
+  it('gives each of two overlapping calls its own window hook, however they finish', async () => {
+    // Two routes far apart, so their 5 km cells are disjoint: a hook that saw the
+    // other call's windows would over-count.
+    const routeA: LonLat[] = [
+      { lon: 8.3124, lat: 61.6363 },
+      { lon: 8.5124, lat: 61.7563 },
+    ];
+    const routeB: LonLat[] = [
+      { lon: 9.2, lat: 62.1 },
+      { lon: 9.45, lat: 62.28 },
+      { lon: 9.32, lat: 62.34 },
+    ];
+    const cellsOf = (points: readonly LonLat[]): number => {
+      const seen = new Set<string>();
+      for (const point of points) {
+        const { x, y } = toUtm33(point);
+        seen.add(`${Math.floor(x / 5000)},${Math.floor(y / 5000)}`);
+      }
+      return seen.size;
+    };
+    const cellsA = cellsOf(routeA);
+    const cellsB = cellsOf(routeB);
+    expect(cellsA).toBeGreaterThan(1);
+    expect(cellsB).toBeGreaterThan(1);
+    // Different sizes, so a hook that reported the other call's cells cannot match.
+    expect(cellsA).not.toBe(cellsB);
+
+    for (const order of ['first', 'last'] as const) {
+      const server = gatedServer();
+      const dem = new HoydedataDem({ fetchImpl: server.fetch });
+      let hookA = 0;
+      let hookB = 0;
+      const a = dem.sampleElevations(routeA, {
+        onWindow: () => {
+          hookA++;
+        },
+      });
+      const b = dem.sampleElevations(routeB, {
+        onWindow: () => {
+          hookB++;
+        },
+      });
+
+      // Both calls have issued every request and neither has answered: the two
+      // hooks are live at the same time, on one source.
+      expect(server.waiting()).toBe(cellsA + cellsB);
+      expect(hookA + hookB).toBe(0);
+
+      while (server.waiting() > 0) server.release(order);
+      const [elevA, elevB] = await Promise.all([a, b]);
+      expect(elevA).toHaveLength(routeA.length);
+      expect(elevB).toHaveLength(routeB.length);
+      // Each hook counted exactly its own call's cells, and nothing else.
+      expect({ hookA, hookB }).toEqual({ hookA: cellsA, hookB: cellsB });
+
+      // A cached window still reports — the worker's denominator is per call, so a
+      // repeat job has to reach its total too.
+      const before = server.issued();
+      let hookCached = 0;
+      await dem.sampleElevations(routeA, {
+        onWindow: () => {
+          hookCached++;
+        },
+      });
+      expect(hookCached).toBe(cellsA);
+      expect(server.issued()).toBe(before);
+    }
   });
 });
