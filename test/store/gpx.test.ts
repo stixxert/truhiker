@@ -163,7 +163,8 @@ describe('GPX export', () => {
     expect(meta.copyright).toBe('Kartverket / Turrutebasen');
     expect(meta.licence).toBe('CC BY 4.0 ©Kartverket');
 
-    // The <desc> is the documented provenance carrier (docs/09 §2).
+    // The <desc> is where the provenance travels: schema version, elevation
+    // sources, attribution and one line per leg.
     const description = meta.description!;
     expect(description).toContain('Leg 1');
     expect(description).toContain('Memurubu–Bessheim');

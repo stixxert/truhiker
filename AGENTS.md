@@ -15,7 +15,7 @@ storage of routes. Deployment is static-only Cloudflare Workers.
 ## Commands
 
 ```bash
-npm install
+npm ci
 npm run dev            # Vite dev server
 npm test               # hermetic suite (no network)
 npm run test:live      # real Kartverket/MET requests, opt-in
@@ -26,7 +26,7 @@ npm run visual-check   # headless Chromium at 1440 and 390 under the real CSP
 npx wrangler deploy    # static deploy (no Worker script)
 ```
 
-`npm run verify` runs: typecheck, hermetic tests (budget: 320 cases, 12 s — currently ~3 s), build,
+`npm run verify` runs: typecheck, hermetic tests (budget: 320 cases, 12 s), build,
 bundle budget, a headless render and the e2e journey under workerd, the axe and
 keyboard accessibility gate, the blocked-network failure paths, i18n parity,
 licence audit, the hosting contract and a **deploy rehearsal** — a fresh clone built

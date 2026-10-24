@@ -11,8 +11,8 @@ const AT = Date.UTC(2026, 6, 1, 12, 32, 0);
 const status = (overrides: Partial<SaveStatus>): SaveStatus => ({ kind: 'dirty', ...overrides });
 
 /**
- * Grouped deliberately: the suite has a case budget (docs/11), and separate
- * cases for every (status × language) pair cost more than they protect. Each
+ * Grouped deliberately: the suite has a case budget (320 cases in the gate), and
+ * separate cases for every (status × language) pair cost more than they protect. Each
  * row still asserts what it used to; the store-error table lives here too
  * because it is the same "one visible sentence per failure" contract.
  */

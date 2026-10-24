@@ -47,8 +47,8 @@ describe('food catalogue', () => {
     expect(kcalPerNok(real)).toBeGreaterThanOrEqual(4.0);
     expect(kcalPerNok(real)).toBeLessThanOrEqual(4.4);
 
-    // docs/01 §D8: staples 70–125 kcal/NOK at conservative shelf prices;
-    // REAL ≈4.5 kcal/NOK. Our catalogue spans that.
+    // Staples bought at conservative shelf prices run 70–125 kcal/NOK against
+    // REAL's ≈4.5; the catalogue has to span that gap.
     expect(kcalPerNok(foodById('knekkebrod'))).toBeGreaterThan(20);
     expect(kcalPerNok(foodById('real-turmat'))).toBeLessThan(5);
     expect(kcalPerNok(foodById('havregryn'))).toBeGreaterThan(100);

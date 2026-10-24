@@ -11,7 +11,8 @@
  *  - a missing engine degrades visibly instead of breaking the import graph.
  *
  * If an engine's real signature gains an optional parameter, add it here (the
- * wrapper accepts it) — do not widen a parameter the spec marks as required.
+ * wrapper accepts it) — a parameter the contract marks as required is not to be
+ * widened.
  */
 
 import type { Leg, RouteEditor, RoutePoint, Trip, TripStore, UserProfile, WeatherPlan } from '../contracts';

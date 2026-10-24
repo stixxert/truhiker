@@ -226,14 +226,14 @@ of the leg (`RouteEditError` otherwise, thrown before anything is touched).
 
 ---
 
-## 8. Decisions where the spec was ambiguous
+## 8. Decisions where the contract is silent
 
 | Question | Choice |
 | --- | --- |
 | Delete a vertex below the two-point floor | throw `leg-too-short`; never silently delete the leg |
 | Merge command type | not in `EditCommand`; declared as `MergeLegsCommand` in `src/route/commands.ts`, accepted by `createEditor(...).apply`. Contract compatibility kept (an `EditCommand` is still a valid `RouteCommand`) |
 | Split vertex ownership | the vertex stays in **both** halves, so merge can drop the duplicate and restore the exact sequence |
-| Rename vs "provenance untouched" (§2 of the phase-3 spec) | existing entries are untouched, and an `edited` marker is appended — item 5 of this module's spec asks for it, and the two readings agree on everything else |
+| Rename vs "provenance untouched" | existing entries are untouched, and an `edited` marker is appended, so a rename is recorded without rewriting where the route came from |
 | Reroute hysteresis | not used — each vertex snaps independently within `radiusM` |
 | Elevation of reroute-inserted vertices | linear interpolation between the run's endpoint elevations, rounded to 0.1 m, source inherited from the endpoints (documented approximation; UI re-samples) |
 | Elevation of moved/inserted points | never invented: whatever the caller supplies; new points should carry `eleSource:'none'` until sampled |

@@ -37,7 +37,7 @@ date) and `tools/build-shops.mjs` regenerates the artefact and its provenance.
 Nothing under `data/` is in git — not the binary, not the provenance, and not the
 ODbL licence text, which `ensure-data` fetches into `data/ODbL-1.0.txt` and verifies
 against its own pin in the same manifest. The extract is 175 KB;
-rebuilding it from source needs the ~1.5 GB PBF, which is why the pin exists: a
+rebuilding it from source needs the ~1.4 GB PBF, which is why the pin exists: a
 fresh clone verifies the artefact it gets instead of trusting it. The bytes the
 deployment serves are the public ODbL copy, so they are the offer the licence
 requires.
@@ -57,7 +57,7 @@ requires.
 | `i18n` | typed NO/EN dictionaries, `Intl` formatting |
 | `workers` | the DEM sampling worker |
 | `contracts` | the document types every other module implements: `Trip`, `Leg`, `RoutePoint`, `EditCommand`, `Provenance` |
-| `lib` | the glue the layers share: route geometry, elevation client, share encoding, GPX metadata, chart, cross-tab sync, format, ids |
+| `lib` | the glue the layers share: route geometry, elevation client, share encoding, GPX metadata, chart, map↔profile cursor sync, format, ids |
 
 ## Invariants
 
@@ -86,8 +86,9 @@ IndexedDB database `truhiker`:
 - per-trip ceiling 50 MB; localStorage fallback is 1.5 MB and says so;
 - migration from the old localStorage keys runs once, after commit.
 
-A 3,000 km / 100,000-point trip (8.0 MB) is an acceptance test: save ~64 ms,
-load ~26 ms in Chromium.
+A 3,000 km / 100,000-point trip is an acceptance test in the hermetic suite
+(fake-indexeddb); its save and load timings are logged rather than asserted,
+because a shared runner cannot promise a millisecond.
 
 ## Accessibility
 
@@ -100,9 +101,12 @@ The keyboard path is asserted, not assumed: on mobile, Tab reaches the menu
 toggle, Space opens it, Tab reaches Forsyning, Enter opens the panel and moves
 focus to its first tab, Escape closes it and returns focus to the trigger. On
 desktop, Tab reaches the elevation profile without a pointer (about thirty
-presses from a fresh load), ArrowRight/ArrowLeft move the cursor — `aria-valuenow`
-counts metres along the route — and the position is re-announced through
-`aria-valuetext`. No pointer event is used anywhere in the journey.
+presses from a fresh load), and the gate then presses Home (the cursor goes to
+0), ArrowRight (it moves forward), ArrowLeft (it returns to where it was) and
+End (it reaches `aria-valuemax`), reading `aria-valuenow` and `aria-valuemax`
+along the way. `aria-valuetext`, which says where the cursor is in words, is set
+for screen readers but the gate does not assert it. No pointer event is used
+anywhere in the journey.
 
 The gate found a real defect on its first run: every resupply row carried an
 `aria-label` whose wording did not match the visible row, failing WCAG 2.5.3
@@ -137,8 +141,10 @@ the canvas and the empty state, which is what a first visit actually shows.)
 
 Cloudflare Workers **Static Assets** only: `wrangler.jsonc` has no `main`.
 Static-asset requests are free and unlimited; there is no dynamic budget to
-exhaust. Bundle: 18 files, ~605 KB brotli against a 620 KB gate and a
-20,000-file ceiling — 15 KB of headroom, not room.
+exhaust. Bundle: 22 files; 0.60 MB brotli for what a visitor downloads against a
+620 KB gate, plus a 0.04 MB share card that no page references (link-preview
+crawlers fetch it; the whole deployment has a 700 KB cap) — single-digit KB of
+headroom, not room — against a 20,000-file ceiling.
 
 `npm run verify` runs the gate, in order: preflight, typecheck, hermetic tests
 (≤320 cases, ≤12 s), build, dist budget, a headless render at two breakpoints under
@@ -208,5 +214,7 @@ secrets before the first `deploy:cron`.
   both (31 % vs 67 % in Jotunheimen, 7 % vs 72 % in Reisadalen) and made the
   union worse as soon as it was deduplicated against Turrutebasen. See D25.
 - No offline mode; the app is a planning tool, not a trail companion.
-- Elevation is mainland Norway only.
+- Elevation is mainland Norway inside the UTM 33 window (west of 27°E) only. The
+  far north-east is UTM zone 35, which the EPSG:25833 DEM cannot answer for; such a
+  route is reported as outside the model, not guessed.
 - Hut food status is not machine-readable; the app will not guess it.

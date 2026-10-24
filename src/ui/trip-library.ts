@@ -1,10 +1,11 @@
 /**
  * The saved-trip library dialog.
  *
- * One row per trip with the six actions the spec asks for. Rename and delete
- * happen inline (a native `<dialog>` with a `confirm()` inside it is a worse
- * experience and blocks the whole page); every other action is a callback, so
- * the session — not the dialog — decides how to open, duplicate or export.
+ * One row per trip with six actions: open, rename, duplicate, delete, and export
+ * as GPX or GeoJSON. Rename and delete happen inline (a native `<dialog>` with a
+ * `confirm()` inside it is a worse experience and blocks the whole page); every
+ * other action is a callback, so the session — not the dialog — decides how to
+ * open, duplicate or export.
  *
  * Import accepts a file picker and drag-and-drop. Failures are the caller's to
  * translate: `onImport` receives the `File` and the app surfaces the

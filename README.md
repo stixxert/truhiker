@@ -5,6 +5,9 @@ route, and get the elevation, the resupply gaps, the food you have to carry and 
 weather the walk will face — and, where the data does not know something, the word
 *unknown* rather than a plausible number.
 
+**[Try it at truhiker.stixxert.dev](https://truhiker.stixxert.dev)** — it runs in the
+browser, with nothing to install and no account.
+
 ![TruHiker showing a Memurubu–Glitterheim route with the resupply panel and elevation profile open](docs/screenshots/truhiker.jpg)
 
 ## What it does
@@ -33,21 +36,31 @@ These are the rules the product is built around, and the tests pin them:
   an unmanned fuel station counts for nothing;
 - a partial ascent is unknown, not a smaller number;
 - a route exists only where the fetched trail graph connects the endpoints;
-- every live source is named in the interface, with the time it answered.
+- every live source is named in the interface.
 
 ## Quick start
 
-Node 22.12 or newer (Vite 8's floor); a browser with WebGL2. Trips are stored in
-IndexedDB, with a localStorage fallback.
+Node 22.12 or newer (the floor in `package.json`); a browser with WebGL2. Trips
+are stored in IndexedDB, with a localStorage fallback.
 
 ```bash
 npm ci
-npm run dev            # http://localhost:5173
+npx playwright install chromium   # only needed for `npm run verify`
+npm run dev                       # http://localhost:5173
 ```
 
-The resupply points are built rather than committed, so a fresh clone needs them
-once: `npm run refresh:shops` downloads the OpenStreetMap extract and builds the
-file. If anything is missing, the first command tells you what and how to fix it.
+The resupply points are built rather than committed, so a fresh clone has to
+obtain them once. The cheapest way is to fetch a published copy, which is
+verified against the pin in `tools/data-manifest.json` (~175 KB):
+
+```bash
+TRUHIKER_DATA_URL=https://truhiker.stixxert.dev npm run build
+```
+
+Without a deployment to fetch from, `npm run refresh:shops` downloads the
+national OpenStreetMap extract (~1.4 GB) and builds the file, and
+`OSM_PBF=… npm run data:build` rebuilds it from an extract you already have. If
+anything is missing, the first command says what and how to fix it.
 
 ```bash
 npm run build          # typecheck, bundle, copy data and notices into dist/
@@ -114,10 +127,11 @@ and MET (weather) — and nothing else leaves the browser.
   reasoning is D25 in [docs/DECISIONS.md](docs/DECISIONS.md).
 - **Drawing** is click-by-click, and a step that snaps at both ends follows the
   trail. Double-click, or **Fullfør**, ends the leg. There is no freehand mode and
-  no keyboard way to place a vertex; dragging a vertex needs a pointer, and on
-  touch a vertex can be selected but not yet dragged.
-- **Elevation** covers mainland Norway. A long route can take tens of seconds to
-  profile; the panel says *Henter høydedata …* while it does.
+  no keyboard way to place a vertex; dragging a vertex needs a pointer.
+- **Elevation** covers mainland Norway inside the UTM 33 window, so west of 27°E;
+  the far north-east is zone 35 and is reported as outside the model rather than
+  guessed. A long route can take tens of seconds to profile; the panel says
+  *Henter høydedata …* while it does.
 - **Weather** stops at MET's horizon; outside it there are no numbers.
 - **Saving** is local and debounced by one second, so an edit made in the last
   moment before you close the tab can be lost. Nothing is uploaded anywhere.

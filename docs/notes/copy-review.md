@@ -1,9 +1,9 @@
 # Copy review
 
 > **Historical record (kept on purpose).** Several keys named below — the `demo.*`
-> family, `action.demo`, `route.demo*`, `banner.demoFailed`, `about.demo` and
-> `about.turrutebasen` — no longer exist: the bundled demo route was removed in
-> D26. The findings about the remaining strings still stand.
+> family, `action.demo`, `route.demo*`, `banner.demoFailed` and `about.demo` — no
+> longer exist: the bundled demo route was removed in D26. The findings about the
+> remaining strings still stand.
 
 Every user-visible string in `src/i18n/no.ts`, `src/i18n/en.ts` and the static
 fallbacks in `index.html` was read as a pair, key by key, against
@@ -46,9 +46,9 @@ support, in the same voice in both languages, without softening it?
   all four destinations in both languages, including 3D terrain (Mapterhorn). The
   fallbacks previously disclosed less than the strings that replace them.
 - `editor.reroute*` — "Reroute" was an English verb in the Norwegian UI and
-  implied finding a new route, which the feature does not do. Now "Fest til sti" /
-  "Snap span to trail", and the hint ends "utenfor sti" / "outside a mapped trail"
-  instead of reviving the old "avstikk" terminology.
+  implied finding a new route, which the feature does not do. Now "Snapp utvalg
+  til sti" / "Snap selection to trail", and the hint ends "utenfor sti" /
+  "outside a mapped trail" instead of reviving the old "avstikk" terminology.
 - `demo.note` — "ekte spor" / "real geometry" aligned to "ekte stigeometri" /
   "real trail geometry", the term used in `about.demo`.
 - `banner.hashTooLong` — "Last opp filen" / "Upload the file" → "Åpne filen" /
@@ -80,8 +80,9 @@ support, in the same voice in both languages, without softening it?
 ## Voice and terminology parity
 
 - English used "mass" and "weight" for the same quantity (`settings.mass`,
-  `energy.packMass`, `energy.massTitle`); all three now say "weight". Norwegian
-  already used "vekt" throughout.
+  `energy.packMass`, `energy.massTitle`, `energy.massNoChange`,
+  `energy.packMassHint`); all five say "weight" now. Norwegian already used
+  "vekt" throughout.
 - `stats.elevationSource` — Norwegian "Høydedata" ("elevation data") → 
   "Høydedatakilde" ("elevation source"), matching the English and the badge it
   labels.
@@ -117,8 +118,6 @@ support, in the same voice in both languages, without softening it?
   payload size, `SaveStatus` passes it through, and `save.quotaSize` /
   `store.quotaSize` say "turen er 8,4 MB" / "the trip is 8.4 MB" when it is known.
   The unsized strings remain as the fallback for errors that carry no size.
-- `README.md` "Limits" now says a hut never counts as resupply **unless you opt
-  in** (D1), which is what `supply.warnHutsCounted` describes.
 
 ## Stated limitations, not hidden
 
@@ -154,7 +153,8 @@ does not connect the points — there is no "as the crow flies" wording anywhere
 
 ## Evidence
 
-- `npm run i18n` — 451 keys in both languages, identical placeholder sets, no
-  Nynorsk forms, no hardcoded UI text.
+- `npm run i18n` — 451 keys in both languages at the time of this review (the
+  dictionaries hold more now), identical placeholder sets, no Nynorsk forms, no
+  hardcoded UI text.
 - `npm run verify` — PASS, including the i18n, accessibility and failure-path
   gates.

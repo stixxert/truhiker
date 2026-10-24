@@ -95,8 +95,9 @@ interface SnapOptions {
   radiusM?: number;
   /**
    * Distance within which an existing snap on `currentLineId` is kept, metres.
-   * Default 120 (1.6 × the default radius; the spec asks for at least 1.5 ×).
-   * Must be >= `radiusM`.
+   * Omitted, it is `max(120, 1.5 × radiusM)`, so a very small radius does not
+   * make an existing snap flicker — for the default 75 m radius that is 120 m
+   * (1.6 × the radius, D5). Must be >= `radiusM`.
    */
   stickyRadiusM?: number;
   /**

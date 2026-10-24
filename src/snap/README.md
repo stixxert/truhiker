@@ -72,8 +72,8 @@ absence.
 Geometry arrives as `gml:LineString/gml:posList` with
 `srsName="urn:ogc:def:crs:EPSG::4258"` (ETRS89) and **lat lon** ordinates.
 `parsePosList()` resolves the order from `srsName` and rejects a list whose
-“latitude” is outside ±90° (the signature of a swap). Note the spec says
-`srsName` is EPSG:4326; live responses use EPSG:4258 — the parser handles both
+“latitude” is outside ±90° (the signature of a swap). Live responses declare
+EPSG:4258 rather than EPSG:4326 — the parser handles both
 `urn:ogc:def:crs:EPSG::4258` and `::4326`, and CRS84/lon-lat forms.
 
 ### 5. Counts lie

@@ -12,7 +12,8 @@
  *  - listing it does not require reading the body.
  *
  * No wall-clock assertion: the timings are logged for `docs/ARCHITECTURE.md` only,
- * because a time budget in a test is a flake with a delay (docs/11 §2.3).
+ * because a time budget in a test is a flake with a delay — a shared runner cannot
+ * promise a millisecond.
  */
 import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';

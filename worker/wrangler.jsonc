@@ -4,10 +4,12 @@
   "main": "cron.ts",
   "compatibility_date": "2026-10-01",
 
-  // Monthly resupply refresh, and one retry three days later in case the first
-  // build fails (Geofabrik mirror hiccup, or a transient Workers Builds error).
-  // Cron invocations are ordinary Worker invocations: free plan, 10 ms CPU — and
-  // this one only POSTs a Deploy Hook, which is well under a millisecond of CPU.
+  // Monthly resupply refresh, plus a second run three days later.
+  //
+  // The Worker is stateless — it has no bindings — so the second run cannot tell
+  // whether the first succeeded: it always runs. A redundant rebuild of an
+  // extract that is three days older is cheaper than a month with no refresh
+  // after one failed build, and the logs make a rejected hook visible either way.
   "triggers": {
     "crons": ["0 4 1 * *", "0 4 4 * *"]
   },

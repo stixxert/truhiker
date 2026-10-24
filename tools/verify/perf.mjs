@@ -6,9 +6,10 @@
  *   npm run perf
  *
  * Budgets: first contentful paint < 1500 ms, map interactive (a rendered canvas
- * and a numeric stat) < 8000 ms, JS transfer < 500 KB. The build is served by the
- * same static server the visual gate uses, so the numbers are comparable between
- * runs; the live kartverket/MET requests are throttled with everything else.
+ * and the empty state or a route name) < 8000 ms, JS transfer < 500 KB. The build
+ * is served by the same static server the visual gate uses, so the numbers are
+ * comparable between runs; the live kartverket/MET requests are throttled with
+ * everything else.
  */
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';

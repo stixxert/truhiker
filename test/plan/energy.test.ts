@@ -71,8 +71,8 @@ describe('BMR', () => {
 });
 
 describe('Galdhøpiggen-style worked example', () => {
-  // 75 kg walker, 15 kg pack, 30 km, 1200 m up and 1200 m down. This is the
-  // canonical NPL day from docs/01 §D8; the model must land in 4,200–5,300.
+  // 75 kg walker, 15 kg pack, 30 km, 1200 m up and 1200 m down: the worked day
+  // the model is checked against. It must land in 4,200–5,300 kcal.
   const day = estimateDay({
     body: MALE,
     packMassKg: 15,

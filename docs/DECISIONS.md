@@ -14,10 +14,11 @@ Turrutebasen gives a hut's position, name and maintainer, but not whether it is
 `betjent` (staffed), `selvbetjent` (self-service larder) or `ubetjent` (nothing at
 all). That classification exists only as prose on DNT's pages.
 
-- A hut never counts as a resupply point unless the user explicitly opts in.
+- A hut never counts as a resupply point in the app; the planning function
+  accepts an option to count huts, and no interface exposes it.
 - The UI labels it **"ikke bekreftet"** and links to DNT for the authoritative
   answer.
-- A resupply plan that relies on huts says so in its warnings.
+- A caller that passes the option gets a warning that names every hut it counted.
 
 **Why:** assuming food at an unstaffed cabin is the failure mode that ends a trip.
 An unknown that costs you a carried meal is survivable; an unknown that costs you
@@ -554,10 +555,13 @@ uses a fraction of a percent of the allowance, with room for retries.
 **Wiring.**
 
 - `worker/wrangler.jsonc` — the `truhiker-refresh` Worker: `crons: ["0 4 1 * *",
-  "0 4 4 * *"]` (1st of the month, plus a retry on the 4th in case Geofabrik or
-  the build is temporarily broken). No assets, no routes, so the site's
-  static-only contract in `wrangler.jsonc` is untouched and the hosting gate still
-  has nothing to waive.
+  "0 4 4 * *"]` (the 1st of the month, and a second run on the 4th). The Worker
+  is stateless, so the 4th cannot know whether the 1st succeeded: it always runs,
+  and a month whose first build worked pays one redundant rebuild three days
+  later. That is the price of not holding state in a Worker that has no bindings,
+  and it is cheaper than a month with no refresh. No assets, no routes, so the
+  site's static-only contract in `wrangler.jsonc` is untouched and the hosting
+  gate still has nothing to waive.
 - `worker/cron.ts` — `scheduled()` POSTs `env.DEPLOY_HOOK_URL` and logs the hook's
   status. A rejected hook returns 502 and says so in the log: a silent success
   would look like a refresh that happened. `POST /trigger` with an
@@ -797,7 +801,13 @@ geometry measures — even though the profile is sampled more coarsely.**
 - **Pinned by** `test/route.test.ts` ("reports the route's measured length, not
   the shorter sampled polyline"): the fixture's sampled polyline is measurably
   shorter, and the route still reports the measured length with increasing
-  distances.
+  distances. `buildProfile` takes those distances as an option and the app passes
+  them, so the profile's own total and x-axis share the number instead of
+  re-measuring the resampled polyline — the report that produced this decision
+  was the profile quietly disagreeing with the panel above it.
+- **Where the scaling lives:** `buildRoute` owns it. Any consumer that measures
+  the points again (the profile did) reintroduces a second number; callers that
+  need distances take `route.distances`.
 
 ## D28. The project licence is Apache 2.0, and the README does not mention it
 
@@ -813,3 +823,77 @@ geometry measures — even though the profile is sampled more coarsely.**
 - **Not in the README.** The README is a product page, and it had already been made
   to claim a licence the project did not have. A licence is a repository fact, not a
   selling point; changing it is a deliberate act on `LICENSE`, not a doc edit.
+
+## D29. The former name survives in on-disk identifiers, and stays there
+
+**Default: `npl` / `ruteanalyse` remain in stored keys and file formats; they are
+never renamed to match the product name.**
+
+The project was called `npl-map` before it was TruHiker. That name is baked into
+things a user's data depends on:
+
+| Where | Value |
+| --- | --- |
+| IndexedDB database | `npl:trips:v1` (and the `npl-snap` cache) |
+| GPX export namespace | `xmlns:npl="urn:npl-map:gpx:1"` |
+| Binary index magic | `NPLSHP01` |
+| localStorage | `ruteanalyse.lang`, `ruteanalyse.pace` |
+
+Renaming any of them is a data migration with a failure mode for every existing
+trip — a saved trip that no longer opens, or a GPX that a future reader cannot
+place. The GPX namespace is the worst case: it is in files users have already
+exported and shared, so the value is a public interface now. The cost of keeping
+it is one unexplained-looking string; the cost of changing it is somebody's data.
+
+**Pinned by** the store's migration and round-trip tests, which read and write
+these exact identifiers.
+
+## D30. Elevation covers the UTM 33 window, and says so beyond it
+
+**Default: a route is profiled only where the elevation model can answer for it —
+mainland Norway from 3°E to 27°E. A route east of that is refused with "outside
+the area the elevation model covers", not profiled with a guess and not reported
+as a network failure.**
+
+The elevation service publishes the national model on the EPSG:25833 grid. The
+far north-east of Norway (Vadsø, Vardø, Kirkenes, Grense Jakobselv) lies in UTM
+zone 35, more than 12° from the zone-33 central meridian; the projection this app
+uses refuses it, and the model is not the one being asked for.
+
+The bug this replaced was a disagreement, not a policy: the "is it supported?"
+box had `maxLon: 32` while the projection stopped at 27, so a route in Finnmark
+passed the check and then threw inside the DEM worker — reported to the user as a
+download failure, which invites a retry that can never work. The check and the
+projection now share one constant.
+
+**Why not request zone 35 as well:** it doubles the projection and tiling paths
+for an area the product has not been tested against, and it would still leave the
+honesty question open at the seam. A clear refusal is the smaller promise.
+
+**Pinned by** `test/route.test.ts` (a route at 30.05°E is outside, a route at
+26.9°E is inside) and `test/geo.test.ts` (every longitude the check accepts the
+projection can project, both edges included).
+
+## D31. Link previews name the public deployment, not the current host
+
+**Default: `index.html` carries absolute `canonical`, `og:url`, `og:image` and
+`twitter:image` URLs pointing at `https://truhiker.stixxert.dev/`.**
+
+Open Graph and Twitter cards require absolute URLs — a relative `og:image` is
+ignored by every consumer, which is why the first version shipped without a
+picture at all. The app is a static single page, so the only absolute origin it
+can know at build time is the one it is published at.
+
+The cost is that a **fork or a self-hosted copy** inherits our canonical and
+would offer our URL as the canonical version of its own page, and a link preview
+of a fork would show our card. That is the honest default for the project's own
+deployment; anyone publishing elsewhere should edit the six absolute URLs in
+`<head>` (and ideally set their own `og.jpg`). A build-time origin variable was
+rejected: it would make the shipped HTML depend on an environment the static
+deployment does not otherwise need, and the failure mode (a preview with no
+image, or one pointing at a wrong host) is silent.
+
+**Pinned by** `tools/verify/served-headers.mjs` and the hosting contract inside
+`tools/verify/verify.mjs`, which see the built HTML under the production CSP;
+`/og.jpg` is served with the same headers as any other asset and has its own
+licence rule in `tools/verify/licence-audit.mjs`.
