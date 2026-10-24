@@ -332,15 +332,44 @@ try {
     // Never fulfil: the route handler simply does not answer.
     // Returning without an action leaves the request stalled in Playwright; awaiting a
     // promise that never settles is explicit about it.
-    await hanging.route('**wfs.geonorge.no/**', () => new Promise(() => {}));
+    let wfsRequests = 0;
+    await hanging.route('**wfs.geonorge.no/**', () => {
+      wfsRequests += 1;
+      return new Promise(() => {});
+    });
     await hanging.route('**api.met.no/**', () => new Promise(() => {}));
     await hanging.goto(`${runtime.origin}/`, { waitUntil: 'domcontentloaded' });
+    // The page is behind the one the earlier steps used. A background tab has its
+    // animation frames throttled, and the assertions below poll the DOM — without
+    // this the deadline banner could be on screen and never observed.
+    await hanging.bringToFront();
     await importRoute(hanging);
-    // Zoom in explicitly: the prefetch is skipped below z10, and this step is about
-    // the deadline, not about whether the fit happened to land above the floor.
-    for (let i = 0; i < 6; i += 1) await hanging.click('#btn-zoom-in').catch(() => {});
-    await hanging.waitForTimeout(1200);
+    // Let the camera fit finish before touching the zoom: clicking during the
+    // easeTo could be swallowed, and the prefetch is skipped below z10 — the step
+    // then waited 60 s for a deadline that was never armed (the fit is 900 ms).
+    await hanging.waitForTimeout(1600);
+    for (let i = 0; i < 8; i += 1) {
+      await hanging.click('#btn-zoom-in').catch(() => {});
+      await hanging.waitForTimeout(150);
+    }
     await hanging.click('[data-mode="draw"]');
+    // The prefetch must actually be running before its deadline can be tested. If
+    // it is not, say that plainly instead of timing out on a banner that no code
+    // path was going to raise.
+    const prefetchStarted = await hanging
+      .waitForFunction(
+        () => /Laster stier|Loading trails/i.test(document.body.innerText),
+        undefined,
+        { timeout: 15_000, polling: 250 },
+      )
+      .then(() => true)
+      .catch(() => false);
+    if (!prefetchStarted) {
+      const where = await hanging
+        .evaluate(() => (document.querySelector('.maplibregl-ctrl-scale')?.textContent ?? '?') + ' / ' + (document.querySelector('[data-mode="draw"]')?.getAttribute('aria-pressed') ?? '?'))
+        .catch(() => '?');
+      problems.push(`the hanging-service step never started a prefetch (scale / draw = ${where})`);
+    }
 
     // The viewport prefetch has a 12 s deadline; the banner names it. This step
     // proves the failure reaches the DOM — the *bound* is pinned by the unit test
@@ -351,7 +380,9 @@ try {
       .waitForFunction(
         () => /svarte ikke|did not answer/i.test(document.body.innerText),
         undefined,
-        { timeout: 60_000 },
+        // Timer polling, not animation frames: the assertion must not depend on
+        // whether this tab is currently painting.
+        { timeout: 60_000, polling: 250 },
       )
       .then(() => true)
       .catch(() => false);
@@ -359,7 +390,12 @@ try {
       const seen = (await hanging.evaluate(() => document.body.innerText).catch(() => ''))
         .replace(/\s+/g, ' ')
         .slice(0, 200);
-      problems.push(`a hanging trail service did not produce the deadline banner within 60 s (${seen})`);
+      // Distinguish "the prefetch never started" (zoom below the floor, draw mode
+      // not active) from "it started but the failure never reached the DOM".
+      problems.push(
+        `a hanging trail service did not produce the deadline banner within 60 s ` +
+          `(${wfsRequests} WFS request(s) intercepted; ${seen})`,
+      );
     }
 
     // Weather: a hung MET request must end in the panel's unavailable state, not in
@@ -371,7 +407,7 @@ try {
           document.getElementById('weather-panel')?.innerText ?? '',
         ),
         undefined,
-        { timeout: 45_000 },
+        { timeout: 45_000, polling: 250 },
       )
       .then(() => true)
       .catch(() => false);
