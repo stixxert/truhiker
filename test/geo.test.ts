@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  MAX_LONGITUDE_OFFSET_DEG,
+  UTM33_MAX_LON,
+  UTM33_MIN_LON,
+  ZONE33_CENTRAL_MERIDIAN_DEG,
   cumulativeDistances,
   fromUtm33,
   haversine,
+  isInUtm33Window,
   pathLength,
   resample,
   toUtm33,
@@ -75,6 +80,38 @@ describe('projection, distance and resampling', () => {
     expect(cum[1]).toBeGreaterThan(0);
     expect(cum[2]).toBeCloseTo(2 * cum[1], 6);
     expect(pathLength(coords)).toBeCloseTo(cum[2], 9);
+  });
+});
+
+describe('the supported longitude window is the projection window', () => {
+  it('projects every longitude in the supported range without throwing, both edges included', () => {
+    // `checkSupported` in src/lib/route.ts takes its longitude edges from these
+    // constants, and `toUtm33` refuses with the same comparison. This sweep is
+    // what makes that one statement rather than two that can drift: before the
+    // edges were shared, Kirkenes (30.05°E) passed the check and then threw a
+    // central-meridian error inside the DEM worker.
+    expect(UTM33_MIN_LON).toBe(ZONE33_CENTRAL_MERIDIAN_DEG - MAX_LONGITUDE_OFFSET_DEG);
+    expect(UTM33_MAX_LON).toBe(ZONE33_CENTRAL_MERIDIAN_DEG + MAX_LONGITUDE_OFFSET_DEG);
+
+    for (let lon = UTM33_MIN_LON; lon <= UTM33_MAX_LON + 1e-9; lon += 0.5) {
+      for (let lat = 57; lat <= 72.5 + 1e-9; lat += 1) {
+        const point = { lon: Math.min(lon, UTM33_MAX_LON), lat };
+        expect(isInUtm33Window(point), `window ${lon},${lat}`).toBe(true);
+        expect(() => toUtm33(point), `project ${lon},${lat}`).not.toThrow();
+      }
+    }
+
+    // The edges themselves, exactly.
+    expect(() => toUtm33({ lon: UTM33_MIN_LON, lat: 69.7 })).not.toThrow();
+    expect(() => toUtm33({ lon: UTM33_MAX_LON, lat: 69.7 })).not.toThrow();
+    expect(UTM33_MIN_LON).toBe(3);
+    expect(UTM33_MAX_LON).toBe(27);
+
+    // Just outside: inside Norway, outside the model. A clean `false`, not junk.
+    expect(isInUtm33Window({ lon: 30.05, lat: 69.7 })).toBe(false);
+    expect(() => toUtm33({ lon: 30.05, lat: 69.7 })).toThrow(/central meridian/);
+    expect(isInUtm33Window({ lon: 2.9, lat: 58.6 })).toBe(false);
+    expect(isInUtm33Window({ lon: Number.NaN, lat: 60 })).toBe(false);
   });
 });
 

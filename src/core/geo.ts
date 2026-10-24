@@ -45,13 +45,34 @@ const UTM_K0 = 0.9996;
 const UTM_FALSE_EASTING = 500_000.0;
 const UTM_FALSE_NORTHING = 0.0;
 /** Central meridian of UTM zone 33, degrees. */
-const ZONE33_CENTRAL_MERIDIAN_DEG = 15.0;
+export const ZONE33_CENTRAL_MERIDIAN_DEG = 15.0;
 /**
  * Maximum longitude offset from the central meridian accepted by this module.
  * Norway spans roughly 3°E–31°E; 12° covers the mainland portion served by the
  * EPSG:25833 DEM (the far north-east is zone 35 territory and is out of scope).
  */
-const MAX_LONGITUDE_OFFSET_DEG = 12.0;
+export const MAX_LONGITUDE_OFFSET_DEG = 12.0;
+/**
+ * The longitude window this module projects, and therefore the window the
+ * elevation model covers: 3°E–27°E. `src/lib/route.ts` derives its supported
+ * area from these two constants so the projection and the "is it covered?"
+ * test cannot drift apart — a route inside the check but outside the
+ * projection used to throw a central-meridian error from inside the DEM worker.
+ */
+export const UTM33_MIN_LON = ZONE33_CENTRAL_MERIDIAN_DEG - MAX_LONGITUDE_OFFSET_DEG;
+export const UTM33_MAX_LON = ZONE33_CENTRAL_MERIDIAN_DEG + MAX_LONGITUDE_OFFSET_DEG;
+
+/**
+ * Whether this module can project the point at all. Latitude is the UTM domain;
+ * longitude is the zone-33 window above. Anything else throws by design, so a
+ * caller that wants a clean "not covered" answer must ask this first.
+ */
+export function isInUtm33Window(lonlat: LonLat): boolean {
+  const { lon, lat } = lonlat;
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return false;
+  if (lat < -80 || lat > 84) return false;
+  return lon >= UTM33_MIN_LON && lon <= UTM33_MAX_LON;
+}
 
 const DEG = Math.PI / 180;
 const RAD = 180 / Math.PI;
@@ -92,7 +113,9 @@ function assertZone33(lon: number, lat: number): void {
     throw new RangeError(`Latitude ${lat} is outside the UTM domain (-80°..84°)`);
   }
   const offset = lon - ZONE33_CENTRAL_MERIDIAN_DEG;
-  if (Math.abs(offset) > MAX_LONGITUDE_OFFSET_DEG) {
+  // The same comparison `isInUtm33Window` makes, so "the check said yes" and
+  // "the projection accepted it" cannot disagree.
+  if (lon < UTM33_MIN_LON || lon > UTM33_MAX_LON) {
     throw new RangeError(
       `Longitude ${lon} is ${offset.toFixed(2)}° from the zone-33 central meridian (15°E); ` +
         `only ±${MAX_LONGITUDE_OFFSET_DEG}° is supported (Norway / EPSG:25833). ` +

@@ -8,7 +8,14 @@
  * routes get a coarser spacing automatically so the sample count stays bounded.
  */
 
-import { cumulativeDistances, pathLength, resample, type LonLat } from '../core/geo';
+import {
+  UTM33_MAX_LON,
+  UTM33_MIN_LON,
+  cumulativeDistances,
+  pathLength,
+  resample,
+  type LonLat,
+} from '../core/geo';
 import type { GpxDocument, GpxTrack } from '../core/gpx';
 
 /** Preferred sample spacing, metres. */
@@ -36,11 +43,17 @@ export interface Route {
  * Norway / mainland bounds with the live elevation service and the basemap with
  * real coverage. Outside this box the app still draws the route but refuses to
  * invent elevation numbers.
+ *
+ * The longitude edges are the projection's own window (3°E–27°E, derived in
+ * `src/core/geo.ts`), not a second opinion: the far north-east of Norway is UTM
+ * zone 35, which the EPSG:25833 DEM cannot answer for. A wider box here only
+ * moved the failure from "outside the model" to a central-meridian exception
+ * thrown inside the DEM worker, which then read as a network error.
  */
 const SUPPORTED_BOUNDS = {
-  minLon: 2,
+  minLon: UTM33_MIN_LON,
   minLat: 57,
-  maxLon: 32,
+  maxLon: UTM33_MAX_LON,
   maxLat: 72.5,
 } as const;
 

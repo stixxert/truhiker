@@ -10,7 +10,7 @@ import {
   pickTrack,
   routeBounds,
 } from '../src/lib/route';
-import { haversine, pathLength } from '../src/core/geo';
+import { haversine, pathLength, toUtm33 } from '../src/core/geo';
 
 const simpleGpx = `<?xml version="1.0"?>
 <gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
@@ -171,5 +171,49 @@ describe('routeBounds / checkSupported', () => {
     ]);
     expect(check.ok).toBe(false);
     expect(check.outsidePoints).toBe(2);
+  });
+
+  it('refuses a route in Norway east of the projection window instead of failing later in the DEM worker', () => {
+    // Kirkenes is in Norway, and inside the old 2°E–32°E box, but east of 27°E:
+    // zone 35 territory that `toUtm33` rejects. The check has to say so, or the
+    // profile dies in the worker with a central-meridian message that reads as a
+    // network failure.
+    const kirkenes = checkSupported([
+      { lon: 30.05, lat: 69.7 },
+      { lon: 29.98, lat: 69.68 },
+    ]);
+    expect(kirkenes.ok).toBe(false);
+    expect(kirkenes.outsidePoints).toBe(2);
+
+    // A normal route — Jotunheimen — and the far west, which is inside the window.
+    expect(
+      checkSupported([
+        { lon: 8.3, lat: 61.5 },
+        { lon: 8.32, lat: 61.51 },
+        { lon: 4.9, lat: 61.4 },
+      ]).ok,
+    ).toBe(true);
+    expect(checkSupported([{ lon: 26.9, lat: 70.5 }]).ok).toBe(true);
+  });
+
+  it('accepts exactly the longitudes the projection can project, so the two cannot drift', () => {
+    // Sweep past both edges: every point the check accepts must project, and
+    // every point it rejects must be one the worker would have thrown on.
+    for (let lon = 2; lon <= 33 + 1e-9; lon += 0.25) {
+      for (const lat of [61.5, 69.7, 72.4]) {
+        const point = { lon, lat };
+        const accepted = checkSupported([point]).ok;
+        let projects = true;
+        try {
+          toUtm33(point);
+        } catch {
+          projects = false;
+        }
+        expect(accepted, `${lon},${lat}`).toBe(projects);
+      }
+    }
+    // The latitude edges the check enforces are inside the projection's domain.
+    expect(checkSupported([{ lon: 15, lat: 57 }]).ok).toBe(true);
+    expect(checkSupported([{ lon: 15, lat: 72.5 }]).ok).toBe(true);
   });
 });
