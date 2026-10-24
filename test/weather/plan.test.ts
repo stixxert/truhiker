@@ -226,6 +226,67 @@ describe('planTripWeather — a day inside the horizon', () => {
 });
 
 // ---------------------------------------------------------------------------
+// "Now" mode: today's midday is already behind the clock by the evening
+// ---------------------------------------------------------------------------
+
+/**
+ * 2026-10-25 is the last Sunday of October: the clocks go back at 01:00 UTC, so
+ * 21:00 local is 20:00Z, while `osloMidday('2026-10-25')` — 12:00 CET — is
+ * 11:00Z. Asking MET for 11:00Z against a series that starts at 20:00Z was
+ * answered honestly ("requested time … precedes MET's series") and shown
+ * dishonestly: "the trip starts before the forecast series begins", on the first
+ * row of the default weather view, for a user who may have no start date at all.
+ */
+const EVENING = Date.UTC(2026, 9, 25, 20, 0, 0);
+const EVENING_DATE = '2026-10-25';
+
+/** The reasons `reasonLabel()` in `src/ui/weather-view.ts` maps to `weather.beforeSeries`. */
+const BEFORE_SERIES = /precedes .*series|before .*series/i;
+
+function unavailableReasons(plan: WeatherPlanDetail): string[] {
+  return plan.days.flatMap((day) => (day.sample.status === 'unavailable' ? [day.sample.reason ?? ''] : []));
+}
+
+describe('planTripWeather — a trip that starts today, planned in the evening', () => {
+  it('samples today at the clock rather than at a midday that has passed', async () => {
+    const fake = fakeFetch(() => seriesResponse({ startMs: EVENING }));
+    const plan = await planTripWeather(
+      tripFromPoints(VALLEY, { dailyKm: 5, startDate: EVENING_DATE }),
+      { fetch: fake.fetch, cache: memoryWeatherCache(), now: () => new Date(EVENING) },
+    );
+
+    expect(plan.days.map((day) => day.date)).toEqual(['2026-10-25', '2026-10-26', '2026-10-27']);
+    expect(plan.days[0]!.sample.status).toBe('forecast');
+    // The target is the instant the plan was assembled, not 11:00Z.
+    expect(plan.days[0]!.sample.when).toBe(new Date(EVENING).toISOString());
+    expect(typeof plan.days[0]!.sample.tempC).toBe('number');
+    // Tomorrow is a future day and keeps local midday (12:00 CET = 11:00Z).
+    expect(plan.days[1]!.sample.when).toBe('2026-10-26T11:00:00.000Z');
+
+    // Nothing the UI would render as "the trip starts before MET's series begins".
+    expect(unavailableReasons(plan).filter((reason) => BEFORE_SERIES.test(reason))).toEqual([]);
+    expect(plan.notes.join(' ')).not.toMatch(/precedes/i);
+  });
+
+  it('keeps the truthful "precedes the series" answer for a day that really is past', async () => {
+    const fake = fakeFetch(() => seriesResponse({ startMs: EVENING }));
+    const plan = await planTripWeather(
+      tripFromPoints(VALLEY, { dailyKm: 5, startDate: '2026-10-23' }),
+      { fetch: fake.fetch, cache: memoryWeatherCache(), now: () => new Date(EVENING) },
+    );
+
+    expect(plan.days.map((day) => day.date)).toEqual(['2026-10-23', '2026-10-24', '2026-10-25']);
+    // Two days ago midday is behind MET's series, and that is worth saying: the
+    // clamp is for *today* only.
+    expect(plan.days[0]!.sample.status).toBe('unavailable');
+    expect(plan.days[0]!.sample.reason).toMatch(/precedes MET's series/);
+    // Today is still sampled at the clock.
+    expect(plan.days[2]!.sample.status).toBe('forecast');
+    expect(plan.days[2]!.sample.when).toBe(new Date(EVENING).toISOString());
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Beyond the horizon
 // ---------------------------------------------------------------------------
 

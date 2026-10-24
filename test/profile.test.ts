@@ -128,6 +128,42 @@ describe('buildProfile', () => {
     expect(spikeProfile.samples.every((s) => s.ele === 1000)).toBe(true);
   });
 
+  it('takes the route’s canonical distances when given them, so one route has one length', () => {
+    const coords = route(51, 20); // ~1 km of resampled geometry
+    const elevations = Array.from({ length: 51 }, (_, i) => 500 + i);
+
+    // Without the option nothing changes: distances stay haversine sums over the
+    // resampled polyline.
+    const computed = buildProfile(coords, elevations);
+    expect(computed.distanceM).toBeGreaterThan(990);
+    expect(computed.distanceM).toBeLessThan(1010);
+
+    // `buildRoute()` scales its distances to the file's measured length (a dense
+    // zig-zag loses ~14 % when resampled at 25 m). Handing those to the profile is
+    // what stops the stats bar reporting one length and the chart another.
+    const scale = 1.14;
+    const distances = computed.samples.map((sample) => sample.d * scale);
+    const canonical = buildProfile(coords, elevations, { distances });
+
+    expect(canonical.distanceM).toBe(distances[distances.length - 1]);
+    expect(canonical.distanceM).toBeCloseTo(computed.distanceM * scale, 6);
+    // The whole x-axis moves with it; nothing is rescaled per sample.
+    expect(canonical.samples.map((sample) => sample.d)).toEqual(distances);
+    // The vertical numbers do not depend on the horizontal units.
+    expect(canonical.samples.map((sample) => sample.ele)).toEqual(
+      computed.samples.map((sample) => sample.ele),
+    );
+    expect(canonical.ascentM).toBeCloseTo(computed.ascentM, 9);
+    expect(canonical.descentM).toBeCloseTo(computed.descentM, 9);
+    expect(canonical.filledSamples).toBe(computed.filledSamples);
+
+    // A distances series that does not pair with the coordinates is refused,
+    // naming both lengths the way the elevations check does.
+    expect(() => buildProfile(route(3), [1, 2, 3], { distances: [0, 10] })).toThrow(
+      /coords \(3\) and distances \(2\)/,
+    );
+  });
+
   it('fills NoData gaps, refuses an all-NoData series, and validates its input', () => {
     const profile = buildProfile(route(6, 20), [100, 100, Number.NaN, Number.NaN, 100, 100]);
     expect(profile.filledSamples).toBe(2);

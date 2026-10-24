@@ -4,7 +4,8 @@
  * The engine is small on purpose: one network client (`./met`), one cache
  * contract (`./cache`), no UI, no timers. It turns a `Trip` into one
  * `WeatherDay` per trip day, each sampled at **local midday Europe/Oslo** at
- * the point the day's walking reaches.
+ * the point the day's walking reaches — or at the current instant for *today*,
+ * whose midday is already behind the clock by the evening.
  *
  * ## The honesty rules, encoded here
  *
@@ -56,6 +57,7 @@ import {
   parseForecast,
   pickSample,
   roundedPoint,
+  todayInOslo,
   type MetForecastEntry,
 } from './met';
 
@@ -334,6 +336,10 @@ export async function planTripWeather(
     return emptyPlan();
   }
 
+  // Today's calendar date in the same time zone the samples are placed in. A
+  // sample for *today* may not be in the past (see the slot loop below).
+  const todayIso = todayInOslo(nowDate);
+
   const startDate = trip.profile.startDate;
   if (!startDate) {
     notes.push(
@@ -377,7 +383,15 @@ export async function planTripWeather(
     const distanceM = Math.min(dayIndex * metresPerDay, route.totalM);
     const point = pointAt(route, distanceM);
     const date = addDays(startDate, dayIndex);
-    const targetMs = osloMidday(date).getTime();
+    // Local midday is the right target for a day that has not started yet, but
+    // by the evening it is hours behind the clock — and in "now" weather mode the
+    // trip starts *today*, so day 0 asked MET for an instant MET's series cannot
+    // cover. That answer was "requested time … precedes MET's series", shown to
+    // the user as "the trip starts before the forecast begins": a cause that does
+    // not exist when the user never gave a start date. Only today moves, and only
+    // forward; a genuinely past trip day keeps reporting that honestly.
+    const middayMs = osloMidday(date).getTime();
+    const targetMs = date === todayIso ? Math.max(middayMs, nowMs) : middayMs;
     let key: string | undefined;
     let failure: string | undefined;
     try {

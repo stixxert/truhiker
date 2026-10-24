@@ -2907,10 +2907,21 @@ export class App {
         this.state.progress = { done: this.state.progress.done, total: this.state.progress.total, phase: 'compute' };
         this.renderProfilePanel();
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        if (this.job !== null) return;
+        // The job handle alone cannot answer this: it was released above, so
+        // `this.job` is null both when nobody took over *and* when the user cleared
+        // or replaced the route during this one frame. Only the route's identity
+        // separates "still mine" from "cancelled": the parameter is the route this
+        // job was started for, and writing a profile for any other route would paint
+        // numbers into a route that no longer exists.
+        if (this.job !== null || this.state.route !== route) return;
         let profile: Profile;
         try {
-          profile = buildProfile(route.points, Array.from(elevations));
+          // The route's own distances: `buildRoute` scales them to the file's
+          // measured length, and the stats bar, the map and the chart must not
+          // report two lengths for one route.
+          profile = buildProfile(route.points, Array.from(elevations), {
+            distances: route.distances,
+          });
         } catch (error) {
           this.setProfileError('dem', messageOf(error));
           return;

@@ -76,10 +76,13 @@ shape and the temperature band only.
 - Day `i` is sampled at the point reached by `i × dailyKm`, clamped to the route
   end.
 - Each day is sampled at **local midday, Europe/Oslo**: 12:00 local, i.e.
-  11:00 UTC (CET) or 10:00 UTC (CEST). `Intl` with `timeZone: 'Europe/Oslo'`
-  does the conversion; if `Intl` is unavailable the EU summer-time rule is
-  applied instead. Calendar days are added in UTC, so DST can never shift a date
-  by one.
+  11:00 UTC (CET) or 10:00 UTC (CEST). The one exception is **today**: once
+  local midday has passed, today is sampled at the current instant instead, so
+  the first row of a plan made in the evening is not a forecast for a time that
+  is already gone (and MET's series does not begin at last noon). `Intl` with
+  `timeZone: 'Europe/Oslo'` does the conversion; if `Intl` is unavailable the EU
+  summer-time rule is applied instead. Calendar days are added in UTC, so DST can
+  never shift a date by one.
 - An empty plan is returned — never an exception — when `dailyKm <= 0`, when
   the geometry has no measurable distance, or when there is no usable
   `startDate`. The reason is in `notes`.

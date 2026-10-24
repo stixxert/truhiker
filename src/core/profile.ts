@@ -41,6 +41,16 @@ interface ProfileOptions {
   hysteresisM?: number;
   /** Grade window in metres. Default 100. */
   gradeWindowM?: number;
+  /**
+   * Distance along the route for each coordinate, metres from the start — the
+   * route's canonical distances. Supply them whenever the geometry arrived via
+   * `buildRoute()`: it rescales those to the file's measured length, and a
+   * profile that recomputes its own from the resampled line reports a *second*
+   * length for the same route (measured on a dense zig-zag track: 152,930 m
+   * against the route's 177,915 m). Omitted, the distances are haversine sums
+   * over `coords`, unchanged.
+   */
+  distances?: readonly number[];
 }
 
 export interface Profile {
@@ -284,9 +294,10 @@ function seaLevelRunM(samples: readonly ProfileSample[]): number {
  * Build a profile from a route and its elevations.
  *
  * `coords` and `elevations` are parallel arrays. The route need not be evenly
- * resampled; distances are computed with haversine. NoData (`NaN`) elevations
- * are linearly interpolated; if every elevation is NoData this throws rather
- * than returning a flat profile.
+ * resampled; distances are computed with haversine, unless `options.distances`
+ * carries the route's own (see `ProfileOptions.distances`). NoData (`NaN`)
+ * elevations are linearly interpolated; if every elevation is NoData this throws
+ * rather than returning a flat profile.
  */
 export function buildProfile(
   coords: readonly LonLat[],
@@ -296,6 +307,12 @@ export function buildProfile(
   if (coords.length !== elevations.length) {
     throw new Error(
       `buildProfile: coords (${coords.length}) and elevations (${elevations.length}) must have the same length`,
+    );
+  }
+  const given = options.distances;
+  if (given !== undefined && given.length !== coords.length) {
+    throw new Error(
+      `buildProfile: coords (${coords.length}) and distances (${given.length}) must have the same length`,
     );
   }
   if (coords.length === 0) {
@@ -315,7 +332,7 @@ export function buildProfile(
   const hysteresisM = options.hysteresisM ?? DEFAULT_HYSTERESIS_M;
   const gradeWindowM = options.gradeWindowM ?? DEFAULT_GRADE_WINDOW_M;
 
-  const distances = cumulativeDistances(coords);
+  const distances = given ?? cumulativeDistances(coords);
   const { values: filledValues, filled } = fillGaps(elevations);
   const smoothed = medianFilter(filledValues, medianWindow);
   const { ascentM, descentM } = elevationGainLoss(smoothed, hysteresisM);
