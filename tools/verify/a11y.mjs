@@ -12,7 +12,8 @@
  *     reported in the log but do not block),
  *   - the menu cannot be reached or opened from the keyboard,
  *   - a panel cannot be opened, does not take focus, or does not close on Escape,
- *   - the elevation profile cannot be reached by Tab or ignores ArrowRight,
+ *   - the elevation profile cannot be reached by Tab, or Home/End/ArrowRight/
+ *     ArrowLeft do not move its cursor,
  *   - any page error fires during the run.
  *
  * The journey is deliberately mouse-free: `locator.focus()` would prove the
@@ -241,21 +242,38 @@ try {
       problems.push(`keyboard: the elevation profile cannot be reached with Tab (${TAB_LIMIT} presses)`);
     } else {
       console.log(`a11y: keyboard: profile reached after ${toProfile} Tab press(es)`);
-      const before = await page.evaluate(() => document.querySelector('#profile-chart')?.getAttribute('aria-valuenow'));
+      // The cursor arrives where the camera put it, and on a just-imported route
+      // that can be the last metre before the map has finished fitting — a
+      // slider at its maximum legitimately does not move on ArrowRight, which
+      // made this check depend on how fast the camera settled. Home gives every
+      // direction room, so what is asserted is the key contract itself.
+      const value = () =>
+        page.evaluate(() => Number(document.querySelector('#profile-chart')?.getAttribute('aria-valuenow')));
+      const max = await page.evaluate(() => Number(document.querySelector('#profile-chart')?.getAttribute('aria-valuemax')));
+      if (!(max > 0)) problems.push(`keyboard: the profile has no aria-valuemax to move within (${max})`);
+      await page.keyboard.press('Home');
+      await page.waitForTimeout(250);
+      const home = await value();
+      if (home !== 0) problems.push(`keyboard: Home does not move the profile cursor to 0 (${home})`);
+
       await page.keyboard.press('ArrowRight');
       await page.waitForTimeout(250);
-      const after = await page.evaluate(() => document.querySelector('#profile-chart')?.getAttribute('aria-valuenow'));
-      if (!before || before === after) {
-        problems.push(`keyboard: ArrowRight does not move the profile cursor (aria-valuenow ${before} -> ${after})`);
+      const after = await value();
+      const step = after - home;
+      if (!(step > 0)) {
+        problems.push(`keyboard: ArrowRight does not move the profile cursor (aria-valuenow ${home} -> ${after})`);
       } else {
-        const step = Number(after) - Number(before);
-        console.log(`a11y: keyboard: profile cursor ${before} -> ${after} (Δ${step})`);
+        console.log(`a11y: keyboard: profile cursor ${home} -> ${after} (Δ${step} of ${max})`);
       }
-      const backBefore = after;
       await page.keyboard.press('ArrowLeft');
       await page.waitForTimeout(250);
-      const backAfter = await page.evaluate(() => document.querySelector('#profile-chart')?.getAttribute('aria-valuenow'));
-      if (backBefore === backAfter) problems.push('keyboard: ArrowLeft does not move the profile cursor back');
+      const backAfter = await value();
+      if (backAfter !== home) problems.push(`keyboard: ArrowLeft does not move the profile cursor back (${after} -> ${backAfter}, expected ${home})`);
+
+      await page.keyboard.press('End');
+      await page.waitForTimeout(250);
+      const end = await value();
+      if (end !== max) problems.push(`keyboard: End does not move the profile cursor to the end (${end} of ${max})`);
     }
     await context.close();
   }
