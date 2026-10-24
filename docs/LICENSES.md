@@ -11,6 +11,7 @@ never stored or re-served.
 | Application code, translations, nutrition table | Apache License 2.0 | Ship a copy of the licence and the NOTICE with the build |
 | **MapLibre GL JS** (`maplibre-*.js`, worker, CSS) | BSD-3-Clause, MapLibre contributors | Ship its copyright notice and licence with the distributed build |
 | **Resupply extract** (`data/shops.osm.bin`, generated at build time — D24) | ODbL 1.0, © OpenStreetMap contributors | Credit OpenStreetMap, offer the database under ODbL, include the licence text (fetched into `data/ODbL-1.0.txt`, served at `/data/ODbL-1.0.txt`) |
+| **Share card** (`og.jpg`, the link preview) | Apache License 2.0 | our own rendering of the app's mark and type; it carries no map imagery or third-party artwork |
 
 The application is Apache-2.0. Apache §4(a) requires a copy of the licence to travel
 with the distributed work and §4(d) the NOTICE if the work carries one, so both ship

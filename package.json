@@ -2,8 +2,27 @@
   "name": "truhiker",
   "version": "0.2.0",
   "private": true,
-  "description": "Route planner for multi-day walking in Norway",
+  "description": "Plan a multi-day walk in Norway: GPX or a route drawn along mapped trails, with elevation, resupply gaps, food mass and MET weather",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stixxert/truhiker.git"
+  },
+  "homepage": "https://truhiker.stixxert.dev",
+  "bugs": {
+    "url": "https://github.com/stixxert/truhiker/issues"
+  },
+  "keywords": [
+    "hiking",
+    "norway",
+    "route-planner",
+    "gpx",
+    "elevation",
+    "maplibre",
+    "outdoor",
+    "cloudflare-workers",
+    "typescript"
+  ],
   "type": "module",
   "engines": {
     "node": ">=22.12"

@@ -35,6 +35,7 @@ function expectCache(path, status, cachePattern, required) {
   return fetch(`${origin}${path}`).then((response) => {
     const cache = response.headers.get('cache-control') ?? '';
     const csp = response.headers.get('content-security-policy') ?? '';
+    const hsts = response.headers.get('strict-transport-security') ?? '';
     rows.push({ path, status: response.status, cache: cache || '(none)' });
     if (response.status !== status) problems.push(`${path}: HTTP ${response.status}, expected ${status}`);
     if (cachePattern && !cachePattern.test(cache)) {
@@ -42,6 +43,9 @@ function expectCache(path, status, cachePattern, required) {
     }
     if (required && !csp.includes("default-src 'self'")) {
       problems.push(`${path}: the security headers are missing (no CSP)`);
+    }
+    if (required && !hsts.includes('max-age=31536000')) {
+      problems.push(`${path}: HSTS is missing or shorter than a year ("${hsts || 'none'}")`);
     }
     return response;
   });
@@ -75,6 +79,8 @@ try {
   await expectCache('/licences/LICENSE', 200, daily, true);
   await expectCache('/licences/ODbL-1.0.txt', 200, daily, true);
   await expectCache('/robots.txt', 200, daily, true);
+  // The link preview: same headers as any asset, and it must not be immutable.
+  await expectCache('/og.jpg', 200, daily, true);
 
   // An unknown path is a 404, not the app shell pretending to be one.
   const missing = await fetch(`${origin}/this-path-does-not-exist`);

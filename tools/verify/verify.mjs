@@ -117,6 +117,9 @@ function walk(dir) {
   return out;
 }
 
+// Assets only a link-preview crawler fetches, never the app itself.
+const CRAWLER_ONLY = /^og\.jpg$/;
+
 step("dist budget", () => {
   let files;
   try {
@@ -171,10 +174,22 @@ step("dist budget", () => {
     .filter((r) => r.f.endsWith('.js') || r.f.endsWith('.mjs'))
     .reduce((s, r) => s + r.b, 0);
   if (jsBr > 500 * 1024) problems.push(`JS brotli ${kb(jsBr)} exceeds the 500 KB budget`);
-  if (br > 620 * 1024) problems.push(`total brotli ${kb(br)} exceeds the 620 KB bundle budget`);
+
+  // The share card is fetched by link-preview crawlers, never by the app: no
+  // page references it, so it is not part of what a visitor downloads and it is
+  // not part of the transfer budget. It is still deployed, so the whole dist
+  // gets its own, looser cap — the card must not quietly become 2 MB either.
+  const crawlerOnly = rows.filter((r) => CRAWLER_ONLY.test(r.f));
+  const crawlerBr = crawlerOnly.reduce((s, r) => s + r.b, 0);
+  const visitorBr = br - crawlerBr;
+  if (visitorBr > 620 * 1024) {
+    problems.push(`total brotli ${kb(visitorBr)} exceeds the 620 KB bundle budget`);
+  }
+  if (br > 700 * 1024) problems.push(`deployed brotli ${kb(br)} exceeds the 700 KB deployment cap`);
 
   if (problems.length) throw new Error(problems.join("\n"));
-  return `${files.length} files, ${mb(br)} brotli total`;
+  const card = crawlerBr > 0 ? ` + ${mb(crawlerBr)} share card` : "";
+  return `${files.length} files, ${mb(visitorBr)} brotli${card}`;
 });
 
 step("runtime render", () => {

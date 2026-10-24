@@ -29,6 +29,8 @@ const RULES = [
   { pattern: /^404\.html$/, licence: 'Apache-2.0' },
   { pattern: /^_headers$/, licence: 'Apache-2.0' },
   { pattern: /^robots\.txt$/, licence: 'Apache-2.0' },
+  // Rendered from the app's own mark and type — no third-party imagery.
+  { pattern: /^og\.jpg$/, licence: 'Apache-2.0' },
   { pattern: /^data\/shops\.osm\.bin$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },  // Provenance and checksum for the data artefact.
   { pattern: /^data\/shops\.osm\.json$/, licence: 'ODbL-1.0', holder: 'OpenStreetMap contributors' },
   // The licence text itself, served beside the data.

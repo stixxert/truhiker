@@ -31,6 +31,10 @@
 /robots.txt
   Cache-Control: public, max-age=86400
 
+# The share card changes only with a deliberate edit, and it is not content-hashed.
+/og.jpg
+  Cache-Control: public, max-age=86400
+
 # Data changes only when the extract is refreshed (D23).
 /data/*
   Cache-Control: public, max-age=3600
@@ -46,7 +50,10 @@
   Cache-Control: public, max-age=31536000, immutable
 
 # Security headers for every path, including "/" and anything added later.
+# HSTS without includeSubDomains/preload: this app owns no subdomain, and both
+# are one-way doors for whichever domain it is eventually served from.
 /*
+  Strict-Transport-Security: max-age=31536000
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
