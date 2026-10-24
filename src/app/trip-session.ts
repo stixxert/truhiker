@@ -281,7 +281,13 @@ export class TripSession {
    * commits. Otherwise the debounced autosave picks it up.
    */
   adopt(trip: Trip, options: { save?: 'now' | 'deferred' | 'manual' } = {}): Trip {
-    this.cancelPending();
+    // A pending autosave belongs to the outgoing trip: hand it to the store instead
+    // of dropping it. `saveNow` captures `this.current` synchronously, so the
+    // queued write is for the old trip and `write`'s sequence/id guard keeps it
+    // from stamping the trip adopted below as saved. This is deliberately not
+    // awaited — `adopt` is synchronous — but the write is committed to the chain.
+    if (this.cancelAutosave !== null || this.status.kind === 'dirty') void this.saveNow();
+    else this.cancelPending();
     this.editorInstance = this.engines.createEditor(trip);
     this.current = trip;
     this.sequence += 1;
@@ -311,7 +317,13 @@ export class TripSession {
         }
         return null;
       }
-      this.cancelPending();
+      // Flush what the outgoing trip still owes the store before switching: a
+      // vertex moved inside the last second before the user opens another trip
+      // used to be cancelled here and silently lost, while the status line then
+      // reported the *new* trip as saved. `saveNow` resolves with the committed
+      // status, so the write lands before `this.current` is replaced.
+      if (this.cancelAutosave !== null || this.status.kind === 'dirty') await this.saveNow();
+      else this.cancelPending();
       this.editorInstance = this.engines.createEditor(trip);
       this.current = trip;
       this.sequence += 1;
@@ -326,7 +338,10 @@ export class TripSession {
     }
   }
 
-  /** Forget the open trip without touching the store. */
+  /**
+   * Forget the open trip without touching the store. Unlike `open`/`adopt` this
+   * **drops** a pending autosave: closing is an explicit discard by the user.
+   */
   close(): void {
     this.cancelPending();
     this.editorInstance = null;

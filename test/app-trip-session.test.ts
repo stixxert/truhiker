@@ -403,6 +403,67 @@ describe('TripSession — library', () => {
 });
 
 /**
+ * Switching the open trip used to cancel the debounced autosave. A vertex moved
+ * inside the last second before an import, a library click or a new route was
+ * silently lost, and the status line then reported the *new* trip as saved.
+ */
+describe('TripSession — switching trip keeps the pending autosave', () => {
+  /** The open trip with its first leg moved, so the stored geometry can pin it. */
+  function moved(from: Trip): Trip {
+    return { ...from, legs: [leg('leg-moved', 0.5)] };
+  }
+
+  it('adopt hands the outgoing trip to the store instead of dropping it', async () => {
+    const { session, store } = harness();
+    session.adopt(trip('trip-1', 'Første'), { save: 'now' });
+    await session.flush();
+    store.trips.set('trip-2', trip('trip-2', 'Andre'));
+
+    // An edit inside the debounce window: only the timer knows about it.
+    session.rewrite(moved(session.trip!));
+    expect(session.saveStatus.kind).toBe('dirty');
+    expect(store.trips.get('trip-1')?.legs[0]?.id).toBe('leg-1');
+
+    session.adopt(store.trips.get('trip-2')!, { save: 'now' });
+    expect(session.trip?.id).toBe('trip-2');
+
+    // `flush` here only waits for the save chain: the writes were already queued.
+    await session.flush();
+
+    // The edit is in the store under the trip it belongs to — pinned by geometry,
+    // not by a status label that the new trip could stamp.
+    expect(store.trips.get('trip-1')?.legs.map((entry) => entry.id)).toEqual(['leg-moved']);
+    expect(store.trips.get('trip-1')?.legs[0]?.points).toEqual(moved(trip('trip-1')).legs[0]?.points);
+    expect(store.trips.get('trip-2')?.legs[0]?.id).toBe('leg-1');
+    expect(session.trip?.id).toBe('trip-2');
+  });
+
+  it('open flushes the outgoing trip before the returned trip is adopted', async () => {
+    const { session, store } = harness();
+    session.adopt(trip('trip-1', 'Første'), { save: 'now' });
+    await session.flush();
+    store.trips.set('trip-2', trip('trip-2', 'Andre'));
+
+    session.rewrite(moved(session.trip!));
+    expect(session.saveStatus.kind).toBe('dirty');
+    expect(store.trips.get('trip-1')?.legs[0]?.id).toBe('leg-1');
+
+    const opened = await session.open('trip-2');
+
+    expect(opened?.id).toBe('trip-2');
+    expect(session.trip?.id).toBe('trip-2');
+    // Written before the switch: the opened trip is not the one that was edited.
+    expect(store.trips.get('trip-1')?.legs.map((entry) => entry.id)).toEqual(['leg-moved']);
+    expect(store.trips.get('trip-1')?.legs[0]?.points).toEqual(moved(trip('trip-1')).legs[0]?.points);
+
+    // Nothing pending: opening again must not rewrite anything.
+    const saves = store.saves;
+    await session.open('trip-2');
+    expect(store.saves).toBe(saves);
+  });
+});
+
+/**
  * Renaming a trip or changing your body weight must not destroy the undo stack: it
  * used to, so the next Undo was a no-op with the button already greyed out.
  */
