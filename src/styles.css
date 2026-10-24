@@ -1948,7 +1948,14 @@ button {
   padding: 0 var(--s-3) var(--s-3);
   border-radius: var(--r-4);
   border: 1px solid var(--line-soft);
-  background: var(--panel);
+  /* The panel scrolls, and on a system with overlay scrollbars nothing says so:
+     the last row just stops mid-height and the credits below it are invisible.
+     A `local` fade at the bottom scrolls with the content, so it marks "more
+     below" until the end is reached and then gets out of the way. */
+  background:
+    linear-gradient(rgba(0, 0, 0, 0), var(--panel) 80%) center bottom / 100% 28px no-repeat local,
+    linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.42)) center bottom / 100% 28px no-repeat scroll,
+    var(--panel);
   box-shadow: var(--e-3), var(--edge);
   overflow-x: hidden;
   overflow-y: auto;
