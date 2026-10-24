@@ -74,7 +74,7 @@ export const no = {
   'profile.unavailable': 'Høydedata utilgjengelig',
   'profile.unavailableDetail':
     'Kartverkets høydedata (DTM) kunne ikke hentes. Høyde, stigning, nedstigning og gangtid er slått av – ikke satt til null.',
-  'profile.outOfScope': 'Ruten går utenfor Norge, der høydedata ikke er tilgjengelig.',
+  'profile.outOfScope': 'Ruten går utenfor området høydedata dekker.',
   'profile.filled': '{n} punkter manglet høyde og er interpolert.',
   'profile.ariaLabel':
     'Høydeprofil. Bruk piltastene for å flytte markøren, Home og End for start og slutt.',
@@ -395,10 +395,11 @@ export const no = {
   'banner.placesFailed':
     'Butikker og hytter kunne ikke lastes ({message}). Rute, profil og paneler virker fortsatt.',
   'banner.seaLevel':
-    'Omtrent {distance} av denne ruten ligger på havnivå (0 moh). Krysser linjen vann, kan den strekningen ikke gås — sjekk den.',
+    'Omtrent {distance} av denne ruten ligger på havnivå (0 m). Krysser linjen vann, kan den strekningen ikke gås — sjekk den.',
   'banner.shareCopied': 'Lenke til ruten er kopiert.',
   'banner.shareFailed': 'Kunne ikke kopiere lenken. Bruk Last ned GPX i stedet.',
-  'banner.offScope': 'Ruten går utenfor Norge – høydeprofil og statistikk er utilgjengelige.',
+  'banner.offScope':
+    'Ruten går utenfor området høydedata dekker – høydeprofil og statistikk er utilgjengelige.',
   'banner.demFailed': 'Høydedata er utilgjengelig: {message}',
   'banner.workerFailed': 'Høydeberegningen stoppet: {message}',
   'banner.welcome': 'Kartet er klart.',
@@ -498,6 +499,7 @@ export const no = {
     'Ingen forsyningspunkter innenfor {radius} av ruten. Øk korridoren for å se hva som finnes i nærheten.',
   'supply.gapWarning': '{name}: {days} uten forsyning krever {kg} kg mat.',
   'supply.detourOnRoute': 'på ruten',
+  'supply.alongValue': 'ved {distance}',
   'supply.detourValue': '{distance} fra ruten',
   'supply.gapValue': '{distance} · {days}',
   'supply.legTitle': '{from} → {to}',
@@ -559,9 +561,9 @@ export const no = {
   'supply.kind.parcel': 'pakkeautomat',
   'supply.kind.hut': 'hytte',
   'supply.notFood': 'ikke mat',
-  'supply.filterAll': 'Alle {count}',
-  'supply.filterFood': 'Mat {count}',
-  'supply.filterHuts': 'Hytter {count}',
+  'supply.filterAll': 'Alle ({count})',
+  'supply.filterFood': 'Mat ({count})',
+  'supply.filterHuts': 'Hytter ({count})',
   'supply.gapToNext': 'til neste brukbare punkt: {gap}',
   'supply.openSettings': 'Turinnstillinger',
 
@@ -573,7 +575,7 @@ export const no = {
   'energy.elevationMissing':
     'Høydedata mangler: {reason}. Forbrenning, inntakstak og vektendring er slått av – ikke satt til null.',
   'energy.reasonDem': 'Kartverkets høydedata (DTM) kunne ikke hentes',
-  'energy.reasonScope': 'ruten går utenfor Norge, der høydedata ikke finnes',
+  'energy.reasonScope': 'ruten går utenfor området høydedata dekker',
   'energy.reasonNoRoute': 'ingen rute er lastet',
   'energy.reasonLoading': 'høydedata lastes fortsatt',
   'energy.rangeTitle': 'Dagsforbrenning (TDEE)',
