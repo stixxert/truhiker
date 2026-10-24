@@ -28,7 +28,7 @@
  * - The `0x04` "unmanned fuel" bit is a heuristic from the extractor, not a fact.
  */
 
-import { haversine, type LonLat } from '../core/geo';
+import { haversine, isInSupportedArea, type LonLat } from '../core/geo';
 import { M_PER_DEG_LAT, RouteCorridor, lonPadDeg } from './corridor';
 import type { ResupplyCandidate, ShopIndex } from './index';
 
@@ -327,6 +327,7 @@ class BundledShopIndex implements ShopIndex {
     const out: ResupplyCandidate[] = [];
     const seen = new Set<string>();
     for (let i = 0; i < this.count; i += 1) {
+      if (!this.supported(i)) continue;
       const lat = this.records.lats[i] / 1e6;
       const lon = this.records.lons[i] / 1e6;
       if (lat < minLat - padLat || lat > maxLat + padLat) continue;
@@ -366,6 +367,7 @@ class BundledShopIndex implements ShopIndex {
     if (!(limit >= 0)) throw new RangeError(`invalid view limit: ${limit}`);
     const matches: number[] = [];
     for (let i = 0; i < this.count; i += 1) {
+      if (!this.supported(i)) continue;
       const lat = this.records.lats[i] / 1e6;
       if (lat < bounds.south || lat > bounds.north) continue;
       const lon = this.records.lons[i] / 1e6;
@@ -389,6 +391,7 @@ class BundledShopIndex implements ShopIndex {
     }
     const out: ResupplyCandidate[] = [];
     for (let i = 0; i < this.count; i += 1) {
+      if (!this.supported(i)) continue;
       const lat = this.records.lats[i] / 1e6;
       const lon = this.records.lons[i] / 1e6;
       // Cheap latitude reject before the trigonometry.
@@ -399,6 +402,16 @@ class BundledShopIndex implements ShopIndex {
       out.push(this.candidateAt(i, 0, detour));
     }
     return out.sort(compareDetourThenName);
+  }
+
+  /**
+   * The extract is the national OSM file, which includes Svalbard; the app can
+   * only plan inside the mainland area (no elevation, trails or weather north of
+   * it). A stored point outside that area must never reach a caller: it would
+   * draw a food glyph on a map where nothing downstream can use it.
+   */
+  private supported(i: number): boolean {
+    return isInSupportedArea({ lon: this.records.lons[i] / 1e6, lat: this.records.lats[i] / 1e6 });
   }
 
   private candidateAt(i: number, alongM: number, detourM: number): ResupplyCandidate {

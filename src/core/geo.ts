@@ -61,6 +61,25 @@ export const MAX_LONGITUDE_OFFSET_DEG = 12.0;
  */
 export const UTM33_MIN_LON = ZONE33_CENTRAL_MERIDIAN_DEG - MAX_LONGITUDE_OFFSET_DEG;
 export const UTM33_MAX_LON = ZONE33_CENTRAL_MERIDIAN_DEG + MAX_LONGITUDE_OFFSET_DEG;
+/**
+ * The mainland's latitude span, the other half of the area this app can plan in.
+ * Svalbard (74°N and up) is inside the Norway extract Geofabrik publishes and
+ * inside Kartverket's basemap, but outside the elevation model and every other
+ * data source the planner uses — so it is not part of the app's area.
+ */
+export const SUPPORTED_MIN_LAT = 57;
+export const SUPPORTED_MAX_LAT = 72.5;
+
+/** Whether a position is inside the area the app can plan in at all. */
+export function isInSupportedArea(point: { lon: number; lat: number }): boolean {
+  return (
+    point.lon >= UTM33_MIN_LON &&
+    point.lon <= UTM33_MAX_LON &&
+    point.lat >= SUPPORTED_MIN_LAT &&
+    point.lat <= SUPPORTED_MAX_LAT
+  );
+}
+
 
 /**
  * Whether this module can project the point at all. Latitude is the UTM domain;

@@ -866,6 +866,14 @@ passed the check and then threw inside the DEM worker — reported to the user a
 download failure, which invites a retry that can never work. The check and the
 projection now share one constant.
 
+**The same area bounds the resupply layer.** The national OSM extract includes
+Svalbard (13 points, 74.5–78.9°N) and the zone-35 north-east (86 points, east of
+27°E). The app cannot profile, route or forecast there, so a shop glyph or a
+"points along the route" row in those places would promise something nothing
+downstream can deliver. `ShopIndex` queries return only points inside the area;
+`count` still reports the artefact, and the provenance still dates the national
+file, so what ships and what is usable are both stated rather than confused.
+
 **Why not request zone 35 as well:** it doubles the projection and tiling paths
 for an area the product has not been tested against, and it would still leave the
 honesty question open at the seam. A clear refusal is the smaller promise.

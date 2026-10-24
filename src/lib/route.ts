@@ -9,8 +9,7 @@
  */
 
 import {
-  UTM33_MAX_LON,
-  UTM33_MIN_LON,
+  isInSupportedArea,
   cumulativeDistances,
   pathLength,
   resample,
@@ -39,23 +38,6 @@ export interface Route {
   readonly gpxText?: string;
 }
 
-/**
- * Norway / mainland bounds with the live elevation service and the basemap with
- * real coverage. Outside this box the app still draws the route but refuses to
- * invent elevation numbers.
- *
- * The longitude edges are the projection's own window (3°E–27°E, derived in
- * `src/core/geo.ts`), not a second opinion: the far north-east of Norway is UTM
- * zone 35, which the EPSG:25833 DEM cannot answer for. A wider box here only
- * moved the failure from "outside the model" to a central-meridian exception
- * thrown inside the DEM worker, which then read as a network error.
- */
-const SUPPORTED_BOUNDS = {
-  minLon: UTM33_MIN_LON,
-  minLat: 57,
-  maxLon: UTM33_MAX_LON,
-  maxLat: 72.5,
-} as const;
 
 interface RouteInput {
   name?: string;
@@ -164,12 +146,7 @@ interface SupportCheck {
 export function checkSupported(points: readonly LonLat[]): SupportCheck {
   let outsidePoints = 0;
   for (const point of points) {
-    const inside =
-      point.lon >= SUPPORTED_BOUNDS.minLon &&
-      point.lon <= SUPPORTED_BOUNDS.maxLon &&
-      point.lat >= SUPPORTED_BOUNDS.minLat &&
-      point.lat <= SUPPORTED_BOUNDS.maxLat;
-    if (!inside) outsidePoints++;
+    if (!isInSupportedArea(point)) outsidePoints++;
   }
   return { ok: outsidePoints === 0, outsidePoints };
 }

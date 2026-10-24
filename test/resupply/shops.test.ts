@@ -64,18 +64,23 @@ describe('parseShopIndex — the bundled extract', () => {
     // Per-kind counts must sum to the total; each is a measured value from the
     // pinned extract. `post`/`parcel` are the two addressable kinds that
     // the binary stores as `post_office` / `parcel_locker`.
+    //
+    // A query returns the area the app can plan in, not every record: the
+    // national extract also carries 13 Svalbard points (74.5–78.9°N) and 86 in
+    // the zone-35 north-east, where there is no elevation, trail or weather data
+    // to plan with. `index.count` still reports the artefact.
     const byKind = new Map<string, number>();
     const all = index.near({ lon: 11.10911, lat: 62.52748 }, 5_000_000);
-    expect(all.length).toBe(8571);
+    expect(all.length).toBe(8472);
     for (const candidate of all) byKind.set(candidate.kind, (byKind.get(candidate.kind) ?? 0) + 1);
     expect(Object.fromEntries(byKind)).toEqual({
-      supermarket: 3971,
-      convenience: 554,
-      general: 288,
+      supermarket: 3940,
+      convenience: 542,
+      general: 284,
       grocery: 24,
-      fuel: 2283,
-      post: 1252,
-      parcel: 199,
+      fuel: 2254,
+      post: 1230,
+      parcel: 198,
     });
 
     // A known shop, reconstructed from brand + name suffix and sorted by distance.
@@ -334,5 +339,30 @@ describe('the served artefact', () => {
     expect(country).toHaveLength(60);
     const latitudes = country.map((point) => point.point.lat);
     expect(Math.max(...latitudes) - Math.min(...latitudes)).toBeGreaterThan(3);
+  });
+
+  it('never hands out a point outside the mainland area, though the national extract contains them', () => {
+    // The Geofabrik Norway extract includes Svalbard (13 points, 74.5–78.9°N).
+    // The app has no elevation, trails or weather there, so a Svalbard glyph on
+    // the map is a promise nothing downstream can keep.
+    const index = parseShopIndex(committedBuffer());
+    expect(index.count).toBe(8_571); // the artefact is still the national file
+
+    const world = index.within({ west: -180, south: -90, east: 180, north: 90 }, 100_000);
+    expect(world.length).toBeGreaterThan(8_000);
+    expect(world.some((candidate) => candidate.point.lat > 72.5)).toBe(false);
+    expect(world.some((candidate) => candidate.point.lon < 3 || candidate.point.lon > 27)).toBe(false);
+
+    // Queries aimed straight at Svalbard come back empty rather than plausible.
+    expect(index.near({ lon: 15.639, lat: 78.218 }, 50_000)).toEqual([]);
+    expect(
+      index.alongRoute(
+        [
+          { lon: 15.5, lat: 78.1 },
+          { lon: 15.7, lat: 78.3 },
+        ],
+        5_000,
+      ),
+    ).toEqual([]);
   });
 });
