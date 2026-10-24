@@ -11,8 +11,9 @@
  *  4. when TDEE exceeds 2.5 × BMR the energy panel says the deficit is
  *     unavoidable and shows the range, not a point estimate.
  *
- * Everything is offline: the committed `data/shops.osm.bin` is read from disk
- * through a fake `fetch`, and nothing here touches the network.
+ * Everything is offline: the generated `data/shops.osm.bin` (build output, never
+ * committed — D24) is read from disk through a fake `fetch`, and nothing here
+ * touches the network.
  */
 
 import { readFileSync } from 'node:fs';

@@ -138,12 +138,16 @@ export {
 } from './corridor';
 
 export {
+  RESUPPLY_ADAPTER_WARNING_CODES,
   planResupplyForTrip,
+  type ResupplyAdapterWarningCode,
   type ResupplyAnchor,
   type ResupplyGap,
   type ResupplyLeg,
   type ResupplyPlan,
   type ResupplyPlanOptions,
+  type ResupplyPlanWarning,
+  type ResupplyPlanWarningCode,
 } from './plan';
 
 // Re-exported for callers that hold only the resupply surface.

@@ -52,6 +52,14 @@ export const SHOP_PROVENANCE_PATH = '/data/shops.osm.json';
  * committed date would be claiming a freshness it does not have.
  */
 export const COMMITTED_INDEX_BUILT_AT = '2026-10-19T13:41:49.167Z';
+/**
+ * Budget for the index requests, ms.
+ *
+ * Same 15 s as MET (`MET_REQUEST_TIMEOUT_MS`) and the huts deadline: a CDN stall
+ * or a captive portal that accepts the connection and never answers must surface
+ * as an error the panel can show, not as a spinner that never resolves (D7).
+ */
+export const SHOP_INDEX_TIMEOUT_MS = 15_000;
 
 /** Binary type byte → candidate kind. `post_office` and `parcel_locker` split. */
 const KIND_BY_TYPE = [
@@ -476,6 +484,11 @@ export function parseShopIndex(
   );
 }
 
+export interface LoadShopIndexOptions {
+  /** Budget for both requests, ms. Default `SHOP_INDEX_TIMEOUT_MS`. */
+  timeoutMs?: number;
+}
+
 /**
  * Fetch and parse the bundled index. `fetchImpl` is injectable so tests never
  * touch the network; `fetch` is the only I/O in this module.
@@ -485,22 +498,48 @@ export function parseShopIndex(
  * build date in place rather than failing the load, because a missing date is not a
  * reason to render an empty map (D7).
  *
+ * Both requests are bounded (`SHOP_INDEX_TIMEOUT_MS`); a stall fails the load with a
+ * message for the panel instead of leaving `pending` set forever, so the retry button
+ * still has something to retry.
+ *
  * Not preloaded from `index.html`: a `<link rel="preload">` makes Vite treat the
  * file as a source asset and emit a second, content-hashed copy next to the one
  * `tools/verify/copy-data.mjs` ships — 170 KB of duplicate for a request the app
  * already starts at boot (`App.prefetchShopIndex`).
  */
-export async function loadShopIndex(fetchImpl: typeof fetch): Promise<ShopIndex> {
-  const [response, builtAt] = await Promise.all([
-    fetchImpl(SHOP_INDEX_PATH, { headers: { accept: 'application/octet-stream' } }),
-    servedBuildDate(fetchImpl),
-  ]);
-  if (!response.ok) {
+export async function loadShopIndex(
+  fetchImpl: typeof fetch,
+  options: LoadShopIndexOptions = {},
+): Promise<ShopIndex> {
+  const timeoutMs = options.timeoutMs ?? SHOP_INDEX_TIMEOUT_MS;
+  // One deadline covers both requests, so a stall on either one fails the load
+  // instead of leaving it pending forever.
+  const signal = AbortSignal.timeout(timeoutMs);
+  try {
+    const [response, builtAt] = await Promise.all([
+      fetchImpl(SHOP_INDEX_PATH, {
+        headers: { accept: 'application/octet-stream' },
+        signal,
+      }),
+      servedBuildDate(fetchImpl, signal),
+    ]);
+    if (!response.ok) {
+      throw new Error(
+        `shop index fetch failed: HTTP ${response.status} ${response.statusText} from ${SHOP_INDEX_PATH}`,
+      );
+    }
+    // The body read is inside the same deadline: headers followed by a stalled
+    // stream is the half-open case, not a successful response.
+    return parseShopIndex(await response.arrayBuffer(), builtAt ? { builtAt } : {});
+  } catch (error) {
+    // A stall is a failure, not an empty index: going quiet must not turn into
+    // "no shops here". HTTP and format errors pass through with their own message.
+    if (!isAbortError(error)) throw error;
     throw new Error(
-      `shop index fetch failed: HTTP ${response.status} ${response.statusText} from ${SHOP_INDEX_PATH}`,
+      `shop index fetch failed: no response within ${timeoutMs} ms from ${SHOP_INDEX_PATH}`,
+      { cause: error },
     );
   }
-  return parseShopIndex(await response.arrayBuffer(), builtAt ? { builtAt } : {});
 }
 
 /**
@@ -510,9 +549,17 @@ export async function loadShopIndex(fetchImpl: typeof fetch): Promise<ShopIndex>
  * extract itself was taken, and is the more honest of the two when both exist.
  * Neither is required: the pinned artefacts of older builds have one or both unset.
  */
-async function servedBuildDate(fetchImpl: typeof fetch): Promise<string | null> {
+async function servedBuildDate(
+  fetchImpl: typeof fetch,
+  signal?: AbortSignal,
+): Promise<string | null> {
   try {
-    const response = await fetchImpl(SHOP_PROVENANCE_PATH, { headers: { accept: 'application/json' } });
+    // Best-effort even under the deadline: a provenance request that timed out
+    // leaves the committed build date in place rather than failing the load.
+    const response = await fetchImpl(SHOP_PROVENANCE_PATH, {
+      headers: { accept: 'application/json' },
+      ...(signal ? { signal } : {}),
+    });
     if (!response.ok) return null;
     const provenance = (await response.json()) as {
       buildDate?: unknown;
@@ -525,4 +572,9 @@ async function servedBuildDate(fetchImpl: typeof fetch): Promise<string | null> 
   } catch {
     return null;
   }
+}
+
+/** `AbortSignal.timeout` rejects with a `TimeoutError`, a caller signal with `AbortError`. */
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError');
 }

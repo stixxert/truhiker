@@ -1,5 +1,5 @@
 /**
- * `buildResupplyView` — the honesty rules of `docs/13` §2, enforced once.
+ * `buildResupplyView` — the honesty rules the resupply panel shows, enforced once.
  *
  * These tests assert what the *user reads*: the mandated labels, the absence of
  * any claim of being open, the inline carry warning, and a visible message for
@@ -11,8 +11,25 @@ import { describe, expect, it } from 'vitest';
 import type { Trip, UserProfile } from '../src/contracts';
 import { pathLength, type LonLat } from '../src/core/geo';
 import { createI18n } from '../src/i18n';
-import { planResupplyForTrip, type ResupplyCandidate } from '../src/resupply';
-import { buildResupplyView, RADIUS_OPTIONS_M, DEFAULT_RADIUS_M } from '../src/ui/resupply-view';
+import { en as enStrings } from '../src/i18n/en';
+import { no as noStrings } from '../src/i18n/no';
+import { RESUPPLY_WARNING_CODES } from '../src/plan/resupply';
+import {
+  RESUPPLY_ADAPTER_WARNING_CODES,
+  planResupplyForTrip,
+  type ResupplyCandidate,
+  type ResupplyPlan,
+  type ResupplyPlanWarning,
+  type ResupplyPlanWarningCode,
+} from '../src/resupply';
+import {
+  buildResupplyView,
+  ENGINE_ONLY_WARNING_CODES,
+  LOCALISED_WARNING_KEYS,
+  localisedWarningText,
+  RADIUS_OPTIONS_M,
+  DEFAULT_RADIUS_M,
+} from '../src/ui/resupply-view';
 
 const no = createI18n('no');
 const en = createI18n('en');
@@ -201,5 +218,167 @@ describe('resupply view — honesty', () => {
     const empty = buildResupplyView(ready([]), no);
     expect(empty.emptyMessage).toContain('5,00 km');
     expect(RADIUS_OPTIONS_M).toContain(DEFAULT_RADIUS_M);
+  });
+});
+
+/**
+ * The contractual warnings are selected by `code`, never by matching the
+ * engine's English sentence: a reworded sentence used to make the Norwegian
+ * warning vanish while its numbers stayed on screen.
+ */
+describe('resupply view — warnings are chosen by code, not by prose', () => {
+  const ALL_CODES: ResupplyPlanWarningCode[] = [
+    ...RESUPPLY_WARNING_CODES,
+    ...RESUPPLY_ADAPTER_WARNING_CODES,
+  ];
+
+  function warningFor(code: ResupplyPlanWarningCode): ResupplyPlanWarning {
+    return {
+      code,
+      severity: 'warning',
+      // Deliberately reworded prose: nothing here should be matched.
+      message: 'reworded engine sentence, 12.5 km, changed on 2026-05-24',
+      km: 12.5,
+      date: '2026-05-24',
+    };
+  }
+
+  function dataFor(tripValue: Trip, candidates: readonly ResupplyCandidate[]) {
+    return {
+      kind: 'ready' as const,
+      data: {
+        candidates,
+        plan: planResupplyForTrip(tripValue, candidates),
+        indexBuiltAt: '2026-10-19T13:41:49.167Z',
+        indexCount: 8571,
+        hutsError: null,
+        fetchedAt: '2026-10-20T09:00:00.000Z',
+        radiusM: DEFAULT_RADIUS_M,
+      },
+    };
+  }
+
+  const FACTS = {
+    dailyDistanceKm: 22.5,
+    candidates: [
+      candidate('fuel', 'Uno-X Dombås', 500),
+      candidate('supermarket', 'Joker Dalsbygda', 800),
+    ],
+    legEndName: 'Joker Dalsbygda',
+  };
+
+  it('localises every contractual code in both languages and classifies every other code', () => {
+    const localised = Object.keys(LOCALISED_WARNING_KEYS) as ResupplyPlanWarningCode[];
+    const engineOnly = [...ENGINE_ONLY_WARNING_CODES];
+
+    // Every code the engine or the adapter can emit is classified exactly once.
+    // A new code that nobody classified — or a code quietly deleted — fails here,
+    // so it cannot reach a Norwegian reader as an English sentence.
+    expect([...localised, ...engineOnly].sort()).toEqual([...ALL_CODES].sort());
+    expect(new Set([...localised, ...engineOnly]).size).toBe(ALL_CODES.length);
+
+    for (const code of localised) {
+      const key = LOCALISED_WARNING_KEYS[code]!;
+      expect(noStrings[key].trim(), `no: ${code}`).not.toBe('');
+      expect(enStrings[key].trim(), `en: ${code}`).not.toBe('');
+
+      const textNo = localisedWarningText(warningFor(code), no, FACTS);
+      const textEn = localisedWarningText(warningFor(code), en, FACTS);
+      expect(textNo, `no: ${code}`).toBeTruthy();
+      expect(textEn, `en: ${code}`).toBeTruthy();
+      // No unfilled placeholder, no leftover English sentence, and the two
+      // languages really differ — proof both dictionaries were read.
+      expect(textNo).not.toContain('{');
+      expect(textEn).not.toContain('{');
+      expect(textNo).not.toBe(warningFor(code).message);
+      expect(textEn).not.toBe(warningFor(code).message);
+      expect(textNo).not.toBe(textEn);
+    }
+
+    // Everything else deliberately stays in the engine block: `null`, never the
+    // engine's English prose as a fallback.
+    for (const code of engineOnly) {
+      expect(localisedWarningText(warningFor(code), no, FACTS), code).toBeNull();
+      expect(localisedWarningText(warningFor(code), en, FACTS), code).toBeNull();
+    }
+  });
+
+  it('carries the closed date and the bridged distance on the warning instead of parsing the sentence', () => {
+    // Arrival at 51 km on 10 km/day from Tuesday 19 May 2026 is Sunday the 24th,
+    // and this shop is shut on Sundays.
+    const closedProfile: UserProfile = { ...PROFILE, dailyKm: 10, startDate: '2026-05-19' };
+    const shop = candidate('supermarket', 'Joker Otta', 51_000, {
+      openingHours: 'Mo-Sa 09:00-17:00',
+      hoursRecorded: true,
+    });
+    const closedData = dataFor(trip(closedProfile), [shop]);
+    const closure = closedData.data.plan.legs
+      .flatMap((leg) => leg.warningDetails)
+      .find(
+        (warning) =>
+          warning.code === 'sunday-closed-only-option' ||
+          warning.code === 'closed-check-alternatives',
+      );
+    expect(closure?.date).toBe('2026-05-24');
+
+    const closedNo = buildResupplyView(closedData, no);
+    expect(
+      closedNo.warnings.some(
+        (warning) => warning.text.includes('Joker Otta') && warning.text.includes('24. mai 2026'),
+      ),
+    ).toBe(true);
+    const closedEn = buildResupplyView(closedData, en);
+    expect(
+      closedEn.warnings.some(
+        (warning) => warning.text.includes('Joker Otta') && warning.text.includes('24 May 2026'),
+      ),
+    ).toBe(true);
+
+    // Two legs that do not meet: the bridged distance is the plan's own figure.
+    const leg = (id: string, from: LonLat, to: LonLat) => ({
+      id,
+      points: [from, to].map((point) => ({ lon: point.lon, lat: point.lat })),
+      provenance: [],
+      distanceM: null,
+      ascentM: null,
+      descentM: null,
+    });
+    const bridgedTrip: Trip = {
+      ...trip(),
+      legs: [
+        leg('leg-1', { lon: 10, lat: 62.5 }, { lon: 10.5, lat: 62.5 }),
+        leg('leg-2', { lon: 10.55, lat: 62.5 }, { lon: 11, lat: 62.5 }),
+      ],
+    };
+    const bridgedData = dataFor(bridgedTrip, [candidate('supermarket', 'Midt', 25_000)]);
+    const bridged = bridgedData.data.plan.warningDetails.find(
+      (warning) => warning.code === 'bridged-legs',
+    );
+    expect(bridged?.km).toBeGreaterThan(2);
+
+    const bridgedNo = buildResupplyView(bridgedData, no);
+    const figure = no.format.number(bridged!.km!, { maximumFractionDigits: 1 });
+    expect(
+      bridgedNo.warnings.some(
+        (warning) => warning.text.includes('rett linje') && warning.text.includes(figure),
+      ),
+    ).toBe(true);
+    const bridgedEn = buildResupplyView(bridgedData, en);
+    expect(bridgedEn.warnings.some((warning) => warning.text.includes('straight line'))).toBe(true);
+    // The English engine sentence is never what the localised warning says.
+    for (const warning of [...bridgedNo.warnings, ...closedNo.warnings]) {
+      expect(warning.text).not.toMatch(/do not meet|estimated arrival date/i);
+    }
+  });
+
+  it('keeps the plan’s prose list and its structured list in step', () => {
+    const plan: ResupplyPlan = planResupplyForTrip(trip(), [
+      candidate('supermarket', 'Joker A', 300),
+      candidate('fuel', 'Uno-X', 900),
+    ]);
+    expect(plan.warnings).toEqual(plan.warningDetails.map((warning) => warning.message));
+    for (const leg of plan.legs) {
+      expect(leg.warnings).toEqual(leg.warningDetails.map((warning) => warning.message));
+    }
   });
 });

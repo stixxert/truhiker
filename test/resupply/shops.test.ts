@@ -1,8 +1,10 @@
 /**
  * The bundled shop index — parsing, the corridor query, and the loader.
  *
- * Every test here is offline. The committed `data/shops.osm.bin` is read from
- * disk, so the numbers asserted are the numbers the app will see.
+ * Every test here is offline. The generated `data/shops.osm.bin` (build output,
+ * never committed — D24) is read from disk, so the numbers asserted are the
+ * numbers the app will see. `npm run verify` builds it first; a bare clone
+ * needs the one-off step in README.md.
  */
 
 import { createHash } from 'node:crypto';
@@ -213,6 +215,73 @@ describe('loadShopIndex — fetch twice, parse offline', () => {
 
     const truncated = new Uint8Array(committedBuffer().slice(0, 40));
     expect(reasonOf(truncated)).toBe('truncated');
+  });
+});
+
+describe('loadShopIndex — a server that stops answering', () => {
+  it('bounds both requests, and a stall fails with a message instead of hanging', async () => {
+    const buffer = committedBuffer();
+
+    // Every request carries a deadline. Bound to 20 ms here so the timeout path is
+    // exercised without a 15-second wait; the default is asserted by the constant.
+    const signals: Array<AbortSignal | undefined> = [];
+    const answering = (async (input: string | URL | Request, init?: RequestInit) => {
+      signals.push(init?.signal as AbortSignal | undefined);
+      return String(input) === SHOP_PROVENANCE_PATH
+        ? new Response('gone', { status: 404 })
+        : new Response(buffer);
+    }) as unknown as typeof fetch;
+    await loadShopIndex(answering, { timeoutMs: 20 });
+    expect(signals).toHaveLength(2);
+    for (const signal of signals) expect(signal).toBeInstanceOf(AbortSignal);
+
+    // The artefact request accepts the connection and never answers.
+    let stalled: AbortSignal | undefined;
+    const stall = ((input: string | URL | Request, init?: RequestInit) => {
+      if (String(input) === SHOP_PROVENANCE_PATH) {
+        return Promise.resolve(new Response('gone', { status: 404 }));
+      }
+      const signal = init?.signal;
+      if (!signal) throw new Error('the index request was given no deadline');
+      stalled = signal as AbortSignal;
+      return new Promise<Response>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject((signal as AbortSignal).reason), { once: true });
+      });
+    }) as unknown as typeof fetch;
+
+    const error = await loadShopIndex(stall, { timeoutMs: 20 }).catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe(
+      `shop index fetch failed: no response within 20 ms from ${SHOP_INDEX_PATH}`,
+    );
+    expect(((error as Error).cause as Error | undefined)?.name).toBe('TimeoutError');
+    expect(stalled?.aborted).toBe(true);
+
+    // The same deadline covers the body: headers that arrive and then stop moving
+    // is the half-open stream this bounds, not a successful response.
+    const haltBody = ((input: string | URL | Request, init?: RequestInit) => {
+      if (String(input) === SHOP_PROVENANCE_PATH) {
+        return Promise.resolve(new Response('gone', { status: 404 }));
+      }
+      const signal = init?.signal;
+      if (!signal) throw new Error('the index request was given no deadline');
+      return Promise.resolve({
+        ok: true,
+        arrayBuffer: () =>
+          new Promise<ArrayBuffer>((_resolve, reject) => {
+            signal.addEventListener('abort', () => reject((signal as AbortSignal).reason), {
+              once: true,
+            });
+          }),
+      } as unknown as Response);
+    }) as unknown as typeof fetch;
+    await expect(loadShopIndex(haltBody, { timeoutMs: 20 })).rejects.toThrow(
+      /no response within 20 ms/,
+    );
+
+    // A failure, not "no index": nothing is cached, so the panel's retry runs the
+    // loader again and a working server still yields the full index.
+    expect((await loadShopIndex(answering, { timeoutMs: 20 })).count).toBe(8571);
   });
 });
 

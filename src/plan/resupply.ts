@@ -316,6 +316,11 @@ export function parseOpeningHours(hours: string): DayRule[] | null {
  * when the Date carries one; a Date at exactly midnight is treated as a
  * date-only query ("is it open at all that day"). Day 0 is Sunday.
  *
+ * Rules are evaluated in order and the last one that matches wins, which is how
+ * OSM reads them: `Mo-Su 09:00-18:00; Su off` is closed on Sunday, even though
+ * the first rule names Sunday. An `off` rule carries an empty interval list and
+ * therefore closes the whole day it names.
+ *
  * Note: OSM defines `Su` as Sunday, so `Tu-Su` **includes** Sunday. A
  * `Mo-Sa` shop is the one that is closed on Sunday.
  */
@@ -336,57 +341,69 @@ export function openAt(
       date.getMilliseconds() === 0
     );
   const minutes = date.getHours() * 60 + date.getMinutes();
-  let open = false;
+  // The verdict of the last rule that matched; `null` while none has.
+  let verdict: 'open' | 'closed' | null = null;
   for (const rule of rules) {
     const today = rule.days.has(day);
     const yesterday = rule.days.has(previousDay);
+    if (rule.intervals.length === 0) {
+      // `off` / `closed`: the whole day, and it revokes an earlier `open`.
+      if (today) verdict = 'closed';
+      continue;
+    }
     for (const [from, to] of rule.intervals) {
+      let matches: boolean;
       if (from <= to) {
-        if (!timeKnown) {
-          if (today) return 'open';
-          continue;
-        }
-        if (today && minutes >= from && minutes < to) open = true;
-        continue;
+        matches = today && (!timeKnown || (minutes >= from && minutes < to));
+      } else {
+        // Overnight interval (e.g. Fr 22:00-02:00): the early hours belong to
+        // the previous day's rule, which is how OSM reads it.
+        matches = timeKnown
+          ? (today && minutes >= from) || (yesterday && minutes < to)
+          : today || yesterday;
       }
-      // Overnight interval (e.g. Fr 22:00-02:00): the early hours belong to
-      // the previous day's rule, which is how OSM reads it.
-      if (!timeKnown) {
-        if (today || yesterday) return 'open';
-        continue;
+      if (matches) {
+        verdict = 'open';
+        break;
       }
-      if (today && minutes >= from) open = true;
-      if (yesterday && minutes < to) open = true;
     }
   }
   // A day not named by any rule is closed (OSM semantics).
-  return open ? 'open' : 'closed';
+  return verdict === 'open' ? 'open' : 'closed';
 }
 
 // ---------------------------------------------------------------------------
 // Plan model
 // ---------------------------------------------------------------------------
 
-type WarningSeverity = 'info' | 'warning' | 'critical';
+export type WarningSeverity = 'info' | 'warning' | 'critical';
 
-type ResupplyWarningCode =
-  | 'no-resupply'
-  | 'gap-exceeds-max-carry'
-  | 'verify-hours'
-  | 'unverified'
-  | 'stale-verification'
-  | 'hut-unknown-no-food'
-  | 'fuel-no-shop'
-  | 'post-not-food'
-  | 'selvbetjent-stock-not-guaranteed'
-  | 'cache-unknown-contents'
-  | 'point-off-route'
-  | 'point-beyond-end'
-  | 'sunday-closed-only-option'
-  | 'closed-check-alternatives'
-  | 'mail-drop-ships-before-start'
-  | 'mail-drop-window-before-start'
-  | 'mail-drop-needs-start-date';
+/**
+ * Every code the plan engine can emit — a runtime list as well as a type, so a
+ * localisation table can be checked against it and a new code cannot reach a
+ * reader as nothing but an English sentence.
+ */
+export const RESUPPLY_WARNING_CODES = [
+  'no-resupply',
+  'gap-exceeds-max-carry',
+  'verify-hours',
+  'unverified',
+  'stale-verification',
+  'hut-unknown-no-food',
+  'fuel-no-shop',
+  'post-not-food',
+  'selvbetjent-stock-not-guaranteed',
+  'cache-unknown-contents',
+  'point-off-route',
+  'point-beyond-end',
+  'sunday-closed-only-option',
+  'closed-check-alternatives',
+  'mail-drop-ships-before-start',
+  'mail-drop-window-before-start',
+  'mail-drop-needs-start-date',
+] as const;
+
+export type ResupplyWarningCode = (typeof RESUPPLY_WARNING_CODES)[number];
 
 export interface ResupplyWarning {
   readonly code: ResupplyWarningCode;
@@ -394,6 +411,12 @@ export interface ResupplyWarning {
   readonly message: string;
   readonly pointId?: string;
   readonly legId?: string;
+  /**
+   * The ISO day (`YYYY-MM-DD`) the warning is about, for the warnings that name
+   * an estimated arrival date. Carried here so a caller showing a localised
+   * sentence never has to parse the English `message` for it.
+   */
+  readonly date?: string;
 }
 
 type StopKind = ResupplyKind | 'start' | 'end';
@@ -562,7 +585,7 @@ export function planResupply(
     code: ResupplyWarningCode,
     severity: WarningSeverity,
     message: string,
-    extra: { pointId?: string; legId?: string } = {},
+    extra: { pointId?: string; legId?: string; date?: string } = {},
   ): ResupplyWarning => {
     const warning = { code, severity, message, ...extra };
     warnings.push(warning);
@@ -826,7 +849,7 @@ export function planResupply(
               'critical',
               `${to.id}: closed on the estimated arrival date ${to.arrivalDate} and it is ` +
                 `the only option within ${Math.round(alternativeWindowM / 1000)} km — plan around it`,
-              { legId: id, pointId: to.point.id },
+              { legId: id, pointId: to.point.id, date: to.arrivalDate },
             ),
           );
         } else {
@@ -836,7 +859,7 @@ export function planResupply(
               'warning',
               `${to.id}: closed on the estimated arrival date ${to.arrivalDate}; ` +
                 `alternatives exist nearby — check hours`,
-              { legId: id, pointId: to.point.id },
+              { legId: id, pointId: to.point.id, date: to.arrivalDate },
             ),
           );
         }

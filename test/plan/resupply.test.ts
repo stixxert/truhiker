@@ -93,6 +93,27 @@ describe('opening hours', () => {
     expect(rules).toHaveLength(1);
     expect([...rules![0]!.days].sort()).toEqual([0, 1, 3, 5, 6]);
   });
+
+  it('lets a later rule revoke an earlier one, so `Su off` closes a Sunday the first rule opened', () => {
+    const sundayNoon = new Date(2026, 4, 17, 12, 0);
+    const mondayNoon = new Date(2026, 4, 18, 12, 0);
+    const sundayDateOnly = new Date(2026, 4, 17, 0, 0);
+    const hours = { hours: 'Mo-Su 09:00-18:00; Su off' };
+    expect(openAt(hours, sundayNoon)).toBe('closed');
+    expect(openAt(hours, sundayDateOnly)).toBe('closed');
+    expect(openAt(hours, mondayNoon)).toBe('open');
+
+    // The verdict is order-sensitive: the same two rules the other way round
+    // reopen Sunday, which is what OSM's "last matching rule wins" means.
+    expect(openAt({ hours: 'Su off; Mo-Su 09:00-18:00' }, sundayNoon)).toBe('open');
+    // A later `off` also closes an overnight interval that reaches into its day.
+    expect(openAt({ hours: 'Fr 22:00-02:00; Sa off' }, new Date(2026, 4, 16, 1, 0))).toBe('closed');
+    expect(openAt({ hours: 'Fr 22:00-02:00; Sa off' }, new Date(2026, 4, 15, 23, 0))).toBe('open');
+    // An `off` for a day it does not name changes nothing.
+    expect(openAt({ hours: 'Mo-Su 09:00-18:00; Su off' }, mondayNoon)).toBe('open');
+    // Still never "open" when the rules cannot be understood.
+    expect(openAt({ hours: 'Mo-Su 09:00-18:00; Su sunrise-sunset' }, sundayNoon)).toBe('unknown');
+  });
 });
 
 describe('carry-all gap analysis', () => {

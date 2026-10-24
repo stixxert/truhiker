@@ -37,7 +37,9 @@ import {
   type ResupplyKind,
   type ResupplyPoint,
   type ResupplyWarning,
+  type ResupplyWarningCode,
   type SupportModel,
+  type WarningSeverity,
 } from '../plan/resupply';
 import type { ResupplyCandidate } from './index';
 
@@ -50,6 +52,47 @@ const FALLBACK_DAILY_KM = 25;
 // ---------------------------------------------------------------------------
 // Output shapes
 // ---------------------------------------------------------------------------
+
+/**
+ * Codes this adapter adds to the plan engine's own. The aggregate sentences (a
+ * hut is no food source, hours are unverified, …) are the adapter's, so they
+ * get their own codes rather than borrowing an engine one that means something
+ * narrower. A runtime list as well as a type, so the view's localisation table
+ * can be checked for completeness.
+ */
+export const RESUPPLY_ADAPTER_WARNING_CODES = [
+  'daily-km-fallback',
+  'bridged-legs',
+  'huts-sell-food',
+  'huts-not-food',
+  'unmanned-fuel',
+  'staffed-fuel',
+  'hours-unverified',
+  'point-detour',
+] as const;
+
+export type ResupplyAdapterWarningCode = (typeof RESUPPLY_ADAPTER_WARNING_CODES)[number];
+
+export type ResupplyPlanWarningCode = ResupplyWarningCode | ResupplyAdapterWarningCode;
+
+/**
+ * A warning as data: the code and the figures its sentence is about, alongside
+ * the engine's English prose. A view switches on `code`; it never matches the
+ * prose, because a reworded sentence would silently drop a localised warning
+ * while the numbers stayed.
+ */
+export interface ResupplyPlanWarning {
+  readonly code: ResupplyPlanWarningCode;
+  readonly severity: WarningSeverity;
+  /** The engine's own sentence, verbatim, for the collapsed traceability block. */
+  readonly message: string;
+  readonly pointId?: string;
+  readonly legId?: string;
+  /** ISO day (`YYYY-MM-DD`) an estimated arrival date falls on, where relevant. */
+  readonly date?: string;
+  /** A distance figure in kilometres, where the sentence quotes one. */
+  readonly km?: number;
+}
 
 /** One end of a leg: the route start/end, or a resupply candidate. */
 export interface ResupplyAnchor {
@@ -75,6 +118,8 @@ export interface ResupplyLeg {
   /** True when `days` exceeds `maxCarryDays`: the food will not fit the plan. */
   readonly carryDanger: boolean;
   readonly warnings: readonly string[];
+  /** The same warnings with their codes and figures; see `ResupplyPlanWarning`. */
+  readonly warningDetails: readonly ResupplyPlanWarning[];
 }
 
 /** The worst continuous stretch between usable resupply points. */
@@ -103,7 +148,13 @@ export interface ResupplyGap {
 
 export interface ResupplyPlan {
   readonly legs: readonly ResupplyLeg[];
+  /**
+   * The plan's own sentences, in order, for the collapsed engine block. The
+   * view does not read these for meaning: `warningDetails` carries the codes.
+   */
   readonly warnings: string[];
+  /** Every plan-level warning, structured. Same set as `warnings`. */
+  readonly warningDetails: readonly ResupplyPlanWarning[];
   readonly totalFoodKg: number;
   readonly totalCostNok: number;
 
@@ -330,19 +381,32 @@ export function planResupplyForTrip(
 
   // --- Honesty: what we are deliberately *not* counting ---------------------
 
-  const warnings: string[] = [];
+  const warnings: ResupplyPlanWarning[] = [];
+  const say = (
+    code: ResupplyPlanWarningCode,
+    severity: WarningSeverity,
+    message: string,
+    extra: { pointId?: string; legId?: string; date?: string; km?: number } = {},
+  ): void => {
+    warnings.push({ code, severity, message, ...extra });
+  };
 
   if (!(trip.profile.dailyKm > 0)) {
-    warnings.push(
+    say(
+      'daily-km-fallback',
+      'warning',
       `No daily distance is set in the trip settings; the plan assumes ` +
         `${FALLBACK_DAILY_KM} km per day, so every day count below follows from that guess.`,
     );
   }
 
   if (bridgedM > 500) {
-    warnings.push(
+    say(
+      'bridged-legs',
+      'warning',
       `The trip's legs do not meet: ${(bridgedM / 1000).toFixed(1)} km is bridged straight ` +
         'between them. That distance is counted as walking, and it is probably not a path.',
+      { km: bridgedM / 1000 },
     );
   }
 
@@ -350,14 +414,18 @@ export function planResupplyForTrip(
   if (huts.length > 0) {
     const listed = listOf(huts.map((h) => h.name));
     if (hutsSellFood) {
-      warnings.push(
+      say(
+        'huts-sell-food',
+        'warning',
         `${plural(huts.length, 'hut', 'huts')} treated as ${
           huts.length === 1 ? 'a food source' : 'food sources'
         } at your request (${listed}) — no food is confirmed, the ` +
           'betjent/selvbetjent/ubetjent class is not machine-readable. Carry a reserve.',
       );
     } else {
-      warnings.push(
+      say(
+        'huts-not-food',
+        'warning',
         `${plural(huts.length, 'hut', 'huts')} on the route (${listed}) ${
           huts.length === 1 ? 'is' : 'are'
         } treated as NO food source: hut provisioning is not machine-readable. ` +
@@ -368,14 +436,18 @@ export function planResupplyForTrip(
 
   const unmannedFuel = sorted.filter((c) => c.kind === 'fuel' && c.unmanned === true);
   if (unmannedFuel.length > 0) {
-    warnings.push(
+    say(
+      'unmanned-fuel',
+      'warning',
       `${plural(unmannedFuel.length, 'fuel station is', 'fuel stations are')} flagged unmanned ` +
         `(${listOf(unmannedFuel.map((c) => c.name))}) and count for nothing — check the station.`,
     );
   }
   const staffedFuel = sorted.filter((c) => c.kind === 'fuel' && c.unmanned !== true);
   if (staffedFuel.length > 0) {
-    warnings.push(
+    say(
+      'staffed-fuel',
+      'warning',
       `${plural(staffedFuel.length, 'fuel station is', 'fuel stations are')} assumed staffed ` +
         '(not flagged unmanned in OSM) — confirm it is not a card-only automat, and expect ' +
         'convenience-grade food only.',
@@ -384,7 +456,9 @@ export function planResupplyForTrip(
 
   const postPoints = sorted.filter((c) => c.kind === 'post' || c.kind === 'parcel');
   if (postPoints.length > 0 && support !== 'mail-drops') {
-    warnings.push(
+    say(
+      'post-not-food',
+      'info',
       postPoints.length === 1
         ? '1 post or parcel point is not food — it is a mail-drop destination only. Switch to ' +
             'the mail-drop support model to use it.'
@@ -399,7 +473,9 @@ export function planResupplyForTrip(
     // The binary stores the *presence* of `opening_hours`, never the text, so no
     // bundled point can be called open. This is one warning, not one per point:
     // a city route has 200 shops and 200 copies would hide the real warnings.
-    warnings.push(
+    say(
+      'hours-unverified',
+      'info',
       hoursMissing === 0
         ? `None of the ${foodCandidates.length} resupply points is verified open: the bundled ` +
             'file records that OSM had opening_hours, but not what they are. Check before you ' +
@@ -412,7 +488,9 @@ export function planResupplyForTrip(
 
   const detours = foodCandidates.filter((c) => c.detourM > detourPenaltyM);
   if (detours.length > 0) {
-    warnings.push(
+    say(
+      'point-detour',
+      'warning',
       `${plural(detours.length, 'resupply point is', 'resupply points are')} more than ` +
         `${Math.round(detourPenaltyM / 1000)} km off the route (${listOf(
           detours.map((c) => `${c.name} ${(c.detourM / 1000).toFixed(1)} km`),
@@ -468,32 +546,37 @@ export function planResupplyForTrip(
     };
   };
 
-  const planWarningsFor = (legId: string): string[] =>
-    plan.warnings
-      .filter((warning) => warning.legId === legId && !AGGREGATED_CODES.has(warning.code))
-      .map(warningText);
+  const planWarningsFor = (legId: string): ResupplyPlanWarning[] =>
+    plan.warnings.filter(
+      (warning) => warning.legId === legId && !AGGREGATED_CODES.has(warning.code),
+    );
 
-  const legs: ResupplyLeg[] = plan.legs.map((leg) => ({
-    id: leg.id,
-    from: anchorOf(leg.from),
-    to: anchorOf(leg.to),
-    distanceM: leg.distanceM,
-    days: leg.days,
-    kcal: leg.kcal,
-    foodKg: leg.foodKg,
-    costNok: leg.costNok,
-    carryDanger: leg.days > maxCarryDays,
-    warnings: planWarningsFor(leg.id),
-  }));
+  const legs: ResupplyLeg[] = plan.legs.map((leg) => {
+    const details = planWarningsFor(leg.id);
+    return {
+      id: leg.id,
+      from: anchorOf(leg.from),
+      to: anchorOf(leg.to),
+      distanceM: leg.distanceM,
+      days: leg.days,
+      kcal: leg.kcal,
+      foodKg: leg.foodKg,
+      costNok: leg.costNok,
+      carryDanger: leg.days > maxCarryDays,
+      warnings: details.map((warning) => warning.message),
+      warningDetails: details,
+    };
+  });
 
   // Plan-level warnings, minus the aggregated ones. A leg warning is repeated
   // here on purpose: the plan-level list is what the UI shows when no leg is
   // selected, and a carry warning hidden inside a leg is a warning not seen.
+  const seen = new Set<string>();
   for (const warning of plan.warnings) {
     if (AGGREGATED_CODES.has(warning.code)) continue;
-    const text = warningText(warning);
-    if (warnings.includes(text)) continue;
-    warnings.push(text);
+    if (seen.has(warning.message)) continue;
+    seen.add(warning.message);
+    warnings.push(warning);
   }
 
   const gap = plan.gap
@@ -509,7 +592,8 @@ export function planResupplyForTrip(
 
   return {
     legs,
-    warnings,
+    warnings: warnings.map((warning) => warning.message),
+    warningDetails: warnings,
     totalFoodKg: plan.totals.foodKg,
     totalCostNok: plan.totals.costNok,
     routeDistanceM,

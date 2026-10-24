@@ -19,7 +19,14 @@
 
 import type { LonLat } from '../core/geo';
 import { formatDay, type I18n, type MessageKey } from '../i18n';
-import { candidateKey, type ResupplyCandidate, type ResupplyLeg, type ResupplyPlan } from '../resupply';
+import {
+  candidateKey,
+  type ResupplyCandidate,
+  type ResupplyLeg,
+  type ResupplyPlan,
+  type ResupplyPlanWarning,
+  type ResupplyPlanWarningCode,
+} from '../resupply';
 
 /** Everything a successful corridor query produced, plus its provenance. */
 interface ResupplyData {
@@ -392,7 +399,9 @@ function buildRow(
     : null;
 
   const kindLabel = i18n.t(KIND_KEYS[candidate.kind]);
-  const distanceLabel = i18n.format.distance(candidate.alongRouteM);
+  const distanceLabel = i18n.t('supply.alongValue', {
+    distance: i18n.format.distance(candidate.alongRouteM),
+  });
   const detourLabel =
     candidate.detourM < 60
       ? i18n.t('supply.detourOnRoute')
@@ -467,81 +476,163 @@ function buildLeg(leg: ResupplyLeg, maxCarryDays: number, i18n: ViewI18n): Resup
 }
 
 /**
+ * Codes this view renders in the user's own language, and the reviewed sentence
+ * each one uses. Two codes share a sentence on purpose: the engine separates
+ * "the only option is closed" from "closed, but there are alternatives", and
+ * the reader needs the same fact either way.
+ *
+ * A code that is not here is deliberately left to the collapsed engine block
+ * (see `ENGINE_ONLY_WARNING_CODES`). Nothing falls back to the engine's English
+ * prose: matching the sentence is what used to erase a Norwegian warning while
+ * its numbers stayed.
+ */
+export const LOCALISED_WARNING_KEYS: Readonly<
+  Partial<Record<ResupplyPlanWarningCode, MessageKey>>
+> = {
+  'daily-km-fallback': 'supply.warnDailyKmFallback',
+  'bridged-legs': 'supply.warnBridged',
+  'staffed-fuel': 'supply.warnStaffedFuel',
+  'sunday-closed-only-option': 'supply.warnClosedOnArrival',
+  'closed-check-alternatives': 'supply.warnClosedOnArrival',
+};
+
+/**
+ * Codes with no localised sentence, by decision: they stay in the engine's own
+ * English inside the collapsed block, where their figures are shown too. The
+ * list is explicit so a code has to be classified — a new one, from the engine
+ * or the adapter, fails the resupply view test instead of quietly reaching a
+ * Norwegian reader as an English sentence.
+ */
+export const ENGINE_ONLY_WARNING_CODES: readonly ResupplyPlanWarningCode[] = [
+  'no-resupply',
+  'gap-exceeds-max-carry',
+  'verify-hours',
+  'unverified',
+  'stale-verification',
+  'hut-unknown-no-food',
+  'fuel-no-shop',
+  'post-not-food',
+  'selvbetjent-stock-not-guaranteed',
+  'cache-unknown-contents',
+  'point-off-route',
+  'point-beyond-end',
+  'mail-drop-ships-before-start',
+  'mail-drop-window-before-start',
+  'mail-drop-needs-start-date',
+  'huts-sell-food',
+  'huts-not-food',
+  'unmanned-fuel',
+  'hours-unverified',
+  'point-detour',
+];
+
+/** The plan data a localised sentence needs where the warning carries no figures. */
+export interface WarningFacts {
+  readonly dailyDistanceKm: number;
+  readonly candidates: readonly ResupplyCandidate[];
+  /** The destination of the leg a leg-warning belongs to. */
+  readonly legEndName?: string;
+}
+
+/**
+ * The localised sentence for a warning, or `null` when the code is one the
+ * engine block keeps. No figure is parsed out of `message`: every one comes from
+ * the warning's own fields or from the plan, so rewording an engine sentence
+ * cannot drop a localised warning while its numbers stay on screen.
+ */
+export function localisedWarningText(
+  warning: ResupplyPlanWarning,
+  i18n: ViewI18n,
+  facts: WarningFacts,
+): string | null {
+  switch (warning.code) {
+    case 'daily-km-fallback':
+      return i18n.t('supply.warnDailyKmFallback', {
+        km: i18n.format.number(facts.dailyDistanceKm, { maximumFractionDigits: 1 }),
+      });
+    case 'bridged-legs':
+      if (warning.km === undefined) return null;
+      return i18n.t('supply.warnBridged', {
+        km: i18n.format.number(warning.km, { maximumFractionDigits: 1 }),
+      });
+    case 'staffed-fuel': {
+      const staffed = facts.candidates
+        .filter((candidate) => candidate.kind === 'fuel' && candidate.unmanned !== true)
+        .sort((a, b) => a.alongRouteM - b.alongRouteM);
+      if (staffed.length === 0) return null;
+      return i18n.t('supply.warnStaffedFuel', {
+        names: listOf(staffed.map((candidate) => candidate.name), i18n),
+        count: i18n.format.number(staffed.length, { maximumFractionDigits: 0 }),
+      });
+    }
+    case 'sunday-closed-only-option':
+    case 'closed-check-alternatives':
+      if (!warning.date || !facts.legEndName) return null;
+      return i18n.t('supply.warnClosedOnArrival', {
+        name: facts.legEndName,
+        date: formatDay(warning.date, i18n.locale),
+      });
+    default:
+      return null;
+  }
+}
+
+/**
  * The things this plan refuses to let a user assume, said in the user's
  * language. Counts come from the candidates and the plan's own flags; no
  * arithmetic here is re-derived.
  *
- * Four of them (`supply.warnDailyKmFallback`, `supply.warnBridged`,
- * `supply.warnStaffedFuel`, `supply.warnClosedOnArrival`) are contractual: they
- * qualify every number below them, so they may not exist only as an English
- * sentence inside the collapsed engine block. The plan adapter exposes no
- * warning codes, so each one is recognised from the engine's own sentence (and
- * from the plan data the sentence is about) — the text is never re-measured and
- * a warning is never shown without the sentence that produced it.
+ * The contractual ones — `daily-km-fallback`, `bridged-legs`, `staffed-fuel` and
+ * the two `closed-*` codes behind `supply.warnClosedOnArrival` — qualify every
+ * number below them, so they may not exist only as an English sentence inside
+ * the collapsed engine block. Each is selected by its **code** and its figures
+ * travel with the warning; the engine's prose is never read for meaning.
  */
 function buildWarnings(data: ResupplyData, i18n: ViewI18n): ResupplyWarningView[] {
   const { plan, candidates } = data;
-  const engine = plan.warnings;
   const out: ResupplyWarningView[] = [];
+  const facts: WarningFacts = { dailyDistanceKm: plan.dailyDistanceKm, candidates };
+  const find = (code: ResupplyPlanWarningCode): ResupplyPlanWarning | undefined =>
+    plan.warningDetails.find((warning) => warning.code === code);
+  const push = (
+    warning: ResupplyPlanWarning | undefined,
+    severity: ResupplyWarningView['severity'],
+    legEndName?: string,
+  ): void => {
+    if (!warning) return;
+    const text = localisedWarningText(
+      warning,
+      i18n,
+      legEndName === undefined ? facts : { ...facts, legEndName },
+    );
+    if (text === null) return;
+    out.push({ severity, text });
+  };
 
   // D14: with no daily distance the engine assumes one for every day count.
-  if (engine.some((text) => /no daily distance is set/i.test(text))) {
-    out.push({
-      severity: 'warning',
-      text: i18n.t('supply.warnDailyKmFallback', {
-        km: i18n.format.number(plan.dailyDistanceKm, { maximumFractionDigits: 1 }),
-      }),
-    });
-  }
+  push(find('daily-km-fallback'), 'warning');
 
-  // Bridged legs: the distance is the engine's own number, taken from its
-  // sentence — the view does not re-walk the polyline.
-  const bridged = engine.find((text) => /bridged|do not meet/i.test(text));
-  const bridgedKm = bridged ? /([\d]+(?:[.,]\d+)?)\s*km/i.exec(bridged) : null;
-  if (bridgedKm) {
-    out.push({
-      severity: 'warning',
-      text: i18n.t('supply.warnBridged', {
-        km: i18n.format.number(Number(bridgedKm[1].replace(',', '.')), {
-          maximumFractionDigits: 1,
-        }),
-      }),
-    });
-  }
+  // Bridged legs: the distance is the plan's own figure, carried on the warning.
+  push(find('bridged-legs'), 'warning');
 
   // D13: an unflagged station is assumed staffed, and the assumption is named.
-  if (engine.some((text) => /assumed staffed/i.test(text))) {
-    const staffed = candidates
-      .filter((candidate) => candidate.kind === 'fuel' && candidate.unmanned !== true)
-      .sort((a, b) => a.alongRouteM - b.alongRouteM);
-    if (staffed.length > 0) {
-      out.push({
-        severity: 'warning',
-        text: i18n.t('supply.warnStaffedFuel', {
-          names: listOf(staffed.map((candidate) => candidate.name), i18n),
-          count: i18n.format.number(staffed.length, { maximumFractionDigits: 0 }),
-        }),
-      });
-    }
-  }
+  push(find('staffed-fuel'), 'warning');
 
-  // A shop closed on the estimated arrival date: the engine's own date, and the
-  // anchor of the leg whose warning names it.
+  // A shop closed on the estimated arrival date: the day is on the warning, the
+  // name is the destination of the leg the warning belongs to.
   const closed = new Set<string>();
   for (const leg of plan.legs) {
-    for (const text of leg.warnings) {
-      const match = /closed on the estimated arrival date (\d{4}-\d{2}-\d{2})/i.exec(text);
-      if (!match) continue;
-      const key = `${leg.to.name}@${match[1]}`;
+    for (const warning of leg.warningDetails) {
+      if (
+        warning.code !== 'sunday-closed-only-option' &&
+        warning.code !== 'closed-check-alternatives'
+      ) {
+        continue;
+      }
+      const key = `${leg.to.name}@${warning.date ?? ''}`;
       if (closed.has(key)) continue;
       closed.add(key);
-      out.push({
-        severity: 'warning',
-        text: i18n.t('supply.warnClosedOnArrival', {
-          name: leg.to.name,
-          date: formatDay(match[1], i18n.locale),
-        }),
-      });
+      push(warning, 'warning', leg.to.name);
     }
   }
 
